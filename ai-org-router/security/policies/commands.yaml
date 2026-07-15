@@ -1,0 +1,19 @@
+# Command gate, enforced by PreToolUse hook on every Bash call.
+block:
+  - pattern: "rm -rf /"
+  - pattern: "rm -rf ~"
+  - pattern: "chmod .* /etc"
+  - pattern: "(openssl enc|gpg -c|cryptsetup)"   # encryption utils = ransomware primitive
+  - pattern: "curl .*\\| *(ba)?sh"                # remote code execution
+  - pattern: "wget .*\\| *(ba)?sh"
+  - pattern: "nc -l"                              # reverse shells
+  - pattern: "history -c"                         # anti-forensics
+write_scope:
+  # writes allowed ONLY inside the claimed task's workspace
+  allow: ["${TASK_WORKSPACE}", "/tmp/agent-${TASK_ID}"]
+  deny:  ["/etc", "/usr", "~/.ssh", "~/.aws", "**/backup/**", "**/.git/objects/**"]
+network:
+  default: deny
+  allow_domains:
+    - api.anthropic.com
+    - registry.internal.local

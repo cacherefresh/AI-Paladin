@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RoutedTask",
+  "description": "The core contract every task in the system carries. Router, nodes, and audit log all read/write this shape.",
+  "type": "object",
+  "required": ["id", "created_at", "type", "input", "status", "routing"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "UUID for the task, used to correlate logs, memory writes, and node claims."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "requested_by": {
+      "type": "string",
+      "description": "User or upstream system that submitted the task (e.g. 'dev:alex', 'ci-pipeline')."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "code.generate",
+        "code.review",
+        "code.fix",
+        "docs.write",
+        "docs.summarize",
+        "data.transform",
+        "qa.answer",
+        "security.audit",
+        "ops.task",
+        "other"
+      ],
+      "description": "Coarse category used by the router's heuristics before any model is invoked."
+    },
+    "input": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": { "type": "string" },
+        "context_refs": {
+          "type": "array",
+          "description": "Pointers into the brain (vault notes, memory keys, repo paths) rather than inlined content, to keep tasks small.",
+          "items": { "type": "string" }
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "type": "string", "description": "File path or URI" }
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "required": ["tier", "reason"],
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["local", "escalated", "hybrid"],
+          "description": "hybrid = local model drafts, escalated tier reviews/finishes."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Short machine-generated explanation for audit (e.g. 'low local-model confidence: 0.42', 'flagged security.audit -> always escalate')."
+        },
+        "confidence_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Threshold used to decide local vs escalate for this task type."
+        },
+        "node_id": {
+          "type": "string",
+          "description": "ID of the node that claimed/executed this task."
+        },
+        "escalation_target": {
+          "type": "string",
+          "enum": ["claude-api", "claude-code-subagent", "none"],
+          "default": "none"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "claimed", "running", "needs_escalation", "completed", "failed", "blocked_by_hook"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "result": { "type": "string" },
+        "tokens_used": {
+          "type": "object",
+          "properties": {
+            "local": { "type": "integer" },
+            "cloud": { "type": "integer" }
+          }
+        },
+        "cost_estimate_usd": { "type": "number" }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "hooks_fired": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "security_flags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "log_ref": {
+          "type": "string",
+          "description": "Path or ID pointing to the full audit trail entry for this task."
+        }
+      }
+    }
+  }
+}

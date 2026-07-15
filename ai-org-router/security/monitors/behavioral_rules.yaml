@@ -1,0 +1,34 @@
+# Detection rules run against the agent event stream (schemas/event.schema.json).
+# Each rule -> severity + action. Surfaced live on the ops dashboard.
+rules:
+  - id: mass-file-touch
+    desc: ">200 file writes/renames in 60s (ransomware signature)"
+    severity: critical
+    action: kill_agent_and_alert
+  - id: extension-rewrite-spread
+    desc: "writes changing extensions across >20 files in 5m"
+    severity: critical
+    action: kill_agent_and_alert
+  - id: out-of-scope-path
+    desc: "any access attempt outside task workspace"
+    severity: high
+    action: block_and_flag
+  - id: fence-probing
+    desc: ">3 blocked-command retries in one task (agent testing the gates)"
+    severity: high
+    action: pause_agent_require_human
+  - id: unknown-egress
+    desc: "network attempt to non-allowlisted domain"
+    severity: high
+    action: block_and_flag
+  - id: credential-path-access
+    desc: "read attempt on ~/.ssh, ~/.aws, .env outside scope"
+    severity: critical
+    action: kill_agent_and_alert
+  - id: backup-tamper
+    desc: "any write/delete on backup or .git/objects paths"
+    severity: critical
+    action: kill_agent_and_alert
+triage:
+  # cheap on-prem job: local model summarizes anomaly clusters hourly
+  local_model_summary: true
