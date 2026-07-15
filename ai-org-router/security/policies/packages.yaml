@@ -1,0 +1,19 @@
+# Supply-chain gate. PreToolUse hook checks any `pip install`, `npm install`,
+# `cargo add`, etc. against this file BEFORE execution.
+policy:
+  default: block            # anything not listed requires human approval
+  require_pinned_version: true
+  require_checksum: true    # verify against lockfile / hash
+  block_install_from_url: true   # no `pip install git+http…`, no curl|bash
+allowlist:
+  pip:
+    - name: requests
+      version: "2.32.*"
+    - name: fastapi
+      version: "0.115.*"
+  npm: []
+approval:
+  # unlisted package -> task status becomes blocked_by_hook,
+  # approval request appears on ops dashboard with package, source, and reason
+  approvers: ["security-lead"]
+  log_all_requests: true

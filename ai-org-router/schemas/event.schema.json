@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentEvent",
+  "description": "One record per agent ACTION (tool call, command, file op, network attempt). This stream is what behavioral monitoring, the audit trail, and the security panel of both dashboards read. We monitor actions, not model internals.",
+  "type": "object",
+  "required": ["id", "ts", "task_id", "node_id", "actor", "action", "target", "decision"],
+  "properties": {
+    "id": { "type": "string" },
+    "ts": { "type": "string", "format": "date-time" },
+    "task_id": { "type": "string" },
+    "node_id": { "type": "string" },
+    "actor": {
+      "type": "object",
+      "required": ["tier"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["local", "escalated"] },
+        "agent": { "type": "string", "description": "e.g. 'ollama-worker', 'claude-code:security-reviewer'" }
+      }
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "bash.exec",
+        "file.read",
+        "file.write",
+        "file.rename",
+        "file.delete",
+        "net.request",
+        "pkg.install",
+        "tool.call",
+        "agent.spawn",
+        "agent.stop"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "description": "Command string, file path, domain, package name, or tool name."
+    },
+    "decision": {
+      "type": "object",
+      "required": ["outcome"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["allowed", "blocked", "flagged", "killed"] },
+        "gate": { "type": "string", "description": "Which hook/policy decided (e.g. 'pre_tool_use:commands.yaml#curl-pipe-sh')" },
+        "rule_id": { "type": "string", "description": "Behavioral rule that fired, if any (e.g. 'mass-file-touch')" },
+        "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"] }
+      }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "in_task_scope": { "type": "boolean" },
+        "retry_of_blocked": { "type": "boolean", "description": "True if this repeats a previously blocked action — fence-probing signal." }
+      }
+    }
+  }
+}

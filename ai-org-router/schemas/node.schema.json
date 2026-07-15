@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Node",
+  "description": "Heartbeat record each machine reports. The UI polls/subscribes to these.",
+  "type": "object",
+  "required": ["id", "role", "status", "last_heartbeat"],
+  "properties": {
+    "id": { "type": "string", "description": "e.g. 'desktop-01', 'laptop-alex'" },
+    "role": {
+      "type": "string",
+      "enum": ["dedicated-onprem", "dev-workstation", "cloud-proxy"],
+      "description": "dedicated-onprem = always-on worker; dev-workstation = opportunistic, may go offline; cloud-proxy = the escalation gateway itself."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["online", "offline", "busy", "degraded"]
+    },
+    "last_heartbeat": { "type": "string", "format": "date-time" },
+    "model": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "e.g. 'dev-mistral-2'" },
+        "backend": { "type": "string", "enum": ["ollama", "claude-api", "claude-code"] },
+        "context_window": { "type": "integer" }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "properties": {
+        "gpu": { "type": "string" },
+        "vram_gb": { "type": "number" },
+        "current_load_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "queue_depth": { "type": "integer" }
+      }
+    },
+    "current_task_id": { "type": ["string", "null"] }
+  }
+}
