@@ -1,0 +1,91 @@
+# =============================================================================
+# SUBAGENT ROSTER - the on-prem org chart
+# =============================================================================
+# The router is a company. Most work does not need the senior engineer, and
+# almost none of it needs the outside consultant. Cheap staff handle volume;
+# expensive staff handle depth.
+#
+# The economics are set by one equation: decode speed is memory-bandwidth
+# bound, so tokens/sec ~= bandwidth / model_bytes. A 45 MB model on the same
+# CPU as a 15 GB model is not "a bit faster" - it is ~300x faster. That is why
+# a small model can afford to sit in front of EVERY prompt, and the large one
+# cannot.
+#
+# SAFETY INVARIANT - the reason this is safe to ship:
+#   A subagent may only ADD protection. It can raise a match the deterministic
+#   gate missed; it can never clear one the gate found. No model sits in the
+#   path of a "yes, this may leave" decision. Models advise; hooks decide.
+# =============================================================================
+
+version: 1
+
+roster:
+
+  - id: sentry
+    role: semantic-gate
+    tier: 0
+    model: all-minilm:latest
+    backend: ollama-embed
+    size_mb: 45
+    budget_ms: 150          # runs on every prompt; over budget = skipped, not queued
+    measured_ms: 50         # batch-embedding a whole prompt's n-grams
+    enabled: true
+    description: >
+      Catches protected concepts the exact matcher misses because the wording
+      changed - "our proprietary price calculation logic" for "pricing engine".
+      Embeds every 1-4 word n-gram of the prompt in one batched call and scores
+      cosine similarity against the protected-term vectors, which are computed
+      once at startup and cached.
+    threshold: 0.50         # measured: paraphrase evasion 0.58-0.64, clean <= 0.32
+    generic_overlap_threshold: 0.75
+    # Raised bar for pairs whose only shared words are generic vocabulary
+    # ("list", "model", "engine"). Without it, "list comprehension" trips
+    # "customer list" at 0.63 - between two genuine paraphrases, so no single
+    # threshold can separate them. Structure does what a threshold cannot.
+    fails: open-to-strict   # unavailable -> deterministic gate alone, never weaker
+
+  - id: clerk
+    role: triage
+    tier: 1
+    model: qwen3:0.6b
+    backend: ollama
+    size_mb: 522
+    budget_ms: 1200
+    measured_ms: 371
+    measured_tok_s: 124     # vs 4.94 tok/s for the engineer, same CPU
+    enabled: true
+    description: >
+      Classifies each task into schemas/task.schema.json's type enum so the
+      router can apply per-type policy without waking the 24B model. Structured,
+      low-token, high-frequency work - exactly what a small model is good at.
+
+  - id: engineer
+    role: execution
+    tier: 2
+    model: devstral-small-2:latest      # dev-mistral-2
+    backend: ollama
+    size_mb: 15180
+    budget_ms: 180000
+    measured_tok_s: 4.94
+    enabled: true
+    description: >
+      The senior engineer. Reads code, plans, writes. Slow and expensive in
+      wall-clock terms, so it is only woken for work that genuinely needs it.
+
+  - id: consultant
+    role: escalation
+    tier: 3
+    model: BIG-AI
+    backend: simulated
+    enabled: true
+    description: >
+      The outside specialist. Only reachable when the rules engine has already
+      decided the payload may leave, and only after a human confirms.
+
+# Deterministic near-miss detection. No model involved - this is arithmetic,
+# and it catches the character-level evasion embeddings are bad at.
+typo_gate:
+  enabled: true
+  algorithm: normalised-levenshtein
+  min_similarity: 0.85      # "pricng engnie" vs "pricing engine"
+  max_gram_words: 4
