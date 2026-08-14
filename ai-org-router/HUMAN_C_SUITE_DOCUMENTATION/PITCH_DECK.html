@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI-Paladin</title>
+<style>
+:root{
+  /* Light business palette. Body copy is dark slate, emphasis is a deep
+     corporate blue - the two read as clearly different weights of the same
+     voice, on screen and on paper. */
+  --bg:#ffffff; --panel:#f4f7fb; --panel2:#eef3f9;
+  --ink:#0f1c2e;        /* headings - near-black navy */
+  --body:#24344a;       /* body copy - dark slate */
+  --bold:#0b4f9e;       /* emphasis - business blue */
+  --muted:#3d4f66; --dim:#66788f; --line:#d7e0ea;
+  --green:#12703a; --amber:#a2590a; --red:#b3261e;
+  --blue:#0b4f9e; --purple:#5b21b6; --cyan:#0b6d80;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--body);font-family:var(--sans);
+     -webkit-font-smoothing:antialiased;counter-reset:slide}
+.deck{max-width:1180px;margin:0 auto;padding:0 24px}
+.slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+       padding:76px 0;border-bottom:1px solid var(--line);position:relative;
+       counter-increment:slide}
+.slide::after{content:counter(slide,decimal-leading-zero);position:absolute;
+  top:26px;right:0;font-family:var(--mono);font-size:12px;color:var(--dim);
+  letter-spacing:1px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:2.4px;
+        text-transform:uppercase;color:var(--bold);margin-bottom:18px;font-weight:600}
+h1{font-size:clamp(38px,6.4vw,74px);line-height:1.03;margin:0 0 22px;
+   letter-spacing:-1.6px;font-weight:800;color:var(--ink)}
+h2{font-size:clamp(28px,4.1vw,46px);line-height:1.12;margin:0 0 20px;
+   letter-spacing:-1px;font-weight:750;color:var(--ink)}
+h3{font-size:19px;margin:0 0 10px;font-weight:700;color:var(--ink)}
+p{font-size:17.5px;line-height:1.62;color:var(--body);max-width:74ch;margin:0 0 16px}
+p.lead{font-size:21px;color:var(--body);font-weight:450}
+strong{color:var(--bold);font-weight:700}
+em{color:var(--muted)}
+code{font-family:var(--mono);font-size:.9em;background:#e8eff7;padding:2px 6px;
+     border-radius:4px;color:#0a4585}
+.hr{height:1px;background:var(--line);margin:26px 0}
+
+.big{font-family:var(--mono);font-size:clamp(24px,3.6vw,40px);line-height:1.35;
+     font-weight:700;color:var(--ink);letter-spacing:-.5px}
+.rule{border:1px solid #b9dcc6;background:linear-gradient(180deg,#f2fbf5,#e9f7ee);
+      border-radius:16px;padding:34px 38px;margin:8px 0 26px}
+.rule .lock{color:var(--green);font-family:var(--mono);font-size:12.5px;
+            letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;font-weight:700}
+
+.grid{display:grid;gap:16px;margin:8px 0}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:20px}
+.card p{font-size:15px;margin:0}
+.card .t{font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:9px;
+         color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+
+.stat{font-family:var(--mono);font-size:clamp(30px,4.6vw,50px);font-weight:800;
+      letter-spacing:-1.5px;line-height:1;color:var(--ink)}
+.stat.g{color:var(--green)} .stat.a{color:var(--amber)} .stat.r{color:var(--red)}
+.stat.b{color:var(--blue)}
+.slabel{font-size:12.5px;color:var(--dim);margin-top:9px;line-height:1.45}
+
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15.5px}
+th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);
+      vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:1.3px;
+   text-transform:uppercase;color:var(--dim);font-weight:700}
+td{color:var(--body)}
+td.mode{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.pin{color:var(--green);font-family:var(--mono);font-size:13.5px;white-space:nowrap;
+     font-weight:700}
+.out{color:var(--body)}
+.dest{color:var(--amber);font-family:var(--mono);font-size:13.5px;font-weight:700}
+
+figure{margin:22px 0 0}
+/* Screenshots are 1560x940 landscape. Unconstrained they push a slide past
+   the viewport, which breaks both scroll-snapping on screen and pagination in
+   print, so cap the height and let width follow. */
+figure img{max-width:100%;max-height:50vh;width:auto;display:block;margin:0 auto;
+           border:1px solid var(--line);border-radius:12px;
+           box-shadow:0 10px 34px rgba(15,28,46,.16)}
+figure.tight img{max-height:34vh}
+figcaption{text-align:center}
+figcaption{font-size:13.5px;color:var(--dim);margin-top:12px;font-family:var(--mono);
+           line-height:1.55}
+
+ul{margin:0 0 16px;padding-left:20px;color:var(--body);font-size:16.5px;line-height:1.7}
+li{margin-bottom:7px} li strong{color:var(--bold)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start}
+@media(max-width:860px){.two{grid-template-columns:1fr;gap:20px}}
+
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 9px;
+     border-radius:20px;border:1px solid;letter-spacing:.6px;font-weight:700}
+.tag.real{color:var(--green);border-color:#b9dcc6;background:#eefaf2}
+.tag.sim{color:var(--amber);border-color:#e8cfa3;background:#fdf6ea}
+.tag.next{color:var(--dim);border-color:var(--line);background:var(--panel)}
+
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px}
+.st{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px}
+.st .n{font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px;
+       color:var(--ink)}
+.st .d{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.45}
+
+nav{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:7px;
+    background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:30px;
+    padding:8px 14px;backdrop-filter:blur(9px);z-index:20;
+    box-shadow:0 4px 18px rgba(15,28,46,.10)}
+nav a{width:8px;height:8px;border-radius:50%;background:#c3d0df;transition:.15s}
+nav a:hover{background:var(--bold);transform:scale(1.4)}
+
+/* ---------------------------------------------------------------------
+   Print. The page box is much shorter than the screen viewport (A4
+   landscape at 12mm margins is ~703px tall vs 900px on screen) AND it is
+   narrower, so text reflows taller. Screen sizing therefore overflows and
+   spills a sliver of each slide onto an orphan page. Everything below is
+   sized so one slide is one page, with break-inside:avoid as the backstop.
+   --------------------------------------------------------------------- */
+@page{size:A4 landscape;margin:12mm}
+@media print{
+  nav{display:none}
+  .deck{max-width:none;padding:0}
+  .slide{min-height:0;height:auto;border:0;padding:8px 0 10px;
+         justify-content:flex-start;
+         page-break-after:always;break-after:page;
+         page-break-inside:avoid;break-inside:avoid}
+  .slide::after{top:0;font-size:10px}
+
+  .kicker{font-size:10px;letter-spacing:1.8px;margin-bottom:7px}
+  h1{font-size:33px;margin-bottom:11px;letter-spacing:-1px}
+  h2{font-size:25px;margin-bottom:9px;letter-spacing:-.6px}
+  h3{font-size:14.5px;margin-bottom:5px}
+  p{font-size:12.5px;line-height:1.44;margin-bottom:7px;max-width:none}
+  p.lead{font-size:14px}
+  ul{font-size:12.5px;line-height:1.45;margin-bottom:7px}
+  li{margin-bottom:2px}
+
+  table{font-size:11.5px;margin:5px 0}
+  th,td{padding:6px 9px}
+  .card{padding:10px 12px}
+  .card p{font-size:11.5px}
+  .card .t{font-size:13px;margin-bottom:5px}
+  .grid{gap:8px;margin:5px 0}
+  .two{gap:18px}
+  .hr{margin:10px 0}
+
+  .rule{padding:13px 17px;margin:5px 0 10px}
+  .rule .lock{font-size:10px;margin-bottom:5px}
+  .big{font-size:19px;line-height:1.25}
+  .stat{font-size:25px;letter-spacing:-1px}
+  .slabel{font-size:10px;margin-top:4px;line-height:1.35}
+
+  .states{gap:6px}
+  .st{padding:8px 9px}
+  .st .n{font-size:12px}
+  .st .d{font-size:9.5px;margin-top:3px}
+  .tag{font-size:9px;padding:2px 6px}
+
+  /* Replaced elements need width:auto before max-height can shrink them. */
+  figure{margin:8px 0 0}
+  figure img{width:auto;max-width:100%;max-height:74mm;height:auto;
+             display:block;margin:0 auto;box-shadow:none}
+  figure.tight img{max-height:54mm}
+  figcaption{font-size:10px;margin-top:5px}
+  svg{width:auto;max-width:100%;height:auto;max-height:80mm;
+      display:block;margin:0 auto}
+}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1 -->
+<section class="slide" id="s1">
+  <div class="kicker">On-prem AI routing &middot; working prototype</div>
+  <h1 style="font-size:clamp(32px,5.3vw,61px);line-height:1.06;margin-bottom:20px">Your IP never leaves the building.<br>Neither does your budget.</h1>
+  <p class="lead">AI-Paladin decides where every prompt runs <strong>before a socket
+  opens</strong>. Protected IP executes on hardware you own, where inference costs
+  <strong>nothing per token</strong>. Everything else is your call, with full sight
+  of exactly which bytes would leave.</p>
+  <div class="hr"></div>
+  <div class="grid g3">
+    <div><div class="stat g">0</div><div class="slabel">bytes of protected IP
+      transmitted, in any mode</div></div>
+    <div><div class="stat b">37</div><div class="slabel">protected terms enforced
+      as data, not prompt instructions</div></div>
+    <div><div class="stat a">73%</div><div class="slabel">of tokens handled on-prem
+      &mdash; metered by nobody, billed by nobody</div></div>
+  </div>
+</section>
+
+<!-- equivalence -->
+<section class="slide" id="s-equiv">
+  <div class="kicker">The control already exists</div>
+  <h2>You already own this machine.<br>Just not for prompts.</h2>
+  <p class="lead"><strong>A prompt is a suggestion. A hook is a wall.</strong>
+  You already gate packets with a firewall and business logic with a rules engine
+  &mdash; deterministic checks that run before the thing they guard, and that no
+  amount of persuasion talks past. AI-Paladin is that same machine, pointed at the
+  one input your perimeter does not currently inspect.</p>
+<svg viewBox="0 0 1080 232" style="width:100%;height:auto;margin:18px 0 0" role="img" aria-label="A firewall, a rules engine and AI-Paladin share the same five stages: input, inspect, match, decide, record" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+<text x="200" y="14" text-anchor="middle" font-size="10" fill="#66788f" font-family="ui-monospace,monospace" letter-spacing="1.6">INPUT</text>
+<text x="396" y="14" text-anchor="middle" font-size="10" fill="#66788f" font-family="ui-monospace,monospace" letter-spacing="1.6">INSPECT</text>
+<text x="592" y="14" text-anchor="middle" font-size="10" fill="#66788f" font-family="ui-monospace,monospace" letter-spacing="1.6">MATCH</text>
+<text x="788" y="14" text-anchor="middle" font-size="10" fill="#66788f" font-family="ui-monospace,monospace" letter-spacing="1.6">DECIDE</text>
+<text x="984" y="14" text-anchor="middle" font-size="10" fill="#66788f" font-family="ui-monospace,monospace" letter-spacing="1.6">RECORD</text>
+<text x="104" y="47" text-anchor="end" font-size="11.5" font-weight="700" fill="#66788f" font-family="ui-monospace,monospace">FIREWALL</text>
+<text x="104" y="61" text-anchor="end" font-size="9" fill="#8a99ab">you already have this</text>
+<rect x="112" y="30" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="200" y="55" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">packet</text>
+<path d="M294,45 L300,50 L294,55" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="308" y="30" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="396" y="55" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">read header</text>
+<path d="M490,45 L496,50 L490,55" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="504" y="30" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="592" y="55" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">ruleset</text>
+<path d="M686,45 L692,50 L686,55" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="700" y="30" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="788" y="55" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">allow / deny</text>
+<path d="M882,45 L888,50 L882,55" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="896" y="30" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="984" y="55" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">flow log</text>
+<text x="104" y="105" text-anchor="end" font-size="11.5" font-weight="700" fill="#66788f" font-family="ui-monospace,monospace">RULES ENGINE</text>
+<text x="104" y="119" text-anchor="end" font-size="9" fill="#8a99ab">you already have this</text>
+<rect x="112" y="88" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="200" y="113" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">fact</text>
+<path d="M294,103 L300,108 L294,113" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="308" y="88" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="396" y="113" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">evaluate</text>
+<path d="M490,103 L496,108 L490,113" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="504" y="88" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="592" y="113" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">rule match</text>
+<path d="M686,103 L692,108 L686,113" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="700" y="88" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="788" y="113" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">fire action</text>
+<path d="M882,103 L888,108 L882,113" fill="none" stroke="#a9b8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="896" y="88" width="176" height="40" rx="8" fill="#f4f7fb" stroke="#d7e0ea"/>
+<text x="984" y="113" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">audit trail</text>
+<text x="104" y="163" text-anchor="end" font-size="11.5" font-weight="700" fill="#12703a" font-family="ui-monospace,monospace">AI-PALADIN</text>
+<text x="104" y="177" text-anchor="end" font-size="9" fill="#8a99ab">new input</text>
+<rect x="112" y="146" width="176" height="40" rx="8" fill="#eefaf2" stroke="#b9dcc6"/>
+<text x="200" y="171" text-anchor="middle" font-size="12.5" fill="#0f1c2e" font-family="ui-monospace,monospace">prompt</text>
+<path d="M294,161 L300,166 L294,171" fill="none" stroke="#12703a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="308" y="146" width="176" height="40" rx="8" fill="#eefaf2" stroke="#b9dcc6"/>
+<text x="396" y="171" text-anchor="middle" font-size="12.5" fill="#0f1c2e" font-family="ui-monospace,monospace">classify text</text>
+<path d="M490,161 L496,166 L490,171" fill="none" stroke="#12703a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="504" y="146" width="176" height="40" rx="8" fill="#eefaf2" stroke="#b9dcc6"/>
+<text x="592" y="171" text-anchor="middle" font-size="12.5" fill="#0f1c2e" font-family="ui-monospace,monospace">keyword gate</text>
+<path d="M686,161 L692,166 L686,171" fill="none" stroke="#12703a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="700" y="146" width="176" height="40" rx="8" fill="#eefaf2" stroke="#b9dcc6"/>
+<text x="788" y="171" text-anchor="middle" font-size="12.5" fill="#0f1c2e" font-family="ui-monospace,monospace">on-prem / egress</text>
+<path d="M882,161 L888,166 L882,171" fill="none" stroke="#12703a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="896" y="146" width="176" height="40" rx="8" fill="#eefaf2" stroke="#b9dcc6"/>
+<text x="984" y="171" text-anchor="middle" font-size="12.5" fill="#0f1c2e" font-family="ui-monospace,monospace">topic + log</text>
+<text x="112" y="222" font-size="11.5" fill="#66788f">Same five stages. The only novel part is the input &#8212; and it is the one input your perimeter does not currently inspect.</text>
+</svg>
+</section>
+
+<!-- 2 -->
+<section class="slide" id="s2">
+  <div class="kicker">The problem</div>
+  <h2>Every prompt is an exfiltration decision.<br>Today it is made by the
+  wrong party.</h2>
+  <p>When an engineer pastes code into a hosted model, the routing decision has
+  already happened &mdash; silently, by a human under deadline, with no record.
+  The controls that exist are the weakest kind available:</p>
+  <div class="grid g2">
+    <div class="card"><div class="t"><span class="dot" style="background:var(--red)"></span>
+      Policy documents</div>
+      <p>A PDF nobody reads at 11pm. Unenforceable, unauditable, and invisible at
+      the moment of the decision.</p></div>
+    <div class="card"><div class="t"><span class="dot" style="background:var(--red)"></span>
+      System prompts</div>
+      <p>"Please don't share proprietary code." A suggestion. A manipulated or
+      merely confused agent ignores it and nothing stops the request.</p></div>
+    <div class="card"><div class="t"><span class="dot" style="background:var(--red)"></span>
+      Blanket bans</div>
+      <p>Ban the tools and you lose the productivity. Engineers route around it
+      with personal accounts, and now you have no telemetry at all.</p></div>
+    <div class="card"><div class="t"><span class="dot" style="background:var(--red)"></span>
+      Trust the vendor</div>
+      <p>A contractual promise about data handling is not a technical control.
+      It cannot be demonstrated to a regulator or an acquirer.</p></div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide" id="s3">
+  <div class="kicker">The insight</div>
+  <h2>A prompt is a suggestion.<br>A hook is a wall.</h2>
+  <p class="lead">A manipulated or misbehaving agent can ignore
+  <em>"please don't send that."</em> It cannot ignore a router that never opens
+  the socket.</p>
+  <p>Every gate in AI-Paladin is deterministic and lives in version-controlled
+  data &mdash; a YAML keyword file and a policy file &mdash; evaluated by code the
+  model cannot reach, argue with, or talk its way past. The decision is made on
+  the prompt, by the router, before any model is invoked.</p>
+  <div class="rule">
+    <div class="lock">&#128274; The invariant</div>
+    <div class="big">keyword match &rArr; on-prem.<br>Always. Not overridable.</div>
+  </div>
+  <p>This is the entire product thesis in one line. The routing modes below govern
+  only what happens to traffic that does <strong>not</strong> match.</p>
+</section>
+
+<!-- 4 -->
+<section class="slide" id="s4">
+  <div class="kicker">How it works</div>
+  <h2>Six steps. The first three touch no network.</h2>
+  <svg viewBox="0 0 1120 210" style="width:100%;height:auto;margin:16px 0 8px">
+    <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3"
+      orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#8497ac"/></marker></defs>
+    <g font-family="ui-monospace,monospace" font-size="12.5">
+      <rect x="2" y="56" width="150" height="66" rx="10" fill="#f4f7fb" stroke="#d7e0ea"/>
+      <text x="77" y="82" fill="#0f1c2e" text-anchor="middle" font-size="13.5" font-weight="700">1 · Classify</text>
+      <text x="77" y="102" fill="#66788f" text-anchor="middle">prompt + files</text>
+      <line x1="156" y1="89" x2="184" y2="89" stroke="#8497ac" stroke-width="1.6" marker-end="url(#a)"/>
+
+      <rect x="188" y="56" width="150" height="66" rx="10" fill="#eefaf2" stroke="#b9dcc6"/>
+      <text x="263" y="82" fill="#12703a" text-anchor="middle" font-size="13.5" font-weight="700">2 · Invariant</text>
+      <text x="263" y="102" fill="#3f7d59" text-anchor="middle">match → on-prem</text>
+      <line x1="342" y1="89" x2="370" y2="89" stroke="#8497ac" stroke-width="1.6" marker-end="url(#a)"/>
+
+      <rect x="374" y="56" width="150" height="66" rx="10" fill="#f4f7fb" stroke="#d7e0ea"/>
+      <text x="449" y="82" fill="#0f1c2e" text-anchor="middle" font-size="13.5" font-weight="700">3 · Mode</text>
+      <text x="449" y="102" fill="#66788f" text-anchor="middle">non-matching only</text>
+      <line x1="528" y1="89" x2="556" y2="89" stroke="#8497ac" stroke-width="1.6" marker-end="url(#a)"/>
+
+      <rect x="560" y="56" width="150" height="66" rx="10" fill="#fdf6ea" stroke="#e8cfa3"/>
+      <text x="635" y="82" fill="#a2590a" text-anchor="middle" font-size="13.5" font-weight="700">4 · Stage</text>
+      <text x="635" y="102" fill="#8a6516" text-anchor="middle">minimal payload</text>
+      <line x1="714" y1="89" x2="742" y2="89" stroke="#8497ac" stroke-width="1.6" marker-end="url(#a)"/>
+
+      <rect x="746" y="56" width="150" height="66" rx="10" fill="#fdf6ea" stroke="#e8cfa3"/>
+      <text x="821" y="82" fill="#a2590a" text-anchor="middle" font-size="13.5" font-weight="700">5 · Disclose</text>
+      <text x="821" y="102" fill="#8a6516" text-anchor="middle">human decides</text>
+      <line x1="900" y1="89" x2="928" y2="89" stroke="#8497ac" stroke-width="1.6" marker-end="url(#a)"/>
+
+      <rect x="932" y="56" width="150" height="66" rx="10" fill="#f4f7fb" stroke="#d7e0ea"/>
+      <text x="1007" y="82" fill="#0f1c2e" text-anchor="middle" font-size="13.5" font-weight="700">6 · Execute</text>
+      <text x="1007" y="102" fill="#66788f" text-anchor="middle">+ audit event</text>
+
+      <line x1="2" y1="150" x2="524" y2="150" stroke="#b9dcc6" stroke-width="1.8"/>
+      <text x="263" y="172" fill="#3f7d59" text-anchor="middle" font-size="11.5">NO NETWORK — decided on the prompt alone</text>
+      <line x1="560" y1="150" x2="1082" y2="150" stroke="#e8cfa3" stroke-width="1.8"/>
+      <text x="821" y="172" fill="#8a6516" text-anchor="middle" font-size="11.5">EGRESS PATH — itemised, gated, logged</text>
+    </g>
+  </svg>
+  <p>Steps 1&ndash;3 are pure computation over the prompt and the files it would
+  carry. A protected task terminates at step 2 and never reaches a socket. Only
+  work that clears the gate is ever staged, and staging is where the payload
+  gets cut to the minimum.</p>
+</section>
+
+<!-- 5 -->
+<section class="slide" id="s5">
+  <div class="kicker">The control surface</div>
+  <h2>Three postures. One thing they cannot change.</h2>
+  <table>
+    <tr><th>Mode</th><th>Protected IP</th><th>Everything else</th></tr>
+    <tr><td class="mode" style="color:var(--green)">slow<br>
+        <span style="font-weight:400;color:var(--dim);font-size:12px">Prefer on-prem</span></td>
+      <td class="pin">&#128274; on-prem &middot; locked</td>
+      <td>Stays on-prem too. Escalation is offered, never automatic. Acts like a
+        firewall &mdash; the safest and slowest posture.</td></tr>
+    <tr><td class="mode" style="color:var(--amber)">fast<br>
+        <span style="font-weight:400;color:var(--dim);font-size:12px">Limit on-prem to Alpha IP</span></td>
+      <td class="pin">&#128274; on-prem &middot; locked</td>
+      <td class="out"><span class="dest">&rarr; BIG-AI</span> &mdash; full context, human confirms.
+        Large reasoning gets frontier capability; protected IP still cannot
+        follow it out.</td></tr>
+    <tr><td class="mode" style="color:var(--red)">superfast<br>
+        <span style="font-weight:400;color:var(--dim);font-size:12px">Risky</span></td>
+      <td class="pin">&#128274; on-prem &middot; locked</td>
+      <td class="out"><span class="dest">&rarr; BIG-AI</span> &mdash; <strong>minimal slice only</strong>,
+        with a full disclosure window itemising every byte before it moves.</td></tr>
+  </table>
+  <p style="margin-top:22px">Read down the middle column. The most permissive
+  posture we ship treats protected IP exactly as the most restrictive one does.
+  That is not a default a user can drift away from &mdash; it is the one thing the
+  control surface does not expose.</p>
+</section>
+
+<!-- 6 -->
+<section class="slide" id="s6">
+  <div class="kicker">Proof &middot; 01</div>
+  <h2>The riskiest mode still refuses.</h2>
+  <p>Mode is set to <code>superfast &mdash; Risky</code>, the most permissive
+  posture available. The prompt names the pricing engine. The router pins it
+  on-prem anyway and names every term that fired.</p>
+  <figure class="tight"><img src="screenshots/02-protected-pinned-onprem.png" alt="Protected IP pinned to on-prem">
+    <figcaption>The user cannot select their way around this. The chips are the
+    evidence trail — matched terms, and the file paths they were found in.</figcaption></figure>
+</section>
+
+<!-- 7 -->
+<section class="slide" id="s7">
+  <div class="kicker">Proof &middot; 02</div>
+  <h2>An agent you can actually watch.</h2>
+  <p>Seven states, derived from the real execution stream &mdash; not a progress
+  spinner. File reads carry real paths and byte counts; the working phases are
+  parsed from the model's own output as it produces them.</p>
+  <div class="states">
+    <div class="st"><div class="n"><span class="dot" style="background:#64748b"></span>Idle</div>
+      <div class="d">Dormant, awaiting work</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#f59e0b"></span>Thinking</div>
+      <div class="d">Reasoning about the request</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#3b82f6"></span>Reading code</div>
+      <div class="d">Ingesting local files</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#06b6d4"></span>Retrieving</div>
+      <div class="d">Reaching outside for information</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#a855f7"></span>Planning</div>
+      <div class="d">Checklists &amp; plans, like a manager</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#22c55e"></span>Writing code</div>
+      <div class="d">Producing code, like a developer</div></div>
+    <div class="st"><div class="n"><span class="dot" style="background:#ef4444"></span>Error</div>
+      <div class="d">Failed — a human is needed</div></div>
+  </div>
+  <figure class="tight"><img src="screenshots/05-state-writing-code.png" alt="Agent in writing-code state">
+    <figcaption>Observed sequence, this run: Reading code → Thinking → Planning →
+    Writing code → Idle. Red stops, green produces, amber deliberates.</figcaption></figure>
+</section>
+
+<!-- 8 -->
+<section class="slide" id="s8">
+  <div class="kicker">Proof &middot; 03</div>
+  <h2>Nothing leaves unseen.</h2>
+  <p>When work <em>is</em> cleared to leave, the human sees the payload before it
+  moves &mdash; file, line range, byte count, and the literal text. In
+  <code>superfast</code> the router first cuts the payload to the smallest
+  coherent slice: the one function that matters.</p>
+  <figure><img src="screenshots/07-egress-gate-disclosure.png" alt="Egress disclosure window">
+    <figcaption>229 of 851 bytes — 73% of the file withheld. The default button is
+    "Keep it on-prem".</figcaption></figure>
+</section>
+
+<!-- 9 -->
+<section class="slide" id="s9">
+  <div class="kicker">Proof &middot; 04</div>
+  <h2>"No" is free, and it is provable.</h2>
+  <div class="two">
+    <div>
+      <p>Declining at the gate cancels the task before transmission. The counter
+      stays at zero and the refusal is written to the audit topic
+      <code>egress.denied</code> with its task ID.</p>
+      <p>That record is the artifact a regulator, an auditor, or an acquirer's
+      technical diligence team actually wants: not a policy asserting what should
+      have happened, but a log of what did.</p>
+      <div class="grid g2" style="margin-top:20px">
+        <div><div class="stat g">0 B</div><div class="slabel">transmitted after
+          a denial</div></div>
+        <div><div class="stat b">100%</div><div class="slabel">of routing decisions
+          written to an append-only log</div></div>
+      </div>
+    </div>
+    <figure style="margin:0"><img src="screenshots/08-egress-denied.png" alt="Egress denied">
+      <figcaption>Zero bytes transmitted. Task cancelled at the gate.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" id="s10">
+  <div class="kicker">Proof &middot; 05</div>
+  <h2>Everything you just saw ran<br>with <span style="color:var(--red)">no GPU at all</span>.</h2>
+  <p>This matters more than any other number in the deck. The on-prem tier is
+  currently doing every bit of that work on <strong>CPU alone</strong> &mdash; the
+  integrated graphics sat idle throughout. That is the floor, not the ceiling.</p>
+
+  <div class="grid g3" style="margin:6px 0 4px">
+    <div class="card" style="padding:16px 18px">
+      <div class="t">Compute</div>
+      <p style="font-family:var(--mono);font-size:13px;line-height:1.75">
+        AMD Ryzen&nbsp;AI&nbsp;9 HX&nbsp;370<br>
+        12 cores / 24 threads<br>
+        91 GB system RAM<br>
+        <span style="color:var(--red);font-weight:700">GPU acceleration: none</span><br>
+        <span style="color:var(--dim)">Radeon 890M iGPU idle, 2 GB</span></p>
+    </div>
+    <div class="card" style="padding:16px 18px">
+      <div class="t">Measured</div>
+      <p style="font-family:var(--mono);font-size:13px;line-height:1.75">
+        4.94 tok/s generation<br>
+        768 tok/s prompt intake<br>
+        75.0 GB/s effective<br>
+        ~61 s per 300-token answer<br>
+        <span style="color:var(--dim)">median of 3 runs, &plusmn;0.01</span></p>
+    </div>
+    <div class="card" style="padding:16px 18px">
+      <div class="t">Model</div>
+      <p style="font-family:var(--mono);font-size:13px;line-height:1.75">
+        dev-mistral-2<br>
+        24B parameters, Q4_K_M<br>
+        15.18 GB resident<br>
+        <span style="color:var(--dim)">100% in system RAM</span></p>
+    </div>
+  </div>
+
+  <p style="margin-top:16px;margin-bottom:0">60&ndash;90 seconds per answer, on
+  commodity CPU, with the accelerator switched off. The next slide is what
+  happens when it is not &mdash; and the answer is not the one most people
+  expect.</p>
+</section>
+
+<!-- scaling -->
+<section class="slide" id="s-scaling">
+  <div class="kicker">The economics of speed</div>
+  <h2>It is not a curve. It is a cliff.</h2>
+  <p style="margin-bottom:10px">Generating a token means reading <em>every</em>
+  weight once, so decode speed is set by <strong>memory bandwidth</strong>, not
+  core count: <code>tokens/sec &asymp; bandwidth &divide; model size</code>.</p>
+
+  <div style="margin:6px 0 2px"><svg viewBox="0 0 1080 356" width="100%" role="img" aria-label="Seconds per 300-token answer by hardware tier" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+<g font-size="13" fill="#66788f"><rect x="178" y="10" width="11" height="11" rx="2.5" fill="#2a78d6"/><text x="196" y="20">Measured on this machine</text><rect x="383" y="10" width="11" height="11" rx="2.5" fill="#898781"/><text x="401" y="20">Projected from the bandwidth model</text></g>
+<line x1="178.0" y1="32" x2="178.0" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="178.0" y="294" font-size="12" fill="#66788f" text-anchor="middle">0s</text>
+<line x1="306.2" y1="32" x2="306.2" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="306.2" y="294" font-size="12" fill="#66788f" text-anchor="middle">10s</text>
+<line x1="434.5" y1="32" x2="434.5" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="434.5" y="294" font-size="12" fill="#66788f" text-anchor="middle">20s</text>
+<line x1="562.7" y1="32" x2="562.7" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="562.7" y="294" font-size="12" fill="#66788f" text-anchor="middle">30s</text>
+<line x1="691.0" y1="32" x2="691.0" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="691.0" y="294" font-size="12" fill="#66788f" text-anchor="middle">40s</text>
+<line x1="819.2" y1="32" x2="819.2" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="819.2" y="294" font-size="12" fill="#66788f" text-anchor="middle">50s</text>
+<line x1="947.5" y1="32" x2="947.5" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="947.5" y="294" font-size="12" fill="#66788f" text-anchor="middle">60s</text>
+<text x="164" y="55" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">CPU only</text>
+<g><title>CPU only: 60.7s per 300-token answer, 4.9 tok/s, 0% of the model in VRAM</title><path d="M178,40 H952.4313725490196 a4,4 0 0 1 4,4 V57 a4,4 0 0 1 -4,4 H178 Z" fill="#2a78d6"/></g>
+<text x="967.4313725490196" y="55" font-size="14.5" fill="#0f1c2e" font-weight="700">61s</text>
+<text x="967.4313725490196" y="72" font-size="11.5" fill="#66788f">baseline</text>
+<text x="164" y="71" font-size="11" fill="#66788f" text-anchor="end">0% of model in VRAM</text>
+<text x="164" y="99" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">+ 8 GB eGPU</text>
+<g><title>+ 8 GB eGPU: 45.1s per 300-token answer, 6.7 tok/s, 46% of the model in VRAM</title><path d="M178,84 H752.373227379914 a4,4 0 0 1 4,4 V101 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="767.373227379914" y="99" font-size="14.5" fill="#0f1c2e" font-weight="700">45s</text>
+<text x="767.373227379914" y="116" font-size="11.5" fill="#66788f">1.3x faster</text>
+<text x="164" y="115" font-size="11" fill="#66788f" text-anchor="end">46% of model in VRAM</text>
+<text x="164" y="173" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">16 GB GPU</text>
+<g><title>16 GB GPU: 11.4s per 300-token answer, 26.2 tok/s, 99% of the model in VRAM</title><path d="M178,158 H320.1963368543463 a4,4 0 0 1 4,4 V175 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="335.1963368543463" y="173" font-size="14.5" fill="#0f1c2e" font-weight="700">11s</text>
+<text x="335.1963368543463" y="190" font-size="11.5" fill="#66788f">5.3x faster</text>
+<text x="164" y="189" font-size="11" fill="#66788f" text-anchor="end">99% of model in VRAM</text>
+<text x="164" y="217" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">24 GB GPU</text>
+<g><title>24 GB GPU: 6.5s per 300-token answer, 46.1 tok/s, 100% of the model in VRAM</title><path d="M178,202 H257.35756048712733 a4,4 0 0 1 4,4 V219 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="272.35756048712733" y="217" font-size="14.5" fill="#0f1c2e" font-weight="700">6s</text>
+<text x="272.35756048712733" y="234" font-size="11.5" fill="#66788f">9.3x faster</text>
+<text x="164" y="233" font-size="11" fill="#66788f" text-anchor="end">100% of model in VRAM</text>
+<text x="164" y="261" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">48 GB class</text>
+<g><title>48 GB class: 3.3s per 300-token answer, 92.2 tok/s, 100% of the model in VRAM</title><path d="M178,246 H216.31999224731078 a4,4 0 0 1 4,4 V263 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="231.31999224731078" y="261" font-size="14.5" fill="#0f1c2e" font-weight="700">3s</text>
+<text x="231.31999224731078" y="278" font-size="11.5" fill="#66788f">18.7x faster</text>
+<text x="164" y="277" font-size="11" fill="#66788f" text-anchor="end">100% of model in VRAM</text>
+<line x1="28" y1="139" x2="1064" y2="139" stroke="#b3261e" stroke-width="1.6" stroke-dasharray="7 5"/>
+<rect x="428" y="128" width="384" height="22" fill="#ffffff"/>
+<text x="440" y="143" font-size="12.5" fill="#b3261e" font-weight="700">THE CLIFF &#183; the model now fits entirely in VRAM</text>
+<text x="178" y="326" font-size="12" fill="#66788f">Seconds to produce a 300-token answer. Measured anchor: 4.94 tok/s on a 15.18 GB model = 75.0 GB/s effective bandwidth.</text>
+<text x="178" y="343" font-size="12" fill="#66788f">Projections assume each class delivers ~70% of its peak bandwidth; see bench/project.py.</text>
+</svg></div>
+
+  <div class="two" style="margin-top:20px">
+    <div>
+      <h3>Why the cliff, and not a ramp</h3>
+      <p style="font-size:15px;margin-bottom:0">If the model does not fit in
+      VRAM, layers split between card and system RAM &mdash; and the system-RAM
+      half never gets faster. That caps an 8&nbsp;GB card at <strong>1.8&times;
+      even with an infinitely fast GPU</strong>; realistically it returns
+      <strong>1.3&times;</strong>.</p>
+    </div>
+    <div>
+      <h3>What that buys, concretely</h3>
+      <p style="font-size:15px;margin-bottom:0">Crossing the residency threshold
+      takes the answer from <strong>61 s to 11 s</strong>. One tier further
+      reaches <strong>6.5 s &mdash; conversational range</strong>, at which point
+      the guarantee costs the user nothing in patience. A four-figure line item,
+      not a research programme.</p>
+    </div>
+  </div>
+  <p style="margin-top:2px;font-size:13.5px;color:var(--dim)">
+    Projections are a published model, not a claim &mdash; assumptions and
+    arithmetic in <code>bench/project.py</code>.</p>
+</section>
+
+<!-- ledger -->
+<section class="slide" id="s-ledger">
+  <div class="kicker">Proof &middot; 06</div>
+  <h2>Two numbers, tracked from the first prompt.</h2>
+  <p style="margin-bottom:22px">Every organisation adopting AI asks the same two
+  questions within a quarter: <strong>what are we spending outside</strong>, and
+  <strong>what did we manage to keep inside</strong>. Both are counted from the
+  first prompt &mdash; the interesting figure is cumulative, and you cannot
+  backfill it.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 258px;gap:28px;align-items:start">
+    <div>
+      <h3 style="color:var(--green)">Protected IP</h3>
+      <p style="font-size:18.5px;line-height:1.38;margin-bottom:9px">Keeping
+        <strong style="font-family:var(--mono);font-size:32px;letter-spacing:-1px;
+        color:var(--green)">87.7%</strong> of <strong>exposable bytes</strong>
+        on-prem</p>
+      <p style="font-size:14px;line-height:1.45;margin-bottom:14px">The other
+        12.3% is <strong>not leaked IP</strong>: it carried no protected match,
+        and a human read it and approved it at the gate.
+        <strong style="color:var(--green)">Zero bytes of protected IP were
+        transmitted.</strong></p>
+      <p style="font-size:18.5px;line-height:1.38;margin-bottom:0">
+        <strong style="font-family:var(--mono);font-size:26px;letter-spacing:-1px;
+        color:var(--green)">2,033 B</strong> withheld &mdash; by the gate, by
+        minimisation, and by human refusal</p>
+    </div>
+    <div>
+      <h3 style="color:var(--amber)">BIG-AI consumption</h3>
+      <p style="font-size:18.5px;line-height:1.38;margin-bottom:9px">
+        <strong style="font-family:var(--mono);font-size:32px;letter-spacing:-1px;
+        color:var(--amber)">299</strong> <strong>tokens</strong> &mdash; sent out
+        and returned, counted separately</p>
+      <p style="font-size:14px;line-height:1.45;margin-bottom:14px">Hosted
+        providers bill on what you <em>send</em> as well as what comes back, so
+        the ledger tracks both directions.</p>
+      <p style="font-size:18.5px;line-height:1.38;margin-bottom:0">
+        <strong style="font-family:var(--mono);font-size:26px;letter-spacing:-1px;
+        color:var(--blue)">73.4%</strong> of all tokens <strong>handled
+        locally</strong> instead</p>
+    </div>
+    <figure style="margin:0">
+      <img src="screenshots/13-session-ledger.png" alt="Session ledger panel">
+      <figcaption style="text-align:center">Live in the operator console</figcaption>
+    </figure>
+  </div>
+
+  <div class="hr"></div>
+  <p style="margin-bottom:0">Spend is computed from <strong>your</strong>
+  contracted rate &mdash; we ship no vendor price list, because a stale one is
+  worse than none. This is the slide that turns a security story into a budget
+  story: the containment percentage is what a CISO signs off on, the local token
+  share is what a CFO does.</p>
+</section>
+
+<!-- perimeter -->
+<section class="slide" id="s-perimeter">
+  <div class="kicker">Proof &middot; 07</div>
+  <h2>The perimeter holds outbound, too.</h2>
+  <p>Containment is not only about what the user sends. When the local agent
+  needs live data, it hits an egress policy that is deny-by-default, the attempt
+  is blocked and logged, and it answers from local knowledge &mdash; visibly
+  stale rather than quietly connected.</p>
+  <figure class="tight"><img src="screenshots/10-outbound-blocked.png" alt="Outbound request blocked">
+    <figcaption>The agent tried to reach the internet. The policy said no, and
+    said so out loud.</figcaption></figure>
+</section>
+
+<!-- topics -->
+<section class="slide" id="s-topics">
+  <div class="kicker">Proof &middot; 08</div>
+  <h2>Every decision lands on a topic.</h2>
+  <div class="two">
+    <div>
+      <p>Routing decisions, egress approvals, denials, and policy blocks are all
+      published to named topics and persisted append-only. Nothing about the
+      system&rsquo;s behaviour has to be taken on faith.</p>
+      <ul style="margin-top:18px">
+        <li><code>egress.pending</code> &mdash; awaiting a human</li>
+        <li><code>egress.approved</code> &mdash; left, with byte count and file list</li>
+        <li><code>egress.denied</code> &mdash; human said no</li>
+        <li><code>egress.blocked</code> &mdash; rules engine said no</li>
+        <li><code>routing.local</code> &mdash; handled on-prem</li>
+        <li><code>agent.error</code> &mdash; needs attention</li>
+      </ul>
+    </div>
+    <figure style="margin:0"><img src="screenshots/11-notifications.png" alt="Notification topics">
+      <figcaption>The full lifecycle of one decision: pending &rarr; denied &rarr;
+      re-submitted &rarr; approved.</figcaption></figure>
+  </div>
+</section>
+
+<!-- counsel -->
+<section class="slide" id="s-counsel" style="padding:44px 0">
+  <div class="kicker">Counsel &amp; due diligence</div>
+  <h2>The cheapest lawyer is the one you never need.<br>The next cheapest arrives
+  fully armed.</h2>
+  <p>A trade secret is the only IP right that is <strong>conditional on your own
+  conduct</strong>. A patent survives your carelessness; a trade secret does not.
+  Under the Defend Trade Secrets Act and the state UTSA regimes, information
+  qualifies only while its owner takes <strong>reasonable measures</strong> to keep
+  it secret. So the threshold question in a trade-secret case is rarely
+  <em>did they take it</em> &mdash; it is <em>what were you doing to protect it</em>.</p>
+
+  <div class="two" style="margin-top:10px">
+    <div>
+      <h3>What counsel has to establish</h3>
+      <ul style="font-size:15px;margin-bottom:0">
+        <li>Reasonable measures <strong>existed</strong></li>
+        <li>They were <strong>actually enforced</strong>, not merely written down</li>
+        <li>They <strong>predate the incident</strong></li>
+        <li>The <strong>precise scope</strong> of any disclosure</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What the ledger hands them</h3>
+      <ul style="font-size:15px;margin-bottom:0">
+        <li>A timestamped record of <strong>every routing decision</strong>, with the
+          terms that fired and the human who approved or refused</li>
+        <li>Policy as <strong>version-controlled data</strong> &mdash; git history
+          proves when the control was in force</li>
+        <li><strong>Negative proof</strong>: that a named file never left. Usually
+          harder to produce than proof that something did</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hr" style="margin:12px 0 10px"></div>
+  <h3 style="margin-bottom:7px">Where the cost actually moves</h3>
+  <div class="grid g3">
+    <div class="card"><div class="t">Departing engineer</div>
+      <p>They join a competitor. Did they push the ranking algorithm through a
+      hosted model first? <strong>Without a record:</strong> forensic sweep of
+      every endpoint, months of expert time. <strong>With one:</strong> a query.</p></div>
+    <div class="card"><div class="t">Acquisition diligence</div>
+      <p>The buyer&rsquo;s counsel asks what protected the code they are paying for.
+      <strong>Without:</strong> attestations and hope, priced into the discount.
+      <strong>With:</strong> an exportable evidence pack.</p></div>
+    <div class="card"><div class="t">Customer &amp; regulator</div>
+      <p>&ldquo;Was our data sent to a third-party model?&rdquo;
+      <strong>Without:</strong> you cannot answer definitively, which is itself the
+      finding. <strong>With:</strong> you answer per prompt.</p></div>
+  </div>
+  <p style="margin-top:11px;margin-bottom:0;font-size:14.5px;color:var(--dim)">
+    The cheapest outcome is the one that never reaches counsel: an engineer who sees
+    <em>&ldquo;this will leave on-prem &mdash; are you sure?&rdquo;</em> and clicks
+    no. Deterrence at the moment of the decision costs nothing and leaves a record
+    either way.</p>
+</section>
+
+<!-- commercial model -->
+<section class="slide" id="s-model">
+  <div class="kicker">Commercial model</div>
+  <h2>You buy it once. You own it forever.</h2>
+  <p class="lead">No seat licence. No metered inference. No kill switch. The
+  appliance is <strong>capital expenditure</strong> &mdash; hardware and software
+  you own outright, that keeps working exactly as well on day 3,000 as on day
+  one, whether or not you ever pay us again.</p>
+  <p>That is not a pricing gimmick; it is the only pricing model consistent with
+  the product. An IP-containment guarantee that stops when a subscription lapses
+  was never a guarantee. Sovereignty you rent is not sovereignty.</p>
+  <div class="rule">
+    <div class="lock">&#128274; The commitment</div>
+    <div class="big" style="font-size:clamp(20px,2.7vw,30px)">One-time purchase.
+    Perpetual operation.<br>Everything after that is optional.</div>
+  </div>
+  <p style="margin-bottom:0">Two subscriptions exist for customers who want them.
+  Both are <em>additive</em> &mdash; they extend a working system, they never
+  switch one on.</p>
+</section>
+
+<!-- subscription tiers -->
+<section class="slide" id="s-tiers">
+  <div class="kicker">Recurring revenue &middot; optional</div>
+  <h2>Two ways to stay current.</h2>
+  <p>We are entirely candid with customers about this: <strong>dev-mistral-2 will
+  be a dinosaur.</strong> Open models are superseded on a timescale of weeks, and
+  runtime efficiency work &mdash; smarter weight residency, memory-layout and
+  quantisation advances &mdash; keeps arriving from the big research labs. A
+  bought-once appliance should not mean a frozen one.</p>
+  <div class="grid g2" style="margin-top:6px">
+    <div class="card">
+      <div class="t"><span class="tag next">TIER 1</span> Software &amp; model updates</div>
+      <ul style="font-size:15px;margin:8px 0 0">
+        <li><strong>New models, curated and validated</strong> &mdash; we track
+          what ships, benchmark it on your actual hardware, and roll forward only
+          what is genuinely better for your workload</li>
+        <li><strong>Runtime and efficiency advances</strong> &mdash; as the field
+          learns to fit more capable models into the same RAM, you get the gain
+          without re-buying the box</li>
+        <li><strong>Rules-engine and router releases</strong> &mdash; new gate
+          types, detection rules, compliance exports</li>
+        <li><strong>Your hardware, unchanged.</strong> Same box, better tenant</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="t"><span class="tag next">TIER 2</span> Software &amp; hardware refresh</div>
+      <ul style="font-size:15px;margin:8px 0 0">
+        <li>Everything in Tier&nbsp;1, plus a <strong>scheduled hardware
+          upgrade path</strong> as accelerators improve</li>
+        <li>We <strong>take back the legacy hardware</strong> and install the
+          newer tier &mdash; the customer never runs a procurement project</li>
+        <li>Directly addresses the cliff on the previous slide: the upgrade that
+          matters is VRAM capacity, and we own that roadmap on your behalf</li>
+        <li>Turns a one-off capital sale into a <strong>durable relationship
+          without ever holding the customer hostage</strong></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- recycling -->
+<section class="slide" id="s-recycle">
+  <div class="kicker">Why tier 2 compounds</div>
+  <h2>Returned hardware is not waste.<br>It is our second market.</h2>
+  <div class="two">
+    <div>
+      <p>Every Tier&nbsp;2 upgrade returns a working appliance to us &mdash; fully
+      functional, just no longer the top tier. Refurbished and re-certified, it
+      becomes the <strong>entry-level product</strong>.</p>
+      <p style="margin-bottom:0">That is how a company with genuine IP but a
+      modest budget &mdash; a two-person studio, a regional practice, a small
+      manufacturer with one valuable process &mdash; gets the same containment
+      guarantee as an enterprise, at a price set by depreciated hardware. The
+      unit economics improve in both directions: the upgrade is part-funded by
+      the trade-in, and the returned unit opens a segment the new-hardware price
+      could never reach.</p>
+    </div>
+    <div>
+      <div class="grid g2">
+        <div class="card"><div class="t">Horizontal expansion</div>
+          <p>One product line becomes two customer classes &mdash; enterprise
+          leading edge and small-business entry &mdash; served from the same
+          engineering, the same router, the same rules engine.</p></div>
+        <div class="card"><div class="t">Better margins, and defensible</div>
+          <p>Refurbished stock has already paid for itself once. A competitor
+          selling only new hardware cannot reach the entry segment profitably,
+          nor match the upgrade price without a take-back channel.</p></div>
+        <div class="card"><div class="t">Genuinely circular</div>
+          <p>Accelerators are among the most carbon-intensive hardware a company
+          buys. Keeping a card in productive service for a second full life is a
+          real reduction, not an offset purchased after the fact.</p></div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- org chart -->
+<section class="slide" id="s-org">
+  <div class="kicker">Proof &middot; 09</div>
+  <h2>Most work does not need<br>the expensive model.</h2>
+  <p>Decode speed is set by memory bandwidth, so
+  <code>tok/s &asymp; bandwidth &divide; model size</code> cuts both ways: if a
+  15&nbsp;GB model is slow on a given machine, a 45&nbsp;MB model on that same
+  machine is <strong>hundreds of times faster</strong>. That is not a
+  compromise &mdash; it is an org chart.</p>
+  <table style="margin-top:4px">
+    <tr><th>Tier</th><th>Role</th><th>Model</th><th>Measured</th><th>Job</th></tr>
+    <tr><td class="mode" style="color:var(--green)">0</td><td>sentry</td>
+      <td style="font-family:var(--mono);font-size:13px">45 MB embedder</td>
+      <td class="pin">50 ms</td>
+      <td>Semantic gate. Runs on <em>every</em> prompt.</td></tr>
+    <tr><td class="mode" style="color:var(--green)">1</td><td>clerk</td>
+      <td style="font-family:var(--mono);font-size:13px">0.6B instruct</td>
+      <td class="pin">197 ms &middot; 124 tok/s</td>
+      <td>Triage and classification.</td></tr>
+    <tr><td class="mode" style="color:var(--amber)">2</td><td>engineer</td>
+      <td style="font-family:var(--mono);font-size:13px">24B dev-mistral-2</td>
+      <td class="out">61 s &middot; 4.94 tok/s</td>
+      <td>Reads, plans, writes code. Woken only when needed.</td></tr>
+    <tr><td class="mode" style="color:var(--red)">3</td><td>consultant</td>
+      <td style="font-family:var(--mono);font-size:13px">BIG-AI</td>
+      <td class="out">only if permitted</td>
+      <td>The outside specialist. Gated, disclosed, logged.</td></tr>
+  </table>
+  <div class="two" style="margin-top:20px">
+    <div>
+      <h3>The guard is cheap, so it never sleeps</h3>
+      <p style="font-size:15px;margin-bottom:0">The 45&nbsp;MB sentry catches
+      what exact matching misses &mdash; <strong>&ldquo;our proprietary price
+      calculation logic&rdquo;</strong> for &ldquo;pricing engine&rdquo;. A
+      deterministic near-miss check catches the other evasion,
+      <strong>&ldquo;pricng engnie&rdquo;</strong>. Measured: 5/5 evasions
+      caught, 0 false positives across 15 clean prompts.</p>
+    </div>
+    <div>
+      <h3>Models advise. Hooks decide.</h3>
+      <p style="font-size:15px;margin-bottom:0">Both layers are
+      <strong>additive only</strong>. They can raise a match the deterministic
+      gate missed; neither can clear one, and no model is ever consulted about
+      whether something may leave. If a model is offline or slow, the gate
+      stands alone &mdash; stricter, never looser.</p>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- 13 -->
+<section class="slide" id="s13">
+  <div class="kicker">What is real tonight</div>
+  <h2>The honest inventory.</h2>
+  <p>A demo that overstates itself does not survive diligence. Here is exactly
+  what runs and what does not.</p>
+  <div class="grid g2">
+    <div class="card">
+      <div class="t"><span class="tag real">LIVE</span></div>
+      <ul style="font-size:15px;margin:4px 0 0">
+        <li>The rules engine, the invariant, and the routing decision</li>
+        <li>The on-prem model &mdash; a real 24B running locally &mdash; and
+            every latency number attached to it</li>
+        <li>Payload staging, minimisation, and byte accounting</li>
+        <li>The disclosure window contents</li>
+        <li>Agent states, from real file reads and the real token stream</li>
+        <li>Notification topics and the append-only audit sinks</li>
+        <li>The outbound egress block</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="t"><span class="tag sim">SIMULATED</span></div>
+      <ul style="font-size:15px;margin:4px 0 0">
+        <li><strong>The BIG-AI response only.</strong> This node has no API key,
+            so the escalation leg streams a stub at a modelled rate</li>
+        <li>It is badged <code>SIMULATED</code> on screen and its latency is
+            labelled <em>(modelled)</em> &mdash; we do not pass it off as measured</li>
+        <li>What it echoes back is genuine: a receipt of the exact bytes the
+            router staged</li>
+        <li>Making it real is a config change and one adapter function &mdash;
+            the router does not care which model answers</li>
+      </ul>
+    </div>
+  </div>
+  <p style="margin-top:20px">Everything that constitutes the <em>product</em>
+  &mdash; the decision, the gate, the disclosure, the record &mdash; is running.
+  What is stubbed is the part any vendor can supply.</p>
+</section>
+
+<!-- future -->
+<section class="slide" id="s-future">
+  <div class="kicker">Future endeavour &middot; 1 of 5</div>
+  <h2>The two things that make it compound.</h2>
+  <div class="two" style="margin-top:6px">
+    <div>
+      <h3 style="color:var(--blue)">Shared on-prem codebase memory</h3>
+      <p style="font-size:15.5px">A persistent, branch-aware index of the
+      repository &mdash; <strong>production</strong> and
+      <strong>development</strong> held separately &mdash; shared by every agent
+      and node. It answers what a context window cannot: <em>is this bug in what
+      shipped, or only on dev? was this refactor already tried and
+      reverted?</em></p>
+      <p style="font-size:15.5px">It reuses the embedder that is
+      <strong>already resident</strong>: 45 MB, 18 ms, on CPU. Indexing is an
+      offline batch job against a model already paid for.</p>
+      <div class="rule" style="margin:14px 0 0;padding:20px 24px">
+        <div class="lock">&#128274; The strategic point</div>
+        <p style="font-size:15.5px;margin:0;color:var(--body)">BIG-AI is
+        permitted to see a <strong>285-byte slice</strong>. The on-prem tier is
+        permitted to see the <strong>entire repository and its history</strong>.
+        On the axis that decides answer quality on a mature codebase &mdash;
+        context &mdash; local is not the compromise. It is the only tier that
+        can ever be well informed, and that gap widens every day the system
+        runs.</p>
+      </div>
+    </div>
+    <div>
+      <h3 style="color:var(--blue)">Bounded agentic loops</h3>
+      <p style="font-size:15.5px">Write the fix, run the tests, read the
+      failure, correct it, stop when green or when the budget is spent &mdash;
+      instead of answering once and hoping.</p>
+      <p style="font-size:15.5px">A naive loop on a 24B model at 4.94 tok/s is
+      unusable. <strong>The org chart is what makes it affordable:</strong> the
+      loop controller, the failure summariser, and the per-turn gate re-check
+      all run on millisecond models. The 24B is woken only for the steps that
+      actually generate code.</p>
+      <div class="card" style="margin-top:14px">
+        <div class="t">The security consequence we design for first</div>
+        <p>A loop multiplies gate decisions by its iteration count. It is only
+        safe because the gate is already deterministic and costs 18 ms &mdash;
+        so classification re-runs on <em>every</em> turn, over the full
+        accumulated context. Content rejected on turn one must not leak on turn
+        six in different wording.</p>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:18px;margin-bottom:0;font-size:14.5px;color:var(--dim)">
+    Memory first, loops second: a loop without memory repeats its mistakes across
+    tasks, while memory improves every single-shot answer on its own. Full design
+    notes in <code>docs/ROADMAP.md</code> &mdash; deliberately unbuilt, so today&rsquo;s
+    architecture does not foreclose it.</p>
+</section>
+
+<!-- fleet 1 -->
+<section class="slide" id="s-fleet">
+  <div class="kicker">Future endeavour &middot; 2 of 5</div>
+  <h2>Five developers or five hundred:<br>mesh the router, pool the compute.</h2>
+  <p>Asked whether a team should give every developer a node or pool
+  $100k&ndash;$300k of GPUs on-prem, the answer is <strong>both &mdash; and the
+  tiers decide which goes where</strong>, because they have opposite hardware
+  profiles.</p>
+  <div class="two" style="margin-top:6px">
+    <div>
+      <h3 style="color:var(--blue)">Mesh the perimeter</h3>
+      <p style="font-size:15px;margin-bottom:0">The sentry (45&nbsp;MB) and clerk
+      (0.6B) run on <strong>every developer machine</strong>. No GPU, millisecond
+      answers, near-zero marginal cost per head. The security decision is made
+      before anything leaves that machine &mdash; <em>including before it crosses
+      your own LAN</em>. The perimeter scales to 500 desks for free.</p>
+    </div>
+    <div>
+      <h3 style="color:var(--amber)">Pool the horsepower</h3>
+      <p style="font-size:15px;margin-bottom:0">The 24B tier lives in the micro
+      datacentre, <strong>batched across the team</strong>: one weight read serves
+      every concurrent request &mdash; the one thing a single-user node can never
+      do. A developer uses under <strong>6&#37;</strong> of a GPU-day, so meshing
+      horsepower buys 100&#37; of the hardware to use 6&#37; of it.</p>
+    </div>
+  </div>
+  <p style="margin-top:18px;font-size:15.5px">A pooled cluster is a
+  <strong>shared multi-tenant system</strong> &mdash; a compromise there exposes
+  many developers&rsquo; work at once, not one person&rsquo;s. That is precisely why
+  the gate stays meshed even when compute centralises: the cluster is a compute
+  resource, <strong>not a trust boundary</strong>. Nothing reaches it that a
+  local, deterministic gate has not already cleared.</p>
+</section>
+
+<!-- fleet 2 -->
+<section class="slide" id="s-fleet-econ">
+  <div class="kicker">Future endeavour &middot; 3 of 5</div>
+  <h2>The crossover is about fourteen desks.</h2>
+  <p style="margin-bottom:8px">Mesh capex is flat per head &mdash; every desk buys
+  the same box. Pooled capex <strong>declines per head</strong>, because each card
+  amortises across more people. Below ~14 developers you cannot fill a cluster
+  and mesh is cheaper; above it, pooling wins and the gap widens without limit.</p>
+  <div style="margin:2px 0"><svg viewBox="0 0 1080 410" width="100%" role="img" aria-label="Capex per developer by team size, mesh versus pooled" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+<g font-size="13.5" fill="#66788f">
+<rect x="82" y="12" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="101" y="22">Mesh &#8212; a node per developer</text>
+<rect x="342" y="12" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="361" y="22">Pooled &#8212; shared micro datacentre</text>
+</g>
+<line x1="82" y1="326.0" x2="930" y2="326.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="330.0" font-size="12" fill="#66788f" text-anchor="end">$0</text>
+<line x1="82" y1="286.0" x2="930" y2="286.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="290.0" font-size="12" fill="#66788f" text-anchor="end">$1.0k</text>
+<line x1="82" y1="246.0" x2="930" y2="246.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="250.0" font-size="12" fill="#66788f" text-anchor="end">$2.0k</text>
+<line x1="82" y1="206.0" x2="930" y2="206.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="210.0" font-size="12" fill="#66788f" text-anchor="end">$3.0k</text>
+<line x1="82" y1="166.0" x2="930" y2="166.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="170.0" font-size="12" fill="#66788f" text-anchor="end">$4.0k</text>
+<line x1="82" y1="126.0" x2="930" y2="126.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="130.0" font-size="12" fill="#66788f" text-anchor="end">$5.0k</text>
+<line x1="82" y1="86.0" x2="930" y2="86.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="90.0" font-size="12" fill="#66788f" text-anchor="end">$6.0k</text>
+<line x1="82" y1="46.0" x2="930" y2="46.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="50.0" font-size="12" fill="#66788f" text-anchor="end">$7.0k</text>
+<text x="72" y="32.0" font-size="12" fill="#66788f" text-anchor="end" font-weight="700">$/dev</text>
+<line x1="82.0" y1="46" x2="82.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="82.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">5</text>
+<line x1="209.6" y1="46" x2="209.6" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="209.6" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">10</text>
+<line x1="378.4" y1="46" x2="378.4" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="378.4" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">25</text>
+<line x1="506.0" y1="46" x2="506.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="506.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">50</text>
+<line x1="633.6" y1="46" x2="633.6" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="633.6" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">100</text>
+<line x1="761.3" y1="46" x2="761.3" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="761.3" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">200</text>
+<line x1="930.0" y1="46" x2="930.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="930.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">500</text>
+<text x="506.0" y="372" font-size="12.5" fill="#66788f" text-anchor="middle" font-weight="700">developers (log scale)</text>
+<path d="M82.0,266.0 L209.6,266.0 L284.3,266.0 L337.3,266.0 L378.4,266.0 L506.0,266.0 L580.7,266.0 L633.6,266.0 L708.3,266.0 L761.3,266.0 L835.9,266.0 L888.9,266.0 L930.0,266.0 L930.0,206.0 L888.9,206.0 L835.9,206.0 L761.3,206.0 L708.3,206.0 L633.6,206.0 L580.7,206.0 L506.0,206.0 L378.4,206.0 L337.3,206.0 L284.3,206.0 L209.6,206.0 L82.0,206.0 Z" fill="#2a78d6" opacity="0.13"/>
+<path d="M82.0,236.0 L209.6,236.0 L284.3,236.0 L337.3,236.0 L378.4,236.0 L506.0,236.0 L580.7,236.0 L633.6,236.0 L708.3,236.0 L761.3,236.0 L835.9,236.0 L888.9,236.0 L930.0,236.0" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M82.0,159.6 L209.6,242.8 L284.3,270.5 L337.3,284.4 L378.4,292.7 L506.0,309.4 L580.7,309.4 L633.6,309.4 L708.3,309.4 L761.3,309.4 L835.9,309.4 L888.9,309.4 L930.0,309.4 L930.0,268.9 L888.9,269.3 L835.9,270.0 L761.3,267.2 L708.3,270.0 L633.6,267.2 L580.7,270.0 L506.0,258.8 L378.4,258.8 L337.3,242.0 L284.3,214.0 L209.6,158.0 L82.0,46.0 Z" fill="#eb6834" opacity="0.13"/>
+<path d="M82.0,74.8 L209.6,200.4 L284.3,242.3 L337.3,263.2 L378.4,275.8 L506.0,284.1 L580.7,289.7 L633.6,288.3 L708.3,289.7 L761.3,288.3 L835.9,289.7 L888.9,289.3 L930.0,289.1" fill="none" stroke="#eb6834" stroke-width="2.5" stroke-linejoin="round"/>
+<line x1="271.6" y1="42" x2="271.6" y2="326" stroke="#b3261e" stroke-width="1.6" stroke-dasharray="6 5"/>
+<rect x="278.6" y="48" width="196" height="21" rx="4" fill="#ffffff"/>
+<text x="284.6" y="63" font-size="12.5" font-weight="700" fill="#b3261e">CROSSOVER &#183; ~14 developers</text>
+<text x="940.0" y="240.0" font-size="13.5" font-weight="700" fill="#2a78d6">Mesh</text>
+<text x="940.0" y="256.0" font-size="11.5" fill="#66788f">~$2.2k/dev, flat</text>
+<text x="940.0" y="293.1" font-size="13.5" font-weight="700" fill="#eb6834">Pooled</text>
+<text x="940.0" y="309.1" font-size="11.5" fill="#66788f">~$0.9k/dev at 500</text>
+<text x="82" y="400" font-size="11.5" fill="#66788f">Capex per developer. Shaded bands are the full assumption range; lines are the midpoint. Gate tier excluded &#8212; it needs no GPU and costs the same either way.</text>
+</svg></div>
+  <div class="grid g3" style="margin-top:10px">
+    <div><div class="stat b">$0.75&ndash;1.5M</div><div class="slabel">mesh capex at
+      500 developers</div></div>
+    <div><div class="stat a">$208&ndash;714k</div><div class="slabel">pooled capex at
+      500 developers, 20&ndash;34 GPUs</div></div>
+    <div><div class="stat g">~14</div><div class="slabel">developers &mdash; where
+      pooling starts to pay</div></div>
+  </div>
+</section>
+
+<!-- fleet 3 -->
+<section class="slide" id="s-fleet-buy">
+  <div class="kicker">Future endeavour &middot; 4 of 5</div>
+  <h2>Two ways to buy it.<br>One thing to measure first.</h2>
+  <div class="grid g2" style="margin-top:4px">
+    <div class="card">
+      <div class="t"><span class="tag next">PATH A</span> Client-supplied hardware</div>
+      <ul style="font-size:15px;margin:8px 0 0">
+        <li>The customer procures their own GPUs; we supply the router, the rules
+          engine, the models and the subscriptions</li>
+        <li><strong>Software margins, no working capital</strong>, no inventory,
+          no logistics</li>
+        <li>Fits security teams who insist on owning the metal, and shortens the
+          cycle with regulated buyers</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="t"><span class="tag next">PATH B</span> We supply the cluster</div>
+      <ul style="font-size:15px;margin:8px 0 0">
+        <li>We procure, integrate, certify and ship the micro datacentre as one
+          appliance</li>
+        <li><strong>Far larger deal sizes</strong>, and it is what makes the
+          hardware-refresh tier and the take-back channel actually work</li>
+        <li>Honest cost: this is a hardware business &mdash; working capital,
+          inventory, thinner blended margins. We would price it as such.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rule" style="margin-top:18px;padding:20px 26px;
+       border-color:#e8cfa3;background:linear-gradient(180deg,#fdf9f1,#fbf4e8)">
+    <div class="lock" style="color:var(--amber)">&#9888; The number that decides it</div>
+    <p style="font-size:15.5px;margin:0;color:var(--body)">Everything above turns
+    on <strong>developers served per pooled GPU</strong> &mdash; we model
+    15&ndash;25, from a ~6&#37; duty cycle plus headroom for correlated peaks. At the
+    favourable end, 500 seats fit inside the $100k&ndash;$300k envelope. At the
+    unfavourable end the same 500 seats cost <strong>$714k, about 2.4&times; the
+    ceiling</strong>. We are not going to pretend that spread away: it is one
+    measurement on a pilot, and it should be the first thing any deployment takes.</p>
+  </div>
+</section>
+
+<!-- continuity -->
+<section class="slide" id="s-dr">
+  <div class="kicker">Future endeavour &middot; 5 of 5</div>
+  <h2>On-prem does not mean<br>one prem.</h2>
+  <p>The first question a regulated buyer asks after &ldquo;where does my code
+  run&rdquo; is <strong>&ldquo;what happens when that building burns down&rdquo;</strong>.
+  Sovereignty and continuity are the same conversation, and an appliance that
+  answers only the first half will not clear diligence.</p>
+
+  <svg viewBox="0 0 1080 158" style="width:100%;height:auto;margin:10px 0 4px"
+       font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+    <defs><marker id="dr" markerWidth="9" markerHeight="9" refX="7" refY="3"
+      orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#12703a"/></marker></defs>
+    <rect x="90" y="30" width="290" height="92" rx="12" fill="#eefaf2" stroke="#b9dcc6"/>
+    <text x="235" y="62" text-anchor="middle" font-size="17" font-weight="750" fill="#0f1c2e">Baltimore</text>
+    <text x="235" y="84" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">primary &#183; live router + engineer</text>
+    <text x="235" y="104" text-anchor="middle" font-size="12" fill="#66788f" font-family="ui-monospace,monospace">brain &#183; audit &#183; rules &#183; models</text>
+    <line x1="392" y1="60" x2="688" y2="60" stroke="#12703a" stroke-width="2" marker-end="url(#dr)"/>
+    <line x1="688" y1="96" x2="392" y2="96" stroke="#12703a" stroke-width="2" marker-end="url(#dr)"/>
+    <rect x="430" y="50" width="220" height="20" fill="#ffffff"/>
+    <text x="540" y="65" text-anchor="middle" font-size="12.5" font-weight="700" fill="#12703a" font-family="ui-monospace,monospace">every 15 minutes</text>
+    <rect x="420" y="86" width="240" height="20" fill="#ffffff"/>
+    <text x="540" y="101" text-anchor="middle" font-size="12" fill="#3d4f66" font-family="ui-monospace,monospace">encrypted &#183; private &#183; logged</text>
+    <rect x="700" y="30" width="290" height="92" rx="12" fill="#eefaf2" stroke="#b9dcc6"/>
+    <text x="845" y="62" text-anchor="middle" font-size="17" font-weight="750" fill="#0f1c2e">Chicago</text>
+    <text x="845" y="84" text-anchor="middle" font-size="12.5" fill="#3d4f66" font-family="ui-monospace,monospace">standby &#183; append-only replica</text>
+    <text x="845" y="104" text-anchor="middle" font-size="12" fill="#66788f" font-family="ui-monospace,monospace">immutable &#183; agents cannot reach it</text>
+    <text x="540" y="146" text-anchor="middle" font-size="12.5" fill="#66788f">
+      ~700 miles &#183; different power grids, weather systems and FEMA regions &mdash; a correlated failure is a national event, not an outage</text>
+  </svg>
+
+  <div class="two" style="margin-top:6px">
+    <div>
+      <p style="font-size:15px"><strong>15-minute RPO</strong> &mdash; maximum
+      tolerable data loss, not a backup schedule. What replicates: the codebase
+      memory, the <strong>audit trail</strong>, the rules files, and the model
+      versions that produced the logged decisions.</p>
+      <p style="font-size:15px;margin-bottom:0"><strong>Rules restore first.</strong>
+      Recovery order is deliberate &mdash; rules, then audit, then memory, then
+      compute. A node that comes back before its gate does is a node with no
+      perimeter.</p>
+    </div>
+    <div>
+      <p style="font-size:15px"><strong>Replication <em>is</em> egress.</strong>
+      It would be incoherent to gate a 285-byte snippet and wave through a full
+      repository copy. Replication is encrypted, private, logged to the same
+      audit topics, and sent only to <strong>declared</strong> destinations
+      &mdash; an undeclared target is treated as exfiltration.</p>
+      <p style="font-size:15px;margin-bottom:0">It is also the other half of the
+      ransomware control: detection without recovery is not a control. The
+      reason an operator can refuse to pay is a clean, immutable copy in
+      another state.</p>
+    </div>
+  </div>
+
+  <div class="rule" style="margin-top:14px;padding:18px 24px">
+    <div class="lock">&#128274; Why we can speak to this</div>
+    <p style="font-size:15.5px;margin:0;color:var(--body)">Our founder ran
+    continuity and recovery operations of exactly this shape for many years at
+    <strong>Euler Hermes</strong>, a global trade-credit insurer &mdash; where
+    tolerance for lost financial records is measured in minutes and the recovery
+    plan is <em>audited</em>, not assumed. Not a feature we read about; the
+    discipline the company was built by.</p>
+  </div>
+</section>
+
+
+<!-- 14 -->
+<section class="slide" id="s14">
+  <div class="kicker">Roadmap</div>
+  <h2>Where the moat gets deeper.</h2>
+  <div class="grid g3">
+    <div class="card"><div class="t"><span class="tag next">NEXT</span></div>
+      <h3>Boolean rules engine</h3>
+      <p><code>must_contain</code>, <code>cannot_contain</code>, <code>any</code>,
+      <code>all</code>, <code>and</code>, <code>or</code>, <code>not</code> —
+      composable policy instead of a flat keyword list.</p></div>
+    <div class="card"><div class="t"><span class="tag next">NEXT</span></div>
+      <h3>Inexact matching</h3>
+      <p>A one-character misspelling should not defeat the gate.
+      <code>nightjr</code> and <code>pricng engine</code> score close enough to
+      trip it — and the near-miss itself becomes an evasion signal worth
+      alerting on.</p></div>
+    <div class="card"><div class="t"><span class="tag next">NEXT</span></div>
+      <h3>Mesh of on-prem nodes</h3>
+      <p>Route across a fleet by role and load, not a single box. The node and
+      task contracts for this are already defined.</p></div>
+    <div class="card"><div class="t"><span class="tag next">LATER</span></div>
+      <h3>Behavioural monitoring</h3>
+      <p>Detection rules over the agent event stream — mass file writes,
+      credential-path access, fence-probing — with kill-and-alert.</p></div>
+    <div class="card"><div class="t"><span class="tag next">LATER</span></div>
+      <h3>Executive telemetry</h3>
+      <p>Tokens and spend, local versus escalated, dollars saved against an
+      all-cloud baseline, and security posture over time.</p></div>
+    <div class="card"><div class="t"><span class="tag next">LATER</span></div>
+      <h3>Compliance export</h3>
+      <p>The audit trail already exists. Turn it into the evidence pack an
+      auditor or an acquirer asks for.</p></div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide" id="s15">
+  <div class="kicker">Why now</div>
+  <h2>Capability is commoditising.<br>Control is not.</h2>
+  <div class="two">
+    <div>
+      <p>Frontier models get cheaper and more available every quarter. The thing
+      that stays scarce is the ability to <strong>prove</strong> where your most
+      valuable code went, and to hand that proof to someone who is not obliged to
+      trust you.</p>
+      <p>Every organisation with real IP is being forced to choose between
+      velocity and containment. AI-Paladin's position is that this is a false
+      choice created by an absent control layer &mdash; and that the control layer
+      belongs in the routing decision, not in a policy document.</p>
+    </div>
+    <div>
+      <div class="rule" style="margin-top:0">
+        <div class="lock">&#128274; The one line to remember</div>
+        <div class="big" style="font-size:clamp(20px,2.6vw,28px)">keyword match
+        &rArr; on-prem.<br>Always. Not overridable.</div>
+      </div>
+      <p style="font-size:15.5px">Enforced in code, before the socket. Defined in
+      version-controlled YAML your security team owns &mdash; not in a prompt the
+      model is free to reinterpret.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" id="s16">
+  <div class="kicker">Status &amp; ask</div>
+  <h2>Working prototype. Today.</h2>
+  <div class="grid g3" style="margin-bottom:26px">
+    <div><div class="stat g">Live</div><div class="slabel">end-to-end routing,
+      on real hardware, with a real local model</div></div>
+    <div><div class="stat b">1</div><div class="slabel">command to run it —
+      no build step, no dependencies to install</div></div>
+    <div><div class="stat a">CPU</div><div class="slabel">only. Every latency
+      number improves with the first GPU</div></div>
+  </div>
+  <div class="hr"></div>
+  <h3 style="font-size:22px;margin-bottom:14px">What we want from this conversation</h3>
+  <ul style="font-size:17px">
+    <li><strong>A design partner</strong> with genuine protected IP and a real
+      compliance obligation, to pressure-test the rules engine against policy
+      that already exists.</li>
+    <li><strong>Hardware</strong> to close the latency gap — the architecture is
+      done; the remaining gap is a GPU line item.</li>
+    <li><strong>Capital</strong> to build the boolean and fuzzy rules engine, the
+      multi-node mesh, and the compliance export.</li>
+  </ul>
+</section>
+
+</div>
+<nav id="nav"></nav>
+<script>
+  const nav = document.getElementById('nav');
+  document.querySelectorAll('.slide').forEach(s => {
+    const a = document.createElement('a');
+    a.href = '#' + s.id; a.title = s.querySelector('h1,h2').textContent.trim();
+    nav.appendChild(a);
+  });
+  const slides = [...document.querySelectorAll('.slide')];
+  addEventListener('keydown', e => {
+    if (!['ArrowDown','ArrowRight','ArrowUp','ArrowLeft',' '].includes(e.key)) return;
+    e.preventDefault();
+    const fwd = ['ArrowDown','ArrowRight',' '].includes(e.key);
+    const y = scrollY + 6;
+    const next = fwd ? slides.find(s => s.offsetTop > y)
+                     : [...slides].reverse().find(s => s.offsetTop < y - 12);
+    (next || slides[fwd ? slides.length-1 : 0]).scrollIntoView({behavior:'smooth'});
+  });
+</script>
+</body>
+</html>

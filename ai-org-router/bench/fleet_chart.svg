@@ -1,0 +1,52 @@
+<svg viewBox="0 0 1080 410" width="100%" role="img" aria-label="Capex per developer by team size, mesh versus pooled" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+<g font-size="13.5" fill="#66788f">
+<rect x="82" y="12" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="101" y="22">Mesh &#8212; a node per developer</text>
+<rect x="342" y="12" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="361" y="22">Pooled &#8212; shared micro datacentre</text>
+</g>
+<line x1="82" y1="326.0" x2="930" y2="326.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="330.0" font-size="12" fill="#66788f" text-anchor="end">$0</text>
+<line x1="82" y1="286.0" x2="930" y2="286.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="290.0" font-size="12" fill="#66788f" text-anchor="end">$1.0k</text>
+<line x1="82" y1="246.0" x2="930" y2="246.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="250.0" font-size="12" fill="#66788f" text-anchor="end">$2.0k</text>
+<line x1="82" y1="206.0" x2="930" y2="206.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="210.0" font-size="12" fill="#66788f" text-anchor="end">$3.0k</text>
+<line x1="82" y1="166.0" x2="930" y2="166.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="170.0" font-size="12" fill="#66788f" text-anchor="end">$4.0k</text>
+<line x1="82" y1="126.0" x2="930" y2="126.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="130.0" font-size="12" fill="#66788f" text-anchor="end">$5.0k</text>
+<line x1="82" y1="86.0" x2="930" y2="86.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="90.0" font-size="12" fill="#66788f" text-anchor="end">$6.0k</text>
+<line x1="82" y1="46.0" x2="930" y2="46.0" stroke="#e6ecf3" stroke-width="1"/>
+<text x="72" y="50.0" font-size="12" fill="#66788f" text-anchor="end">$7.0k</text>
+<text x="72" y="32.0" font-size="12" fill="#66788f" text-anchor="end" font-weight="700">$/dev</text>
+<line x1="82.0" y1="46" x2="82.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="82.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">5</text>
+<line x1="209.6" y1="46" x2="209.6" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="209.6" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">10</text>
+<line x1="378.4" y1="46" x2="378.4" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="378.4" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">25</text>
+<line x1="506.0" y1="46" x2="506.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="506.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">50</text>
+<line x1="633.6" y1="46" x2="633.6" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="633.6" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">100</text>
+<line x1="761.3" y1="46" x2="761.3" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="761.3" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">200</text>
+<line x1="930.0" y1="46" x2="930.0" y2="326" stroke="#e6ecf3" stroke-width="1"/>
+<text x="930.0" y="348" font-size="12.5" fill="#66788f" text-anchor="middle">500</text>
+<text x="506.0" y="372" font-size="12.5" fill="#66788f" text-anchor="middle" font-weight="700">developers (log scale)</text>
+<path d="M82.0,266.0 L209.6,266.0 L284.3,266.0 L337.3,266.0 L378.4,266.0 L506.0,266.0 L580.7,266.0 L633.6,266.0 L708.3,266.0 L761.3,266.0 L835.9,266.0 L888.9,266.0 L930.0,266.0 L930.0,206.0 L888.9,206.0 L835.9,206.0 L761.3,206.0 L708.3,206.0 L633.6,206.0 L580.7,206.0 L506.0,206.0 L378.4,206.0 L337.3,206.0 L284.3,206.0 L209.6,206.0 L82.0,206.0 Z" fill="#2a78d6" opacity="0.13"/>
+<path d="M82.0,236.0 L209.6,236.0 L284.3,236.0 L337.3,236.0 L378.4,236.0 L506.0,236.0 L580.7,236.0 L633.6,236.0 L708.3,236.0 L761.3,236.0 L835.9,236.0 L888.9,236.0 L930.0,236.0" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M82.0,159.6 L209.6,242.8 L284.3,270.5 L337.3,284.4 L378.4,292.7 L506.0,309.4 L580.7,309.4 L633.6,309.4 L708.3,309.4 L761.3,309.4 L835.9,309.4 L888.9,309.4 L930.0,309.4 L930.0,268.9 L888.9,269.3 L835.9,270.0 L761.3,267.2 L708.3,270.0 L633.6,267.2 L580.7,270.0 L506.0,258.8 L378.4,258.8 L337.3,242.0 L284.3,214.0 L209.6,158.0 L82.0,46.0 Z" fill="#eb6834" opacity="0.13"/>
+<path d="M82.0,74.8 L209.6,200.4 L284.3,242.3 L337.3,263.2 L378.4,275.8 L506.0,284.1 L580.7,289.7 L633.6,288.3 L708.3,289.7 L761.3,288.3 L835.9,289.7 L888.9,289.3 L930.0,289.1" fill="none" stroke="#eb6834" stroke-width="2.5" stroke-linejoin="round"/>
+<line x1="271.6" y1="42" x2="271.6" y2="326" stroke="#b3261e" stroke-width="1.6" stroke-dasharray="6 5"/>
+<rect x="278.6" y="48" width="196" height="21" rx="4" fill="#ffffff"/>
+<text x="284.6" y="63" font-size="12.5" font-weight="700" fill="#b3261e">CROSSOVER &#183; ~14 developers</text>
+<text x="940.0" y="240.0" font-size="13.5" font-weight="700" fill="#2a78d6">Mesh</text>
+<text x="940.0" y="256.0" font-size="11.5" fill="#66788f">~$2.2k/dev, flat</text>
+<text x="940.0" y="293.1" font-size="13.5" font-weight="700" fill="#eb6834">Pooled</text>
+<text x="940.0" y="309.1" font-size="11.5" fill="#66788f">~$0.9k/dev at 500</text>
+<text x="82" y="400" font-size="11.5" fill="#66788f">Capex per developer. Shaded bands are the full assumption range; lines are the midpoint. Gate tier excluded &#8212; it needs no GPU and costs the same either way.</text>
+</svg>

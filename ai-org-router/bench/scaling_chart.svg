@@ -1,0 +1,47 @@
+<svg viewBox="0 0 1080 356" width="100%" role="img" aria-label="Seconds per 300-token answer by hardware tier" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif">
+<g font-size="13" fill="#66788f"><rect x="178" y="10" width="11" height="11" rx="2.5" fill="#2a78d6"/><text x="196" y="20">Measured on this machine</text><rect x="383" y="10" width="11" height="11" rx="2.5" fill="#898781"/><text x="401" y="20">Projected from the bandwidth model</text></g>
+<line x1="178.0" y1="32" x2="178.0" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="178.0" y="294" font-size="12" fill="#66788f" text-anchor="middle">0s</text>
+<line x1="306.2" y1="32" x2="306.2" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="306.2" y="294" font-size="12" fill="#66788f" text-anchor="middle">10s</text>
+<line x1="434.5" y1="32" x2="434.5" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="434.5" y="294" font-size="12" fill="#66788f" text-anchor="middle">20s</text>
+<line x1="562.7" y1="32" x2="562.7" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="562.7" y="294" font-size="12" fill="#66788f" text-anchor="middle">30s</text>
+<line x1="691.0" y1="32" x2="691.0" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="691.0" y="294" font-size="12" fill="#66788f" text-anchor="middle">40s</text>
+<line x1="819.2" y1="32" x2="819.2" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="819.2" y="294" font-size="12" fill="#66788f" text-anchor="middle">50s</text>
+<line x1="947.5" y1="32" x2="947.5" y2="274" stroke="#e6ecf3" stroke-width="1"/>
+<text x="947.5" y="294" font-size="12" fill="#66788f" text-anchor="middle">60s</text>
+<text x="164" y="55" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">CPU only</text>
+<g><title>CPU only: 60.7s per 300-token answer, 4.9 tok/s, 0% of the model in VRAM</title><path d="M178,40 H952.4313725490196 a4,4 0 0 1 4,4 V57 a4,4 0 0 1 -4,4 H178 Z" fill="#2a78d6"/></g>
+<text x="967.4313725490196" y="55" font-size="14.5" fill="#0f1c2e" font-weight="700">61s</text>
+<text x="967.4313725490196" y="72" font-size="11.5" fill="#66788f">baseline</text>
+<text x="164" y="71" font-size="11" fill="#66788f" text-anchor="end">0% of model in VRAM</text>
+<text x="164" y="99" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">+ 8 GB eGPU</text>
+<g><title>+ 8 GB eGPU: 45.1s per 300-token answer, 6.7 tok/s, 46% of the model in VRAM</title><path d="M178,84 H752.373227379914 a4,4 0 0 1 4,4 V101 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="767.373227379914" y="99" font-size="14.5" fill="#0f1c2e" font-weight="700">45s</text>
+<text x="767.373227379914" y="116" font-size="11.5" fill="#66788f">1.3x faster</text>
+<text x="164" y="115" font-size="11" fill="#66788f" text-anchor="end">46% of model in VRAM</text>
+<text x="164" y="173" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">16 GB GPU</text>
+<g><title>16 GB GPU: 11.4s per 300-token answer, 26.2 tok/s, 99% of the model in VRAM</title><path d="M178,158 H320.1963368543463 a4,4 0 0 1 4,4 V175 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="335.1963368543463" y="173" font-size="14.5" fill="#0f1c2e" font-weight="700">11s</text>
+<text x="335.1963368543463" y="190" font-size="11.5" fill="#66788f">5.3x faster</text>
+<text x="164" y="189" font-size="11" fill="#66788f" text-anchor="end">99% of model in VRAM</text>
+<text x="164" y="217" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">24 GB GPU</text>
+<g><title>24 GB GPU: 6.5s per 300-token answer, 46.1 tok/s, 100% of the model in VRAM</title><path d="M178,202 H257.35756048712733 a4,4 0 0 1 4,4 V219 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="272.35756048712733" y="217" font-size="14.5" fill="#0f1c2e" font-weight="700">6s</text>
+<text x="272.35756048712733" y="234" font-size="11.5" fill="#66788f">9.3x faster</text>
+<text x="164" y="233" font-size="11" fill="#66788f" text-anchor="end">100% of model in VRAM</text>
+<text x="164" y="261" font-size="14.5" fill="#0f1c2e" text-anchor="end" font-weight="650">48 GB class</text>
+<g><title>48 GB class: 3.3s per 300-token answer, 92.2 tok/s, 100% of the model in VRAM</title><path d="M178,246 H216.31999224731078 a4,4 0 0 1 4,4 V263 a4,4 0 0 1 -4,4 H178 Z" fill="#898781"/></g>
+<text x="231.31999224731078" y="261" font-size="14.5" fill="#0f1c2e" font-weight="700">3s</text>
+<text x="231.31999224731078" y="278" font-size="11.5" fill="#66788f">18.7x faster</text>
+<text x="164" y="277" font-size="11" fill="#66788f" text-anchor="end">100% of model in VRAM</text>
+<line x1="28" y1="139" x2="1064" y2="139" stroke="#b3261e" stroke-width="1.6" stroke-dasharray="7 5"/>
+<rect x="428" y="128" width="384" height="22" fill="#ffffff"/>
+<text x="440" y="143" font-size="12.5" fill="#b3261e" font-weight="700">THE CLIFF &#183; the model now fits entirely in VRAM</text>
+<text x="178" y="326" font-size="12" fill="#66788f">Seconds to produce a 300-token answer. Measured anchor: 4.94 tok/s on a 15.18 GB model = 75.0 GB/s effective bandwidth.</text>
+<text x="178" y="343" font-size="12" fill="#66788f">Projections assume each class delivers ~70% of its peak bandwidth; see bench/project.py.</text>
+</svg>

@@ -1,0 +1,193 @@
+{
+  "assumptions": {
+    "mesh_node_usd": [
+      1500,
+      3000
+    ],
+    "pooled_gpu_usd": [
+      8000,
+      15000
+    ],
+    "pooled_overhead_pct": [
+      30,
+      40
+    ],
+    "devs_per_pooled_gpu": [
+      15,
+      25
+    ],
+    "min_pooled_gpus": 2
+  },
+  "crossover_developers": 14,
+  "rows": [
+    {
+      "n": 5,
+      "mesh_low": 7500,
+      "mesh_high": 15000,
+      "mesh_mid": 11250.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 42000.0,
+      "pooled_mid": 31400.0,
+      "gpus_low": 2,
+      "gpus_high": 2,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 6280.0
+    },
+    {
+      "n": 10,
+      "mesh_low": 15000,
+      "mesh_high": 30000,
+      "mesh_mid": 22500.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 42000.0,
+      "pooled_mid": 31400.0,
+      "gpus_low": 2,
+      "gpus_high": 2,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 3140.0
+    },
+    {
+      "n": 15,
+      "mesh_low": 22500,
+      "mesh_high": 45000,
+      "mesh_mid": 33750.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 42000.0,
+      "pooled_mid": 31400.0,
+      "gpus_low": 2,
+      "gpus_high": 2,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 2093.3333333333335
+    },
+    {
+      "n": 20,
+      "mesh_low": 30000,
+      "mesh_high": 60000,
+      "mesh_mid": 45000.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 42000.0,
+      "pooled_mid": 31400.0,
+      "gpus_low": 2,
+      "gpus_high": 2,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 1570.0
+    },
+    {
+      "n": 25,
+      "mesh_low": 37500,
+      "mesh_high": 75000,
+      "mesh_mid": 56250.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 42000.0,
+      "pooled_mid": 31400.0,
+      "gpus_low": 2,
+      "gpus_high": 2,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 1256.0
+    },
+    {
+      "n": 50,
+      "mesh_low": 75000,
+      "mesh_high": 150000,
+      "mesh_mid": 112500.0,
+      "pooled_low": 20800.0,
+      "pooled_high": 84000.0,
+      "pooled_mid": 52400.0,
+      "gpus_low": 2,
+      "gpus_high": 4,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 1048.0
+    },
+    {
+      "n": 75,
+      "mesh_low": 112500,
+      "mesh_high": 225000,
+      "mesh_mid": 168750.0,
+      "pooled_low": 31200.0,
+      "pooled_high": 105000.0,
+      "pooled_mid": 68100.0,
+      "gpus_low": 3,
+      "gpus_high": 5,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 908.0
+    },
+    {
+      "n": 100,
+      "mesh_low": 150000,
+      "mesh_high": 300000,
+      "mesh_mid": 225000.0,
+      "pooled_low": 41600.0,
+      "pooled_high": 147000.0,
+      "pooled_mid": 94300.0,
+      "gpus_low": 4,
+      "gpus_high": 7,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 943.0
+    },
+    {
+      "n": 150,
+      "mesh_low": 225000,
+      "mesh_high": 450000,
+      "mesh_mid": 337500.0,
+      "pooled_low": 62400.0,
+      "pooled_high": 210000.0,
+      "pooled_mid": 136200.0,
+      "gpus_low": 6,
+      "gpus_high": 10,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 908.0
+    },
+    {
+      "n": 200,
+      "mesh_low": 300000,
+      "mesh_high": 600000,
+      "mesh_mid": 450000.0,
+      "pooled_low": 83200.0,
+      "pooled_high": 294000.0,
+      "pooled_mid": 188600.0,
+      "gpus_low": 8,
+      "gpus_high": 14,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 943.0
+    },
+    {
+      "n": 300,
+      "mesh_low": 450000,
+      "mesh_high": 900000,
+      "mesh_mid": 675000.0,
+      "pooled_low": 124800.0,
+      "pooled_high": 420000.0,
+      "pooled_mid": 272400.0,
+      "gpus_low": 12,
+      "gpus_high": 20,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 908.0
+    },
+    {
+      "n": 400,
+      "mesh_low": 600000,
+      "mesh_high": 1200000,
+      "mesh_mid": 900000.0,
+      "pooled_low": 166400.0,
+      "pooled_high": 567000.0,
+      "pooled_mid": 366700.0,
+      "gpus_low": 16,
+      "gpus_high": 27,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 916.75
+    },
+    {
+      "n": 500,
+      "mesh_low": 750000,
+      "mesh_high": 1500000,
+      "mesh_mid": 1125000.0,
+      "pooled_low": 208000.0,
+      "pooled_high": 714000.0,
+      "pooled_mid": 461000.0,
+      "gpus_low": 20,
+      "gpus_high": 34,
+      "mesh_per_dev": 2250.0,
+      "pooled_per_dev": 922.0
+    }
+  ]
+}

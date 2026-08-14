@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-Paladin — Router</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5'%3E%3Cpath d='M12 2 4 6v6c0 5 3.4 9.1 8 10 4.6-.9 8-5 8-10V6l-8-4z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#111823; --panel2:#0d141d; --line:#1e2a3a;
+    --ink:#e6edf5; --muted:#8b9bb0; --dim:#5b6b80;
+    --onprem:#22c55e; --bigai:#f97316; --warn:#f59e0b; --crit:#ef4444;
+    --accent:#38bdf8;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:14px;line-height:1.5;overflow:hidden}
+  button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#22303f;border-radius:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  /* ---------- shell ---------- */
+  .app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:10px 18px;
+         border-bottom:1px solid var(--line);background:var(--panel2)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.3px}
+  .shield{width:20px;height:20px;flex:none}
+  .invariant{display:flex;align-items:center;gap:7px;padding:4px 11px;
+    border:1px solid #1f3d2c;background:#0e1f16;border-radius:999px;
+    font-size:11.5px;color:#7ee2a8;font-family:var(--mono)}
+  .lock{font-size:11px}
+  header .spacer{flex:1}
+  .hbtn{padding:6px 12px;border:1px solid var(--line);border-radius:7px;
+        font-size:12.5px;color:var(--muted);position:relative}
+  .hbtn:hover{border-color:#2d3f54;color:var(--ink)}
+  .hbtn.on{border-color:var(--accent);color:var(--accent)}
+  .badge{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;
+    padding:0 4px;border-radius:9px;background:var(--crit);color:#fff;
+    font-size:10.5px;font-weight:700;display:none;align-items:center;
+    justify-content:center;font-family:var(--mono)}
+  .badge.show{display:flex}
+
+  .main{display:grid;grid-template-columns:1fr 372px;overflow:hidden}
+
+  /* ---------- chat ---------- */
+  .chat{display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;
+        border-right:1px solid var(--line)}
+  .modebar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);
+           background:var(--panel2);align-items:center;flex-wrap:wrap}
+  .mode{flex:1;min-width:150px;text-align:left;padding:8px 11px;border-radius:9px;
+        border:1px solid var(--line);background:var(--panel);transition:.12s}
+  .mode:hover{border-color:#2d3f54}
+  .mode.sel{background:#131d2a}
+  .mode .mt{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:6px}
+  .mode .md{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
+  .dotm{width:7px;height:7px;border-radius:50%;flex:none}
+
+  .feed{overflow-y:auto;padding:20px 22px 8px;scroll-behavior:smooth}
+  .msg{max-width:760px;margin:0 0 20px}
+  .msg.user{margin-left:auto}
+  .msg.user .bub{background:#16212e;border:1px solid #22303f}
+  .bub{padding:11px 15px;border-radius:11px;white-space:pre-wrap;
+       word-wrap:break-word;font-size:13.5px}
+  .who{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;
+       color:var(--dim);margin-bottom:6px;font-family:var(--mono);
+       display:flex;align-items:center;gap:8px}
+  .msg.user .who{justify-content:flex-end}
+  .bub code{font-family:var(--mono);font-size:12.5px}
+  .bub pre{background:#080c12;border:1px solid var(--line);border-radius:8px;
+           padding:11px;overflow-x:auto;margin:9px 0;font-family:var(--mono);
+           font-size:12px;white-space:pre}
+  .bub strong{color:#fff}
+
+  .route{border-radius:10px;padding:10px 13px;margin-bottom:9px;font-size:12.5px;
+         border:1px solid;display:flex;gap:10px;align-items:flex-start}
+  .route.local{background:#0d1b13;border-color:#1f3d2c;color:#8fe7b4}
+  .route.boot{background:#0c1620;border-color:#1e3348;color:#8ecbf0}
+  .route.egress{background:#1e1206;border-color:#4a2c0d;color:#fbbf24}
+  .route .ri{font-size:15px;line-height:1.2}
+  .route b{display:block;margin-bottom:2px;color:#fff;font-size:12.5px}
+  .route .rr{font-family:var(--mono);font-size:11.5px;opacity:.9;line-height:1.45}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .chip{padding:2px 7px;border-radius:5px;font-family:var(--mono);font-size:10.5px;
+        background:#2a1414;border:1px solid #4b1f1f;color:#fca5a5}
+  .simbadge{padding:1px 6px;border-radius:4px;background:#3a2708;
+    border:1px solid #6b4708;color:#fbbf24;font-size:9.5px;font-weight:700;
+    letter-spacing:.7px;font-family:var(--mono)}
+
+  .composer{border-top:1px solid var(--line);padding:12px 16px;background:var(--panel2)}
+  .cwrap{display:flex;gap:9px;align-items:flex-end}
+  textarea{flex:1;resize:none;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:11px 13px;color:var(--ink);font:inherit;
+    font-size:13.5px;min-height:46px;max-height:150px;outline:none}
+  textarea:focus{border-color:#2d4a63}
+  .send{padding:11px 20px;border-radius:10px;background:var(--accent);color:#04121c;
+        font-weight:700;font-size:13.5px}
+  .send:disabled{opacity:.35;cursor:not-allowed}
+  .crow{display:flex;gap:10px;align-items:center;margin-top:9px;
+        font-size:11.5px;color:var(--dim);flex-wrap:wrap}
+  select{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    border-radius:6px;padding:4px 7px;font:inherit;font-size:11.5px;outline:none}
+  .try{padding:3px 9px;border:1px solid var(--line);border-radius:20px;
+       font-size:11px;color:var(--muted)}
+  .try:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- rail ---------- */
+  .rail{overflow-y:auto;background:var(--panel2);padding:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:13px;margin-bottom:12px}
+  .ct{font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;
+      color:var(--dim);margin-bottom:11px;font-family:var(--mono);
+      display:flex;justify-content:space-between;align-items:center}
+
+  .node{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+  .led{width:38px;height:38px;border-radius:50%;flex:none;position:relative;
+       display:grid;place-items:center;transition:background .25s}
+  .led::after{content:"";position:absolute;inset:-5px;border-radius:50%;
+    border:2px solid currentColor;opacity:0;animation:none}
+  .led.act::after{animation:pulse 1.5s ease-out infinite}
+  @keyframes pulse{0%{opacity:.55;transform:scale(.85)}100%{opacity:0;transform:scale(1.35)}}
+  .led .core{width:13px;height:13px;border-radius:50%;background:#fff;opacity:.92}
+  .nname{font-weight:650;font-size:13px}
+  .nstate{font-size:11.5px;font-family:var(--mono);margin-top:1px}
+  .ndetail{font-size:10.5px;color:var(--dim);margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px}
+
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:11px;
+          padding-top:11px;border-top:1px solid var(--line)}
+  .lg{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted)}
+  .lgd{width:8px;height:8px;border-radius:50%;flex:none}
+
+  .metric{display:flex;justify-content:space-between;padding:5px 0;font-size:12px}
+  .metric span:first-child{color:var(--muted)}
+  .metric span:last-child{font-family:var(--mono);font-weight:600}
+  .barrow{margin:9px 0}
+  .barlab{display:flex;justify-content:space-between;font-size:11px;
+    color:var(--muted);margin-bottom:4px;font-family:var(--mono)}
+  .bar{height:7px;background:#0a1119;border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:4px;transition:width .3s}
+
+  .ntf{border-left:3px solid;padding:8px 10px;margin-bottom:7px;border-radius:0 7px 7px 0;
+       background:#0d141d;font-size:11.5px}
+  .ntf.info{border-color:var(--accent)}
+  .ntf.warning{border-color:var(--warn)}
+  .ntf.critical{border-color:var(--crit)}
+  .ntf .nt{font-weight:650;margin-bottom:2px;font-size:12px}
+  .ntf .nb{color:var(--muted);line-height:1.4}
+  .ntf .nm{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px;
+    display:flex;gap:8px;flex-wrap:wrap}
+  .topic{font-family:var(--mono);font-size:9.5px;padding:1px 5px;border-radius:4px;
+    background:#16212e;border:1px solid var(--line);color:var(--muted)}
+  .empty{color:var(--dim);font-size:11.5px;text-align:center;padding:14px}
+
+  .org{margin-bottom:2px}
+  .oa{display:flex;align-items:center;gap:9px;padding:7px 0;
+      border-bottom:1px solid var(--line)}
+  .oa:last-child{border-bottom:0}
+  .oat{font-family:var(--mono);font-size:9.5px;color:var(--dim);width:34px;flex:none}
+  .oad{flex:1;min-width:0}
+  .oan{font-size:12px;font-weight:650;display:flex;align-items:center;gap:6px}
+  .oam{font-family:var(--mono);font-size:10px;color:var(--dim);
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .oaz{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+       text-align:right;flex:none}
+  .up{width:6px;height:6px;border-radius:50%;flex:none}
+
+  .ledger{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+  .lc{background:#0a1119;border:1px solid var(--line);border-radius:9px;padding:9px 10px}
+  .lc .v{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1.1}
+  .lc .k{font-size:9.5px;color:var(--dim);text-transform:uppercase;
+         letter-spacing:.7px;margin-top:3px;line-height:1.3}
+  .lsec{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);
+        font-family:var(--mono);margin:12px 0 7px;padding-top:10px;
+        border-top:1px solid var(--line)}
+  .lsec:first-child{margin-top:0;padding-top:0;border-top:0}
+  .contain{height:6px;background:#2a1414;border-radius:3px;overflow:hidden;margin:7px 0 4px}
+  .contain i{display:block;height:100%;background:var(--onprem);transition:width .4s}
+
+  .kw{display:flex;justify-content:space-between;align-items:center;padding:4px 0;
+      font-size:11.5px}
+  .kw .kl{color:var(--muted)}
+  .kw .kc{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  .sev{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
+
+  /* ---------- modal ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(3,7,12,.82);backdrop-filter:blur(3px);
+         display:none;align-items:center;justify-content:center;z-index:50;padding:26px}
+  .scrim.show{display:flex}
+  .modal{background:var(--panel);border:1px solid #4a2c0d;border-radius:14px;
+    width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;
+    box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  .mhead{padding:18px 22px;border-bottom:1px solid var(--line)}
+  .mtitle{font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px;
+          color:#fbbf24}
+  .msub{color:var(--muted);font-size:12.5px;margin-top:5px;line-height:1.5}
+  .mbody{padding:16px 22px;overflow-y:auto;flex:1}
+  .mfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;
+         justify-content:flex-end;align-items:center}
+  .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:15px}
+  .st{background:#0a1119;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .st .sv{font-family:var(--mono);font-size:18px;font-weight:700;color:#fbbf24}
+  .st .sl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;
+    margin-top:2px}
+  .fh{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);
+    font-family:var(--mono);margin:14px 0 8px}
+  .file{border:1px solid var(--line);border-radius:9px;margin-bottom:8px;overflow:hidden}
+  .fhd{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;
+       background:#0d141d;cursor:pointer;gap:10px}
+  .fhd:hover{background:#111a25}
+  .fp{font-family:var(--mono);font-size:12px;color:#fbbf24;overflow:hidden;
+      text-overflow:ellipsis;white-space:nowrap}
+  .fm{font-family:var(--mono);font-size:10.5px;color:var(--dim);flex:none}
+  .fc{display:none;border-top:1px solid var(--line);background:#070b10;
+      max-height:260px;overflow:auto}
+  .fc.open{display:block}
+  .fc pre{margin:0;padding:11px;font-family:var(--mono);font-size:11.5px;
+    line-height:1.55;color:#c3d0de;white-space:pre}
+  .btn{padding:10px 18px;border-radius:9px;font-weight:650;font-size:13px}
+  .btn.deny{border:1px solid var(--line);color:var(--muted)}
+  .btn.deny:hover{border-color:#3a4c60;color:var(--ink)}
+  .btn.go{background:var(--crit);color:#fff}
+  .btn.go:hover{background:#dc2626}
+  .warnline{background:#1e1206;border:1px solid #4a2c0d;border-radius:9px;
+    padding:11px 13px;font-size:12.5px;color:#fbbf24;margin-bottom:15px;
+    display:flex;gap:9px;align-items:flex-start}
+
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:430px;background:var(--panel2);
+    border-left:1px solid var(--line);z-index:40;transform:translateX(100%);
+    transition:transform .22s ease;display:flex;flex-direction:column}
+  .drawer.open{transform:translateX(0)}
+  .dhd{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;
+       justify-content:space-between;align-items:center}
+  .dbody{overflow-y:auto;padding:14px 18px;flex:1}
+  .roadmap{border:1px dashed #3a4c60;border-radius:9px;padding:11px;
+    font-size:11.5px;color:var(--dim);line-height:1.5}
+  .roadmap b{color:var(--muted);display:block;margin-bottom:4px;font-size:10.5px;
+    letter-spacing:1px;text-transform:uppercase;font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="shield" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+        <path d="M12 2 4 6v6c0 5 3.4 9.1 8 10 4.6-.9 8-5 8-10V6l-8-4z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+      AI-Paladin
+    </div>
+    <div class="invariant"><span class="lock">&#128274;</span>
+      <span>protected-ip&nbsp;&rarr;&nbsp;on-prem &middot; not overridable</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="hbtn" id="rulesBtn">Rules engine</button>
+    <button class="hbtn" id="ntfBtn">Notifications<span class="badge" id="ntfBadge">0</span></button>
+  </header>
+
+  <div class="main">
+    <div class="chat">
+      <div class="modebar" id="modebar"></div>
+      <div class="feed" id="feed"></div>
+      <div class="composer">
+        <div class="cwrap">
+          <textarea id="input" rows="1" placeholder="Ask AI-Paladin&hellip;"></textarea>
+          <button class="send" id="send">Route</button>
+        </div>
+        <div class="crow">
+          <span>Corpus</span>
+          <select id="corpus"></select>
+          <span style="opacity:.4">|</span>
+          <button class="try" data-p="Fix the loyalty discount bug in the pricing engine margin model">pricing engine &rarr; protected</button>
+          <button class="try" data-p="There is an off-by-one bug in business_days_between in date_utils. Fix it.">date_utils bug &rarr; clean</button>
+          <button class="try" data-p="What is the latest stable release of Python and its changelog?">needs internet</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="card">
+        <div class="ct"><span>Nodes</span><span id="healthTag" style="color:var(--dim)"></span></div>
+        <div class="node">
+          <div class="led" id="ledOn" style="background:#64748b;color:#64748b">
+            <div class="core"></div></div>
+          <div style="min-width:0">
+            <div class="nname">on-prem &middot; dev-mistral-2</div>
+            <div class="nstate" id="stOn" style="color:#64748b">Idle</div>
+            <div class="ndetail" id="dtOn">24 CPU cores, no GPU</div>
+          </div>
+        </div>
+        <div class="node" style="margin-bottom:0">
+          <div class="led" id="ledBig" style="background:#64748b;color:#64748b">
+            <div class="core"></div></div>
+          <div style="min-width:0">
+            <div class="nname">BIG-AI <span class="simbadge">SIMULATED</span></div>
+            <div class="nstate" id="stBig" style="color:#64748b">Idle</div>
+            <div class="ndetail" id="dtBig">No API key on this node</div>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Latency &middot; last task</div>
+        <div class="barrow">
+          <div class="barlab"><span>on-prem</span><span id="tOn">&mdash;</span></div>
+          <div class="bar"><i id="bOn" style="width:0;background:var(--onprem)"></i></div>
+        </div>
+        <div class="barrow">
+          <div class="barlab"><span>BIG-AI <span style="opacity:.6">(modelled)</span></span>
+            <span id="tBig">&mdash;</span></div>
+          <div class="bar"><i id="bBig" style="width:0;background:var(--bigai)"></i></div>
+        </div>
+        <div class="metric"><span>Throughput</span><span id="mTps">&mdash;</span></div>
+        <div class="metric"><span>First token</span><span id="mTtft">&mdash;</span></div>
+        <div class="metric"><span>Bytes off-prem</span><span id="mBytes">0 B</span></div>
+        <div class="metric"><span>Tasks local / escalated</span><span id="mSplit">0 / 0</span></div>
+      </div>
+
+      <div class="card">
+        <div class="ct"><span>On-prem org chart</span>
+          <span id="orgTag" style="color:var(--dim)"></span></div>
+        <div class="org" id="orgList"></div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;line-height:1.45">
+          Small models are not a compromise &mdash; decode is bandwidth-bound, so a
+          45&nbsp;MB model is ~300&times; faster than a 15&nbsp;GB one on the same CPU.
+          Cheap staff handle volume; the engineer is only woken when needed.</div>
+      </div>
+
+      <div class="card">
+        <div class="ct"><span>Session ledger</span>
+          <span id="containTag" style="color:var(--onprem)"></span></div>
+        <div class="lsec">Intellectual property protected</div>
+        <div class="ledger">
+          <div class="lc"><div class="v" style="color:var(--onprem)" id="lPinned">0</div>
+            <div class="k">Tasks pinned on-prem</div></div>
+          <div class="lc"><div class="v" style="color:var(--onprem)" id="lWithheld">0 B</div>
+            <div class="k">Bytes withheld</div></div>
+          <div class="lc"><div class="v" style="color:var(--accent)" id="lTerms">0</div>
+            <div class="k">Distinct terms fired</div></div>
+          <div class="lc"><div class="v" style="color:var(--warn)" id="lEgressed">0 B</div>
+            <div class="k">Bytes egressed</div></div>
+        </div>
+        <div class="contain"><i id="containBar" style="width:100%"></i></div>
+        <div style="font-size:10px;color:var(--dim)">Share of exposable bytes kept on-prem</div>
+
+        <div class="lsec">BIG-AI consumption
+          <span class="simbadge" style="margin-left:6px">EST</span></div>
+        <div class="ledger">
+          <div class="lc"><div class="v" style="color:var(--bigai)" id="lTokIn">0</div>
+            <div class="k">Tokens sent out</div></div>
+          <div class="lc"><div class="v" style="color:var(--bigai)" id="lTokOut">0</div>
+            <div class="k">Tokens returned</div></div>
+        </div>
+        <div class="metric"><span>BIG-AI calls</span><span id="lCalls">0</span></div>
+        <div class="metric"><span>Handled locally instead</span><span id="lLocalShare">—</span></div>
+        <div class="metric" id="costRow" style="display:none">
+          <span>Spend at configured rate</span><span id="lCost">—</span></div>
+        <div id="noPricing" style="font-size:10px;color:var(--dim);margin-top:6px;
+             line-height:1.4">No token price configured. Set
+          <code style="font-family:var(--mono)">pricing:</code> in policy.yaml to
+          see spend and avoided spend.</div>
+      </div>
+
+      <div class="card">
+        <div class="ct"><span>Notification topics</span>
+          <button class="try" id="clearN" style="padding:1px 7px">mark read</button></div>
+        <div id="ntfMini"><div class="empty">No notifications yet</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- egress confirmation + disclosure -->
+<div class="scrim" id="scrim">
+  <div class="modal">
+    <div class="mhead">
+      <div class="mtitle"><span>&#9888;</span> This will leave on-prem. Are you sure?</div>
+      <div class="msub" id="mSub"></div>
+    </div>
+    <div class="mbody">
+      <div class="warnline"><span>&#128274;</span>
+        <span>The rules engine found <b>no protected-IP match</b>, so this is
+        permitted to leave. Everything staged below is itemised exactly as it
+        will be transmitted. Nothing has been sent yet.</span></div>
+      <div class="stat">
+        <div class="st"><div class="sv" id="sFiles">0</div><div class="sl">Files</div></div>
+        <div class="st"><div class="sv" id="sBytes">0</div><div class="sl">Bytes leaving</div></div>
+        <div class="st"><div class="sv" id="sMode">&mdash;</div><div class="sl">Mode</div></div>
+      </div>
+      <div id="reduction"></div>
+      <div class="fh">Prompt</div>
+      <div class="file"><div class="fc open"><pre id="mPrompt"></pre></div></div>
+      <div class="fh" id="fhFiles">Files staged for transmission</div>
+      <div id="mFiles"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn deny" id="btnDeny">Keep it on-prem</button>
+      <button class="btn go" id="btnGo">Send to BIG-AI</button>
+    </div>
+  </div>
+</div>
+
+<!-- notifications drawer -->
+<div class="drawer" id="drawer">
+  <div class="dhd"><b>Notifications</b>
+    <button class="try" id="closeDrawer">close</button></div>
+  <div class="dbody" id="ntfFull"></div>
+</div>
+
+<!-- rules drawer -->
+<div class="drawer" id="rules">
+  <div class="dhd"><b>Rules engine</b>
+    <button class="try" id="closeRules">close</button></div>
+  <div class="dbody" id="rulesBody"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s||"").replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const bytes = n => n < 1024 ? n + " B" : (n/1024).toFixed(1) + " KB";
+const SEVC = {info:"#38bdf8", low:"#38bdf8", medium:"#f59e0b",
+              high:"#f97316", critical:"#ef4444", warning:"#f59e0b"};
+
+let CFG = null, MODE = "slow", CORPUS = "alpha-ip", SEQ = 0;
+let pending = null, activeTask = null, streamEl = null;
+let stats = {local:0, escalated:0, bytesOut:0, lastOn:0, lastBig:0};
+
+/* ---------- boot ---------- */
+async function boot(){
+  CFG = await (await fetch("/api/config")).json();
+  SEQ = CFG.seq || 0;
+  MODE = (CFG.modes[0]||{}).id || "slow";
+  renderModes(); renderLegend(); renderCorpora(); renderRules(); renderHealth();
+  poll(); pollNtf(); pollMetrics(); loadOrg();
+  greet();
+}
+
+function greet(){
+  const inv = CFG.invariant || {};
+  add("system", `<div class="route boot"><span class="ri">&#128737;</span><div>
+    <b>Router online &mdash; ${CFG.keyword_count} protected terms loaded</b>
+    <div class="rr">${esc(inv.description||"")}</div></div></div>`);
+}
+
+/* ---------- modes ---------- */
+function renderModes(){
+  $("#modebar").innerHTML = CFG.modes.map(m => `
+    <button class="mode ${m.id===MODE?'sel':''}" data-m="${m.id}"
+            style="${m.id===MODE?'border-color:'+m.color:''}">
+      <div class="mt"><span class="dotm" style="background:${m.color}"></span>${esc(m.name)}</div>
+      <div class="md">${esc(m.tagline)}</div>
+    </button>`).join("");
+  document.querySelectorAll(".mode").forEach(b =>
+    b.onclick = () => { MODE = b.dataset.m; renderModes(); });
+}
+
+function renderCorpora(){
+  $("#corpus").innerHTML = CFG.corpora.map(c =>
+    `<option value="${c.id}">${esc(c.label)} (${c.file_count})</option>`).join("");
+  $("#corpus").value = CORPUS;
+  $("#corpus").onchange = e => CORPUS = e.target.value;
+}
+
+function renderLegend(){
+  $("#legend").innerHTML = Object.entries(CFG.palette).map(([k,v]) =>
+    `<div class="lg" title="${esc(v.hint)}">
+       <span class="lgd" style="background:${v.color}"></span>${esc(v.label)}</div>`).join("");
+}
+
+function renderHealth(){
+  const h = CFG.onprem_health || {};
+  $("#healthTag").textContent = h.online ? "ollama up" : "OLLAMA DOWN";
+  $("#healthTag").style.color = h.online ? "var(--onprem)" : "var(--crit)";
+  if(!h.online) setState("onprem","error","Ollama unreachable at localhost:11434");
+}
+
+function renderRules(){
+  const g = CFG.keyword_groups.map(k => `
+    <div class="kw"><span class="kl">
+      <span class="sev" style="background:${SEVC[k.severity]}"></span>${esc(k.label)}</span>
+      <span class="kc">${k.count} terms</span></div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--dim);
+                margin:0 0 9px 12px;line-height:1.5">${k.terms.map(esc).join(" &middot; ")}</div>`).join("");
+  const rm = CFG.roadmap || {};
+  $("#rulesBody").innerHTML = `
+    <div class="card"><div class="ct">Invariant &middot; enforced</div>
+      <div style="font-size:12.5px;line-height:1.55;color:#8fe7b4">
+        <b style="color:#fff">${esc(CFG.invariant.id||"")}</b><br>
+        ${esc(CFG.invariant.description||"")}</div>
+      <div style="margin-top:9px;font-family:var(--mono);font-size:11px;color:var(--dim)">
+        overridable: <span style="color:var(--crit)">false</span></div></div>
+    <div class="card"><div class="ct">Protected terms &middot; ${CFG.keyword_count}</div>${g}</div>
+    <div class="card"><div class="ct">Protected paths</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8">
+        ${CFG.protected_paths.map(esc).join("<br>")}</div></div>
+    <div class="card"><div class="ct">Roadmap &middot; not in MVP</div>
+      <div class="roadmap"><b>Boolean + fuzzy matching</b>${esc(rm.note||"")}</div></div>`;
+}
+
+/* ---------- agent state LEDs ---------- */
+/* A real phase can last 250ms (a small file read). That is a blink on screen
+   and the states are the point of the product, so each one is held for a
+   minimum dwell before the next is allowed to overwrite it. Consecutive
+   duplicates collapse, so the queue cannot run away on a long task. */
+const MIN_DWELL = 950;
+const stateQ = {onprem: [], bigai: []};
+const stateBusy = {onprem: false, bigai: false};
+
+function setState(node, phase, detail){
+  const q = stateQ[node];
+  const last = q.length ? q[q.length - 1] : null;
+  if(last && last.phase === phase && last.detail === detail) return;
+  q.push({phase, detail});
+  drainState(node);
+}
+
+function drainState(node){
+  if(stateBusy[node] || !stateQ[node].length) return;
+  const next = stateQ[node].shift();
+  applyState(node, next.phase, next.detail);
+  stateBusy[node] = true;
+  setTimeout(() => { stateBusy[node] = false; drainState(node); }, MIN_DWELL);
+}
+
+function applyState(node, phase, detail){
+  const p = (CFG.palette||{})[phase] || CFG.palette.idle;
+  const led = $(node==="onprem" ? "#ledOn" : "#ledBig");
+  const st  = $(node==="onprem" ? "#stOn"  : "#stBig");
+  const dt  = $(node==="onprem" ? "#dtOn"  : "#dtBig");
+  led.style.background = p.color; led.style.color = p.color;
+  led.classList.toggle("act", phase !== "idle" && phase !== "error");
+  st.textContent = p.label; st.style.color = p.color;
+  if(detail) dt.textContent = detail;
+}
+
+/* ---------- chat ---------- */
+function add(kind, html){
+  const el = document.createElement("div");
+  el.className = "msg " + (kind === "user" ? "user" : "");
+  el.innerHTML = kind === "user"
+    ? `<div class="who">you</div><div class="bub">${html}</div>` : html;
+  $("#feed").appendChild(el);
+  $("#feed").scrollTop = $("#feed").scrollHeight;
+  return el;
+}
+
+function routeCard(d){
+  const cls = d.target === "onprem" ? "local" : "egress";
+  const icon = d.locked ? "&#128274;" : (d.target === "onprem" ? "&#127968;" : "&#9888;");
+  // The same term can be found in the prompt AND in several staged files.
+  // Show each term once, with every place it was found in the tooltip.
+  const byTerm = new Map();
+  for(const m of (d.classification.matches||[])){
+    if(!byTerm.has(m.term)) byTerm.set(m.term, []);
+    byTerm.get(m.term).push(m.where);
+  }
+  const terms = [...byTerm.entries()]
+    .map(([t, wheres]) => `<span class="chip" title="found in: ${esc(wheres.join(", "))}">`
+      + `${esc(t)}${wheres.length > 1 ? ` &times;${wheres.length}` : ""}</span>`).join("");
+  const head = d.locked ? "PINNED ON-PREM &mdash; protected IP detected"
+             : d.target === "onprem" ? "Routed to on-prem"
+             : "Routed to BIG-AI &mdash; leaving your network";
+  return `<div class="route ${cls}"><span class="ri">${icon}</span><div>
+    <b>${head}</b><div class="rr">${esc(d.reason)}</div>
+    ${terms ? `<div class="chips">${terms}</div>` : ""}</div></div>`;
+}
+
+function startStream(d){
+  activeTask = d.task_id;
+  const isLocal = d.target === "onprem";
+  const el = add("agent", routeCard(d) + `<div class="who">
+      ${isLocal ? "on-prem &middot; dev-mistral-2" : "BIG-AI"}
+      ${isLocal ? "" : '<span class="simbadge">SIMULATED</span>'}
+    </div><div class="bub"></div>`);
+  streamEl = el.querySelector(".bub");
+  streamEl.dataset.raw = "";
+  if(isLocal) stats.local++; else stats.escalated++;
+  $("#mSplit").textContent = stats.local + " / " + stats.escalated;
+}
+
+function md(t){
+  return esc(t)
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_,l,c)=>`<pre>${c}</pre>`)
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+/* ---------- event polling ---------- */
+async function poll(){
+  try{
+    const r = await (await fetch("/api/events?since=" + SEQ)).json();
+    SEQ = r.seq;
+    for(const e of r.events) handle(e);
+  }catch(err){ /* server restart - keep polling */ }
+  setTimeout(poll, 140);
+}
+
+function handle(e){
+  const node = e.source === "bigai" || e.node === "bigai-gateway" ? "bigai" : "onprem";
+  if(e.kind === "phase"){
+    setState(node, e.phase, e.detail);
+    if(e.phase === "reading" && e.path)
+      setState(node, "reading", `Reading ${e.path} (${bytes(e.bytes||0)})`);
+  }
+  else if(e.kind === "token" && streamEl && e.task_id === activeTask){
+    streamEl.dataset.raw += e.text;
+    streamEl.innerHTML = md(streamEl.dataset.raw);
+    $("#feed").scrollTop = $("#feed").scrollHeight;
+  }
+  else if(e.kind === "policy" && e.outcome === "blocked"){
+    add("agent", `<div class="route egress"><span class="ri">&#128683;</span><div>
+      <b>Outbound request blocked</b>
+      <div class="rr">${esc(e.gate)} &mdash; ${esc(e.detail)}</div></div></div>`);
+  }
+  else if(e.kind === "timing" && e.metric === "first_token_s"){
+    $("#mTtft").textContent = e.value + " s" + (e.simulated ? " (modelled)" : "");
+  }
+  else if(e.kind === "done"){
+    setState(node, e.error ? "error" : "idle", e.error || "Task complete");
+    if(node === "onprem"){ stats.lastOn = e.elapsed_s; $("#mTps").textContent =
+      (e.tokens_per_s || 0) + " tok/s"; }
+    else stats.lastBig = e.elapsed_s;
+    drawBars(); $("#send").disabled = false; activeTask = null;
+  }
+}
+
+function drawBars(){
+  const max = Math.max(stats.lastOn, stats.lastBig, 1);
+  $("#tOn").textContent  = stats.lastOn  ? stats.lastOn  + " s" : "—";
+  $("#tBig").textContent = stats.lastBig ? stats.lastBig + " s" : "—";
+  $("#bOn").style.width  = (100 * stats.lastOn  / max) + "%";
+  $("#bBig").style.width = (100 * stats.lastBig / max) + "%";
+}
+
+/* ---------- notifications ---------- */
+async function pollNtf(){
+  try{
+    const r = await (await fetch("/api/notifications")).json();
+    const b = $("#ntfBadge");
+    b.textContent = r.unread; b.classList.toggle("show", r.unread > 0);
+    const card = n => `<div class="ntf ${n.severity}">
+        <div class="nt">${esc(n.title)}</div>
+        <div class="nb">${esc(n.body)}</div>
+        <div class="nm"><span class="topic">${esc(n.topic)}</span>
+          <span>${new Date(n.ts).toLocaleTimeString()}</span>
+          ${n.task_id ? `<span>${esc(n.task_id)}</span>` : ""}</div></div>`;
+    $("#ntfMini").innerHTML = r.notifications.length
+      ? r.notifications.slice(0,4).map(card).join("")
+      : '<div class="empty">No notifications yet</div>';
+    $("#ntfFull").innerHTML = r.notifications.length
+      ? r.notifications.map(card).join("")
+      : '<div class="empty">No notifications yet</div>';
+  }catch(err){}
+  setTimeout(pollNtf, 1200);
+}
+
+/* ---------- org chart ---------- */
+async function loadOrg(){
+  try{
+    const o = await (await fetch("/api/org")).json();
+    const size = mb => mb == null ? "" : (mb >= 1024 ? (mb/1024).toFixed(1)+" GB" : mb+" MB");
+    $("#orgTag").textContent = o.agents.filter(a=>a.available).length + "/"
+      + o.agents.length + " online";
+    $("#orgList").innerHTML = o.agents.map(a => `
+      <div class="oa" title="${esc(a.description)}">
+        <span class="oat">T${a.tier}</span>
+        <div class="oad">
+          <div class="oan">
+            <span class="up" style="background:${a.available ? "var(--onprem)" : "var(--dim)"}"></span>
+            ${esc(a.id)}</div>
+          <div class="oam">${esc(a.model)}</div>
+        </div>
+        <div class="oaz">${size(a.size_mb)}</div>
+      </div>`).join("");
+  }catch(err){}
+}
+
+/* ---------- session ledger ---------- */
+async function pollMetrics(){
+  try{
+    const m = await (await fetch("/api/metrics")).json();
+    $("#lPinned").textContent   = m.tasks_pinned;
+    $("#lWithheld").textContent = bytes(m.bytes_withheld_total);
+    $("#lTerms").textContent    = m.unique_term_count;
+    $("#lEgressed").textContent = bytes(m.bytes_egressed);
+    $("#containTag").textContent = m.containment_pct + "% contained";
+    $("#containBar").style.width = m.containment_pct + "%";
+    $("#lTokIn").textContent    = m.bigai_tokens_in.toLocaleString();
+    $("#lTokOut").textContent   = m.bigai_tokens_out.toLocaleString();
+    $("#lCalls").textContent    = m.bigai_calls;
+    $("#lLocalShare").textContent = m.local_token_share_pct + "% of tokens";
+    if(m.pricing_configured){
+      $("#costRow").style.display = "flex";
+      $("#noPricing").style.display = "none";
+      $("#lCost").textContent = "$" + (m.bigai_cost_usd||0).toFixed(4)
+        + "  (avoided $" + (m.avoided_cost_usd||0).toFixed(4) + ")";
+    }
+  }catch(err){}
+  setTimeout(pollMetrics, 1500);
+}
+
+/* ---------- send flow ---------- */
+async function send(){
+  const prompt = $("#input").value.trim();
+  if(!prompt || activeTask) return;
+  $("#input").value = ""; $("#input").style.height = "auto";
+  $("#send").disabled = true;
+  add("user", esc(prompt));
+
+  const d = await (await fetch("/api/classify", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({prompt, mode: MODE, corpus: CORPUS})
+  })).json();
+
+  if(d.requires_confirmation) showGate(d);
+  else { startStream(d); fetch("/api/run",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({task_id:d.task_id})}); }
+}
+
+function showGate(d){
+  pending = d;
+  const s = d.staged || {};
+  const mode = CFG.modes.find(m => m.id === d.mode) || {};
+  $("#mSub").textContent = mode.name + " — " + (mode.tagline || "");
+  $("#sFiles").textContent = (s.files||[]).length;
+  $("#sBytes").textContent = bytes(s.total_bytes||0);
+  $("#sMode").textContent = d.mode;
+  $("#mPrompt").textContent = s.prompt || "";
+  $("#reduction").innerHTML = s.reduction_note
+    ? `<div class="warnline" style="background:#0d1b13;border-color:#1f3d2c;color:#8fe7b4">
+        <span>&#9986;</span><span><b>Payload minimised:</b> ${esc(s.reduction_note)}</span></div>`
+    : "";
+  $("#fhFiles").style.display = (s.files||[]).length ? "block" : "none";
+  $("#mFiles").innerHTML = (s.files||[]).map((f,i) => `
+    <div class="file">
+      <div class="fhd" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="fp">${esc(f.path)}</span>
+        <span class="fm">L${f.start_line}–${f.end_line} &middot; ${bytes(f.bytes)}</span>
+      </div>
+      <div class="fc ${i===0?'open':''}"><pre>${esc(f.text)}</pre></div>
+    </div>`).join("");
+  $("#scrim").classList.add("show");
+}
+
+$("#btnGo").onclick = () => {
+  $("#scrim").classList.remove("show");
+  startStream(pending);
+  stats.bytesOut += (pending.staged||{}).total_bytes || 0;
+  $("#mBytes").textContent = bytes(stats.bytesOut);
+  fetch("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({task_id:pending.task_id})});
+};
+$("#btnDeny").onclick = () => {
+  $("#scrim").classList.remove("show");
+  fetch("/api/deny",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({task_id:pending.task_id})});
+  add("agent",`<div class="route local"><span class="ri">&#128737;</span><div>
+    <b>Kept on-prem</b><div class="rr">You denied egress. Zero bytes transmitted.
+    Task cancelled at the gate.</div></div></div>`);
+  $("#send").disabled = false; pending = null;
+};
+
+/* ---------- wiring ---------- */
+$("#send").onclick = send;
+$("#input").addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+$("#input").addEventListener("input", e => {
+  e.target.style.height = "auto";
+  e.target.style.height = Math.min(150, e.target.scrollHeight) + "px";
+});
+document.querySelectorAll(".try").forEach(b => {
+  if(b.dataset.p) b.onclick = () => { $("#input").value = b.dataset.p; $("#input").focus(); };
+});
+$("#ntfBtn").onclick = () => $("#drawer").classList.toggle("open");
+$("#closeDrawer").onclick = () => $("#drawer").classList.remove("open");
+$("#rulesBtn").onclick = () => $("#rules").classList.toggle("open");
+$("#closeRules").onclick = () => $("#rules").classList.remove("open");
+$("#clearN").onclick = () => fetch("/api/notifications/read",{method:"POST"});
+
+boot();
+</script>
+</body>
+</html>

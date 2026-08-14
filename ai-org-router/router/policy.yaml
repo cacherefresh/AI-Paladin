@@ -1,0 +1,121 @@
+# =============================================================================
+# ROUTING POLICY - the three postures
+# =============================================================================
+# Every mode inherits the same non-negotiable invariant:
+#
+#     keyword match  ==>  on-prem.  always.  no override.
+#
+# The mode governs only what happens to NON-matching traffic.
+# =============================================================================
+
+version: 1
+
+invariant:
+  id: protected-ip-stays-home
+  description: >
+    Any prompt matching router/keywords.yaml is executed on-prem by
+    dev-mistral-2. This decision is made before any network socket is opened
+    and cannot be overridden by the user, by the mode, or by the model.
+  overridable: false
+
+nodes:
+  onprem:
+    label: on-prem
+    node_id: onprem-01
+    model: dev-mistral-2
+    backend: ollama
+    ollama_model: devstral-small-2:latest
+    endpoint: http://localhost:11434
+    keep_alive: 60m
+  bigai:
+    label: BIG-AI
+    node_id: bigai-gateway
+    model: BIG-AI
+    backend: simulated
+    simulated: true
+    note: >
+      No ANTHROPIC_API_KEY present. Adapter runs in simulated mode and is
+      badged as such in the UI. Drop a key in and set backend to claude-api
+      to make this leg real.
+
+modes:
+
+  - id: slow
+    name: slow - Prefer on-prem whenever possible
+    tagline: Acts like a firewall. Local first, always.
+    posture: maximum-protection
+    color: "#22c55e"
+    on_keyword_match: onprem          # invariant
+    on_no_match: onprem               # preference: stay home anyway
+    allow_escalation_offer: true      # user may explicitly ask to escalate
+    require_confirmation_on_egress: true
+    egress_payload: full
+    description: >
+      Nothing leaves without a deliberate human decision. Non-matching work
+      still runs locally; the UI offers escalation as an opt-in, never a
+      default. Slowest, safest.
+
+  - id: fast
+    name: fast - Limit on-prem to Protected Alpha IP
+    tagline: Big reasoning goes out. Protected IP never does.
+    posture: balanced
+    color: "#f59e0b"
+    on_keyword_match: onprem          # invariant
+    on_no_match: bigai
+    allow_escalation_offer: false
+    require_confirmation_on_egress: true
+    egress_payload: full
+    description: >
+      Large reasoning tasks that carry no protected IP go to BIG-AI for speed
+      and depth. Anything that trips the keyword gate is pinned on-prem.
+
+  - id: superfast
+    name: superfast - Risky
+    tagline: Minimum viable payload, maximum disclosure.
+    posture: speed-first
+    color: "#ef4444"
+    on_keyword_match: onprem          # invariant - still holds
+    on_no_match: bigai
+    allow_escalation_offer: false
+    require_confirmation_on_egress: true
+    egress_payload: minimal           # only the snippet needed for the fix
+    require_full_disclosure: true     # show EXACTLY what bytes leave, first
+    description: >
+      Sends only the minimum slice of code needed to fix a small bug. Before
+      anything leaves, a disclosure window itemises every file and every byte
+      staged for egress. Fast, and honest about the trade.
+
+# Token accounting. Rates are DELIBERATELY unset: AI-Paladin does not ship a
+# vendor price list, because a stale one is worse than none. Set your own
+# contracted rates here and the ledger will compute spend and avoided spend;
+# leave them null and the ledger reports tokens only, never a guessed dollar.
+pricing:
+  price_per_mtok_in: null      # USD per 1M input tokens, your contracted rate
+  price_per_mtok_out: null     # USD per 1M output tokens
+
+defaults:
+  mode: slow
+  corpus: alpha-ip
+
+# Notification bus - mockup queue/topic. In-memory fan-out, JSONL audit sink.
+notifications:
+  topics:
+    - id: egress.pending
+      label: Awaiting human decision
+      severity: warning
+    - id: egress.approved
+      label: Left on-prem for BIG-AI
+      severity: warning
+    - id: egress.denied
+      label: Egress denied by human
+      severity: info
+    - id: egress.blocked
+      label: Blocked by rules engine
+      severity: critical
+    - id: routing.local
+      label: Handled on-prem
+      severity: info
+    - id: agent.error
+      label: Agent error
+      severity: critical
+  sink: logs/notifications.jsonl
