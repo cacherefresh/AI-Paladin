@@ -33,6 +33,8 @@ class Decision:
     egress_payload: str = "none"    # 'none' | 'full' | 'minimal'
     staged: dict = field(default_factory=dict)
     escalation_offered: bool = False
+    sealed: bool = False        # decided under a posture with no egress path
+    posture: str = ""           # mode.posture, e.g. 'sealed'
     withheld_bytes: int = 0     # what WOULD have left, had the gate not fired
     created_at: str = field(default_factory=now_iso)
 
@@ -47,10 +49,14 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
 
       1. classify the prompt      (no network)
       2. apply the invariant      (no network)
-      3. only then consider mode  (may open a socket)
+      3. apply the posture        (no network)
+      4. only then consider mode  (may open a socket)
     """
     mode = cfg.modes.get(mode_id) or cfg.modes.get("slow")
     task_id = "task-" + uuid.uuid4().hex[:10]
+    # A sealed posture is a property of the mode, not of its id, so a future
+    # LAN-scoped posture inherits this path without touching the dispatcher.
+    sealed = bool(mode.get("seal_egress"))
 
     # --- Step 1: what would travel with this prompt? -----------------------
     # Rank first, so protected files are caught even if the prompt is clean.
@@ -76,6 +82,8 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
                     "rules engine. Not overridable." %
                     ", ".join(repr(t) for t in terms)),
             locked=True,
+            sealed=sealed,
+            posture=mode.get("posture", ""),
             mode=mode["id"],
             severity=cls.severity,
             classification=cls.to_dict(),
@@ -83,7 +91,37 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
             egress_payload="none",
         )
 
-    # --- Step 4: no match. The mode decides. -------------------------------
+    # --- Step 4: THE POSTURE -----------------------------------------------
+    # No protected-IP match, so the gate has nothing to say. Under a sealed
+    # posture that does not matter: there is no destination to route to. The
+    # request to escalate is not refused here so much as unanswerable - the
+    # egress guard has already removed the socket.
+    if sealed:
+        withheld = len(prompt.encode("utf-8")) + sum(c["bytes"] for c in candidates)
+        reason = ("Posture '%s' is sealed: no destination outside this machine "
+                  "is reachable. Executed on-prem." % mode["id"])
+        if user_requested_escalation:
+            reason = ("Escalation requested, but posture '%s' is sealed - the "
+                      "egress guard refuses every non-loopback destination. "
+                      "Executed on-prem." % mode["id"])
+        return Decision(
+            withheld_bytes=withheld,
+            task_id=task_id,
+            tier="local",
+            target="onprem",
+            reason=reason,
+            locked=True,
+            sealed=True,
+            posture=mode.get("posture", "sealed"),
+            mode=mode["id"],
+            severity=cls.severity,
+            classification=cls.to_dict(),
+            requires_confirmation=False,
+            escalation_offered=False,
+            egress_payload="none",
+        )
+
+    # --- Step 5: no match, open posture. The mode decides. -----------------
     destination = mode.get("on_no_match", "onprem")
 
     if destination == "onprem" and not user_requested_escalation:
@@ -101,7 +139,7 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
             egress_payload="none",
         )
 
-    # --- Step 5: this is leaving the building. Stage and disclose. ---------
+    # --- Step 6: this is leaving the building. Stage and disclose. ---------
     payload_kind = mode.get("egress_payload", "full")
     staged: Dict = {"kind": payload_kind, "prompt": prompt,
                     "prompt_bytes": len(prompt.encode("utf-8")), "files": []}

@@ -27,6 +27,7 @@ _M = {
     "tasks_pinned": 0,          # invariant fired: protected IP, on-prem, locked
     "tasks_local": 0,           # ran on-prem for any reason
     "tasks_escalated": 0,       # actually went to BIG-AI
+    "tasks_sealed": 0,          # decided under a sealed posture (no egress path)
     "egress_denied": 0,         # human refused at the gate
     "egress_blocked": 0,        # policy refused (e.g. outbound net)
     "terms_fired": 0,           # total protected-term hits
@@ -34,6 +35,10 @@ _M = {
     "bytes_withheld_by_gate": 0,      # would have left, but the task was pinned
     "bytes_withheld_by_minimisation": 0,  # cut from staged files before sending
     "bytes_withheld_by_denial": 0,    # staged, then refused by a human
+    # Kept separate from the gate figure on purpose. "The rules engine caught
+    # protected IP" and "the posture had no exit for anything" are different
+    # claims, and folding the second into the first would flatter the first.
+    "bytes_withheld_by_posture": 0,
     "bytes_egressed": 0,        # actually left the network
 
     # ---- BIG-AI consumption -------------------------------------------
@@ -64,9 +69,14 @@ def _append(record):
 
 def record_decision(decision: dict):
     """Called once per routing decision, before anything executes."""
+    matched = decision.get("classification", {}).get("matched")
+    sealed = decision.get("sealed")
     with _lock:
         _M["tasks_total"] += 1
-        if decision.get("locked"):
+        if sealed:
+            _M["tasks_sealed"] += 1
+        if decision.get("locked") and matched:
+            # The gate fired: this would have been withheld in ANY posture.
             _M["tasks_pinned"] += 1
             _M["bytes_withheld_by_gate"] += decision.get("withheld_bytes", 0)
             matches = decision.get("classification", {}).get("matches", [])
@@ -74,9 +84,14 @@ def record_decision(decision: dict):
             for m in matches:
                 if m["term"] not in _M["unique_terms"]:
                     _M["unique_terms"].append(m["term"])
+        elif sealed:
+            # Clean traffic that a permissive posture would have let out.
+            # Credit it to the posture, never to the rules engine.
+            _M["bytes_withheld_by_posture"] += decision.get("withheld_bytes", 0)
     _append({"ts": datetime.now(timezone.utc).isoformat(), "kind": "decision",
              "task_id": decision.get("task_id"), "target": decision.get("target"),
-             "locked": decision.get("locked"),
+             "locked": decision.get("locked"), "sealed": bool(sealed),
+             "posture": decision.get("posture", ""),
              "withheld_bytes": decision.get("withheld_bytes", 0)})
 
 
@@ -130,7 +145,8 @@ def snapshot(pricing: dict = None) -> dict:
     m["unique_term_count"] = len(m["unique_terms"])
     m["bytes_withheld_total"] = (m["bytes_withheld_by_gate"]
                                  + m["bytes_withheld_by_minimisation"]
-                                 + m["bytes_withheld_by_denial"])
+                                 + m["bytes_withheld_by_denial"]
+                                 + m["bytes_withheld_by_posture"])
 
     # Share of everything that could have left which actually did.
     exposed = m["bytes_egressed"] + m["bytes_withheld_total"]

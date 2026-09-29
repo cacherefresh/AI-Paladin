@@ -47,7 +47,9 @@
   .main{display:grid;grid-template-columns:1fr 372px;overflow:hidden}
 
   /* ---------- chat ---------- */
-  .chat{display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;
+  /* modebar / seal / feed / composer. The seal row is auto-sized and empty
+     until the perimeter is armed, so it costs nothing when it is not shown. */
+  .chat{display:grid;grid-template-rows:auto auto 1fr auto;overflow:hidden;
         border-right:1px solid var(--line)}
   .modebar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);
            background:var(--panel2);align-items:center;flex-wrap:wrap}
@@ -58,6 +60,24 @@
   .mode .mt{font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:6px}
   .mode .md{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.35}
   .dotm{width:7px;height:7px;border-radius:50%;flex:none}
+  .mode[disabled]{opacity:.34;cursor:not-allowed}
+  .mode[disabled]:hover{border-color:var(--line)}
+
+  /* ---------- sealed perimeter ---------- */
+  /* Collapsed in place rather than display:none - a hidden grid item leaves
+     the flow, which would shift the feed and composer up a row. */
+  .seal{display:flex;align-items:center;gap:11px;padding:0 16px;max-height:0;
+        opacity:0;overflow:hidden;background:#0c1a2e;font-size:12px;
+        border-bottom:0 solid #1d3a5c;transition:max-height .18s,opacity .18s}
+  .seal.on{max-height:52px;opacity:1;padding:9px 16px;border-bottom-width:1px}
+  .seal .sdot{width:8px;height:8px;border-radius:50%;background:#3b82f6;
+        flex:none;box-shadow:0 0 0 0 rgba(59,130,246,.6);animation:sealpulse 2.4s infinite}
+  @keyframes sealpulse{70%{box-shadow:0 0 0 7px rgba(59,130,246,0)}
+                       100%{box-shadow:0 0 0 0 rgba(59,130,246,0)}}
+  .seal b{color:#93c5fd;letter-spacing:.4px}
+  .seal .ss{color:var(--dim);font-family:var(--mono);font-size:11px}
+  .seal .pin{margin-left:auto;font-family:var(--mono);font-size:10.5px;
+        color:var(--dim);border:1px solid #1d3a5c;border-radius:5px;padding:2px 7px}
 
   .feed{overflow-y:auto;padding:20px 22px 8px;scroll-behavior:smooth}
   .msg{max-width:760px;margin:0 0 20px}
@@ -263,6 +283,13 @@
   <div class="main">
     <div class="chat">
       <div class="modebar" id="modebar"></div>
+      <div class="seal" id="seal">
+        <span class="sdot"></span>
+        <b>PERIMETER SEALED</b>
+        <span class="ss" id="sealScope">loopback only &mdash; 127.0.0.0/8, ::1, AF_UNIX</span>
+        <span class="ss" id="sealBlocks"></span>
+        <span class="pin" id="sealPin">guard verified at boot</span>
+      </div>
       <div class="feed" id="feed"></div>
       <div class="composer">
         <div class="cwrap">
@@ -434,10 +461,20 @@ let stats = {local:0, escalated:0, bytesOut:0, lastOn:0, lastBig:0};
 async function boot(){
   CFG = await (await fetch("/api/config")).json();
   SEQ = CFG.seq || 0;
-  MODE = (CFG.modes[0]||{}).id || "slow";
+  /* The mode bar is ordered most-restrictive-first; the STARTING posture
+     comes from policy.yaml, and an operator pin overrides even that. */
+  MODE = (CFG.posture||{}).lock_mode || (CFG.defaults||{}).mode
+         || (CFG.modes[0]||{}).id || "slow";
   renderModes(); renderLegend(); renderCorpora(); renderRules(); renderHealth();
-  poll(); pollNtf(); pollMetrics(); loadOrg();
+  renderSeal(CFG.posture||{});
+  poll(); pollNtf(); pollMetrics(); loadOrg(); pollPosture();
   greet();
+
+  /* Deep link: /?mode=sovereign opens straight into a posture. Same code path
+     as clicking the button - it POSTs, it audits, and defaults.lock_mode still
+     overrides it - so a link can never reach a posture a click could not. */
+  const want = new URLSearchParams(location.search).get("mode");
+  if(want && want !== MODE && CFG.modes.some(m => m.id === want)) setMode(want);
 }
 
 function greet(){
@@ -449,14 +486,67 @@ function greet(){
 
 /* ---------- modes ---------- */
 function renderModes(){
+  const pin = (CFG.posture||{}).lock_mode;
   $("#modebar").innerHTML = CFG.modes.map(m => `
     <button class="mode ${m.id===MODE?'sel':''}" data-m="${m.id}"
+            ${pin && m.id!==pin ? "disabled" : ""}
+            title="${pin && m.id!==pin ? 'Pinned to '+pin+' by defaults.lock_mode in router/policy.yaml' : esc(m.description||m.tagline||'')}"
             style="${m.id===MODE?'border-color:'+m.color:''}">
       <div class="mt"><span class="dotm" style="background:${m.color}"></span>${esc(m.name)}</div>
       <div class="md">${esc(m.tagline)}</div>
     </button>`).join("");
   document.querySelectorAll(".mode").forEach(b =>
-    b.onclick = () => { MODE = b.dataset.m; renderModes(); });
+    b.onclick = () => { if(b.disabled) return; setMode(b.dataset.m); });
+}
+
+/* Changing the mode changes the NODE, not the next request: selecting the
+   sealed posture arms the egress guard process-wide, and leaving it is an
+   audited event. So the switch goes to the server, not just to a variable. */
+async function setMode(id){
+  const prev = MODE;
+  MODE = id; renderModes();
+  try{
+    const r = await fetch("/api/posture", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify({mode:id})});
+    const st = await r.json();
+    if(!r.ok){ MODE = prev; renderModes(); 
+      add("system", `<div class="route boot"><span class="ri">&#128274;</span><div>
+        <b>Posture change refused</b><div class="rr">${esc(st.error||"refused")}</div></div></div>`);
+      return; }
+    CFG.posture = st; renderSeal(st);
+    const m = CFG.modes.find(x => x.id === id) || {};
+    if(st.sealed)
+      add("system", `<div class="route local"><span class="ri">&#128737;</span><div>
+        <b>Perimeter sealed &mdash; ${esc(m.name||id)}</b>
+        <div class="rr">The egress guard is armed. Every destination that is not
+        this machine is now refused at the socket, DNS included. BIG-AI is not
+        declined &mdash; it is unreachable.</div></div></div>`);
+    else if(prev && (CFG.modes.find(x=>x.id===prev)||{}).seal_egress)
+      add("system", `<div class="route" style="border-color:#7f1d1d"><span class="ri">&#9888;</span><div>
+        <b>Perimeter lifted</b><div class="rr">Posture changed to
+        <code>${esc(id)}</code>. Outbound network access is available again.
+        Logged at critical severity.</div></div></div>`);
+  }catch(err){ MODE = prev; renderModes(); }
+}
+
+function renderSeal(st){
+  const g = st.guard || {};
+  $("#seal").classList.toggle("on", !!st.sealed);
+  if(g.scope) $("#sealScope").textContent = g.scope;
+  $("#sealBlocks").textContent = g.blocks
+    ? g.blocks + " outbound attempt" + (g.blocks===1?"":"s") + " refused"
+    : "";
+  $("#sealPin").textContent = st.lock_mode
+    ? "pinned by policy.yaml" 
+    : (g.verified ? "guard verified at boot" : "GUARD UNVERIFIED");
+}
+
+async function pollPosture(){
+  try{
+    const st = await (await fetch("/api/posture")).json();
+    CFG.posture = st; renderSeal(st);
+  }catch(err){}
+  setTimeout(pollPosture, 2000);
 }
 
 function renderCorpora(){

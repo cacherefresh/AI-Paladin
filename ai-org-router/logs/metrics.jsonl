@@ -1,10 +1,7 @@
-{"ts": "2026-08-12T21:11:15.887706+00:00", "kind": "decision", "task_id": "task-e66084ee06", "target": "onprem", "locked": true, "withheld_bytes": 1126}
-{"ts": "2026-08-12T21:12:25.887238+00:00", "kind": "usage", "source": "onprem", "tokens_in": 491, "tokens_out": 336, "seconds": 69.98613858222961, "estimated": false}
-{"ts": "2026-08-12T21:12:27.648756+00:00", "kind": "decision", "task_id": "task-0c37b14455", "target": "bigai", "locked": false, "withheld_bytes": 0}
-{"ts": "2026-08-12T21:12:28.913492+00:00", "kind": "egress", "task_id": "task-0c37b14455", "approved": false, "bytes": 285, "minimised_away": 622}
-{"ts": "2026-08-12T21:12:30.480363+00:00", "kind": "decision", "task_id": "task-97ab00d1ca", "target": "bigai", "locked": false, "withheld_bytes": 0}
-{"ts": "2026-08-12T21:12:31.113561+00:00", "kind": "egress", "task_id": "task-97ab00d1ca", "approved": true, "bytes": 285, "minimised_away": 622}
-{"ts": "2026-08-12T21:12:33.376937+00:00", "kind": "usage", "source": "bigai", "tokens_in": 71, "tokens_out": 228, "seconds": 2.261223316192627, "estimated": true}
-{"ts": "2026-08-12T21:12:38.279955+00:00", "kind": "decision", "task_id": "task-90bfa54fd4", "target": "onprem", "locked": false, "withheld_bytes": 0}
-{"ts": "2026-08-12T21:13:49.774911+00:00", "kind": "usage", "source": "onprem", "tokens_in": 156, "tokens_out": 351, "seconds": 71.47789478302002, "estimated": false}
-{"ts": "2026-08-12T22:04:27.556250+00:00", "kind": "decision", "task_id": "task-4318810ffb", "target": "onprem", "locked": true, "withheld_bytes": 43}
+{"ts": "2026-08-16T00:17:56.813221+00:00", "kind": "decision", "task_id": "task-5c97b6f4e4", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1207}
+{"ts": "2026-08-16T00:17:57.119055+00:00", "kind": "decision", "task_id": "task-5339caec7f", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.428557+00:00", "kind": "decision", "task_id": "task-8643c53f1d", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.723369+00:00", "kind": "decision", "task_id": "task-09be8a0358", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.984547+00:00", "kind": "decision", "task_id": "task-86955e2b98", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1098}
+{"ts": "2026-08-16T00:17:58.213186+00:00", "kind": "decision", "task_id": "task-7ddf295a97", "target": "onprem", "locked": true, "sealed": false, "posture": "speed-first", "withheld_bytes": 1098}
+{"ts": "2026-08-16T01:02:37.940608+00:00", "kind": "decision", "task_id": "task-544d8d3a4f", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 72}

@@ -22,6 +22,7 @@ import time
 
 from bus import metrics
 from bus import notifications as bus
+from security import egress_guard
 
 # Modelled BIG-AI characteristics: a hosted frontier model on datacentre
 # accelerators. Fast first token, ~80 tok/s sustained.
@@ -82,6 +83,12 @@ def run(prompt: str, cfg, task_id: str, staged: dict, speed: float = 1.0):
     Stream a simulated BIG-AI response. Blocking; call it on a thread.
     `speed` scales the simulated token rate for demo pacing.
     """
+    # A simulated adapter opens no socket, so the egress guard would never see
+    # it. Under a sealed posture that would let the stub quietly "succeed" and
+    # write a receipt for bytes that could not have moved - a lie in the audit
+    # log, which is worse than no adapter at all. Ask the guard explicitly.
+    egress_guard.assert_egress_allowed("BIG-AI gateway")
+
     started = time.time()
     bus.emit("phase", task_id=task_id, phase="thinking",
              detail="Payload in flight to BIG-AI gateway", node="bigai-gateway",
@@ -145,6 +152,10 @@ def call_claude(prompt: str, cfg, task_id: str, staged: dict):
 
     Consult the claude-api reference before implementing - do not guess
     parameter names, pricing, or streaming event shapes.
+
+    Note that this leg needs no sealed-posture check of its own: it opens a
+    real socket to api.anthropic.com, and under the sovereign posture
+    security/egress_guard.py refuses that connection before the syscall.
     """
     raise NotImplementedError(
         "Real BIG-AI leg not configured. No ANTHROPIC_API_KEY on this node.")

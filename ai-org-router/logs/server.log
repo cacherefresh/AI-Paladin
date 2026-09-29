@@ -1,0 +1,16 @@
+
+  AI-Paladin router demo
+  ----------------------------------------------------
+  on-prem   dev-mistral-2 (devstral-small-2:latest)
+            ONLINE
+  BIG-AI    SIMULATED (no ANTHROPIC_API_KEY on this node)
+  rules     37 protected terms, 5 protected paths
+  guard     egress self-test PASSED  (probe 192.0.2.1:443 (RFC 5737 TEST-NET-1, unroutable))
+            [ok] socket-connect     connect() to 192.0.2.1:443 refused, no packet sent
+            [ok] create-connection  urllib's create_connection() to 192.0.2.1:443 refused, no packet sent
+            [ok] dns-resolution     getaddrinfo('example.com') refused, no packet sent
+            [ok] loopback-permitted on-prem model reachable: loopback address
+  posture   selectable, every change audited
+  ----------------------------------------------------
+  http://localhost:8722
+

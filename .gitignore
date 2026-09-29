@@ -1,0 +1,12 @@
+# ---------------------------------------------------------------------------
+# Scratch notes. TEMPORARY/ is the working directory for session-specific
+# staging notes - things that are true for one afternoon and misleading a week
+# later. Keeping them out of the repository is deliberate: a future session
+# reading stale notes as if they were documentation is worse than having none.
+# Anything worth keeping graduates into docs/ and gets committed.
+# ---------------------------------------------------------------------------
+TEMP_NOTES.md
+
+# Python
+__pycache__/
+*.py[cod]

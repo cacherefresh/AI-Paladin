@@ -1,5 +1,5 @@
 # =============================================================================
-# ROUTING POLICY - the three postures
+# ROUTING POLICY - the four postures
 # =============================================================================
 # Every mode inherits the same non-negotiable invariant:
 #
@@ -39,6 +39,33 @@ nodes:
       to make this leg real.
 
 modes:
+
+  - id: sovereign
+    name: sovereign - Nothing leaves this machine
+    tagline: The perimeter, not the routing table. No egress at any price.
+    posture: sealed
+    color: "#3b82f6"
+    on_keyword_match: onprem          # invariant
+    on_no_match: onprem               # there is nowhere else to go
+    allow_escalation_offer: false     # nothing to offer
+    require_confirmation_on_egress: false
+    egress_payload: none
+    seal_egress: true                 # <- arms security/egress_guard.py
+    description: >
+      Every other mode routes around the risk; this one removes the
+      capability. While it is armed, security/egress_guard.py refuses any
+      connection to a destination that is not this machine - before the
+      connect() syscall, and including DNS, because resolving a name is
+      itself a packet leaving. BIG-AI is not declined, it is unreachable.
+
+      MVP scope is loopback only: 127.0.0.0/8, ::1 and AF_UNIX sockets. That
+      is the deny-all-outbound rule at the host, not yet the LAN-scoped
+      perimeter (a second on-prem node, a pooled GPU box) described in
+      docs/ROADMAP.md section 5.
+
+      Honest limit: this is a process-level guard, not a host firewall. It
+      covers every socket this router opens; it does not cover the rest of
+      the machine. Do not call it an air gap.
 
   - id: slow
     name: slow - Prefer on-prem whenever possible
@@ -97,6 +124,13 @@ defaults:
   mode: slow
   corpus: alpha-ip
 
+  # Pin the node to one posture. Null means the mode bar is live and every
+  # posture change is written to the audit log with the actor named. Set it to
+  # a mode id (typically 'sovereign') and the router refuses every other mode
+  # at the API, not just in the UI - a developer cannot click their way out of
+  # a posture their organisation set.
+  lock_mode: null
+
 # Notification bus - mockup queue/topic. In-memory fan-out, JSONL audit sink.
 notifications:
   topics:
@@ -111,6 +145,12 @@ notifications:
       severity: info
     - id: egress.blocked
       label: Blocked by rules engine
+      severity: critical
+    - id: posture.sealed
+      label: Sovereign posture armed
+      severity: warning
+    - id: posture.released
+      label: Sovereign posture lifted
       severity: critical
     - id: routing.local
       label: Handled on-prem

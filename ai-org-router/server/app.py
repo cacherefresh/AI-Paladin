@@ -14,8 +14,11 @@ Endpoints
     POST /api/notifications/read
     GET  /api/health            on-prem node reachability
     GET  /api/org               subagent roster + availability
+    GET  /api/posture           sealed-posture state + guard self-test result
+    POST /api/posture           change posture (refused when lock_mode is set)
 """
 
+import contextlib
 import json
 import os
 import threading
@@ -30,6 +33,7 @@ from bus import notifications as bus
 from nodes import ollama_worker
 from router import dispatch
 from nodes.subagents import Org
+from security import egress_guard
 from router.classifier import CORPORA, Config, list_corpus_files
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +59,71 @@ PALETTE = {
 _pending = {}
 _pending_lock = threading.Lock()
 
+# Current posture of the NODE, not of a request. Selecting the sovereign mode
+# seals the whole process, the way selecting a firewall rule changes the
+# firewall rather than one packet.
+_posture_lock = threading.Lock()
+_posture = {"mode": None}
+
+
+def locked_mode():
+    """Operator pin from policy.yaml. None means the mode bar is live."""
+    lm = CFG.policy.get("defaults", {}).get("lock_mode")
+    return lm if lm in CFG.modes else None
+
+
+def set_posture(mode_id: str, actor: str = "ui") -> dict:
+    """
+    Apply a mode as the node's posture, arming or disarming the egress guard.
+    Both transitions are audited; lifting the perimeter is logged louder than
+    raising it, because it is the one an auditor will ask about.
+    """
+    mode = CFG.modes.get(mode_id)
+    if not mode:
+        raise ValueError("unknown mode %r" % mode_id)
+    # Decide under the lock, act outside it. posture_state() takes the same
+    # lock, so returning from inside this block would deadlock the node on the
+    # most ordinary input there is: clicking the mode that is already selected.
+    with _posture_lock:
+        was = _posture["mode"]
+        changed = was != mode_id
+        if changed:
+            _posture["mode"] = mode_id
+    if not changed:
+        return posture_state()
+
+    want_sealed = bool(mode.get("seal_egress"))
+    if want_sealed:
+        egress_guard.arm("Mode '%s' selected by %s." % (mode_id, actor),
+                         actor=actor)
+    elif egress_guard.status()["armed"]:
+        egress_guard.disarm("Mode changed %s -> %s by %s. Egress is available "
+                            "again." % (was, mode_id, actor), actor=actor)
+    return posture_state()
+
+
+def posture_state() -> dict:
+    g = egress_guard.status()
+    with _posture_lock:
+        mode_id = _posture["mode"]
+    mode = CFG.modes.get(mode_id, {})
+    return {
+        "mode": mode_id,
+        "sealed": bool(mode.get("seal_egress")),
+        "lock_mode": locked_mode(),
+        "guard": {
+            "installed": g["installed"],
+            "verified": g["verified"],
+            "armed": g["armed"],
+            "since": g["since"],
+            "reason": g["reason"],
+            "blocks": g["blocks"],
+            "last_block": g["last_block"],
+            "scope": "loopback only (127.0.0.0/8, ::1, AF_UNIX)",
+            "self_test": g["self_test"],
+        },
+    }
+
 
 def onprem_health() -> dict:
     node = CFG.nodes.get("onprem", {})
@@ -77,30 +146,40 @@ def onprem_health() -> dict:
 def execute(decision: dict, prompt: str, corpus_id: str):
     """Run an approved decision on whichever node it was routed to."""
     task_id = decision["task_id"]
+    # A task DECIDED under a sealed posture EXECUTES under one, even if the
+    # node's posture is changed while the task is in flight.
+    seal = (egress_guard.sealed_thread() if decision.get("sealed")
+            else contextlib.nullcontext())
     try:
-        if decision["target"] == "onprem":
-            staged = [f["path"] for f in decision.get("staged", {}).get("files", [])]
-            if not staged:
-                from router.classifier import rank_relevant_files
-                staged = [c["path"] for c in rank_relevant_files(prompt, corpus_id)[:3]]
-            bus.notify("routing.local", "Handled on-prem",
-                       decision["reason"], severity="info", task_id=task_id)
-            ollama_worker.run(prompt, CFG, task_id, staged_files=staged,
-                              corpus_id=corpus_id)
-        else:
-            staged = decision.get("staged", {})
-            bus.notify("egress.approved",
-                       "Data left on-prem for BIG-AI",
-                       "%d bytes transmitted (%d file%s). Approved by human "
-                       "at the egress gate. Mode: %s."
-                       % (staged.get("total_bytes", 0),
-                          len(staged.get("files", [])),
-                          "" if len(staged.get("files", [])) == 1 else "s",
-                          decision["mode"]),
-                       severity="warning", task_id=task_id,
-                       payload_bytes=staged.get("total_bytes", 0),
-                       files=[f["path"] for f in staged.get("files", [])])
-            bigai.run(prompt, CFG, task_id, staged)
+        with seal:
+            if decision["target"] == "onprem":
+                staged = [f["path"] for f in decision.get("staged", {}).get("files", [])]
+                if not staged:
+                    from router.classifier import rank_relevant_files
+                    staged = [c["path"] for c in rank_relevant_files(prompt, corpus_id)[:3]]
+                bus.notify("routing.local", "Handled on-prem",
+                           decision["reason"], severity="info", task_id=task_id)
+                ollama_worker.run(prompt, CFG, task_id, staged_files=staged,
+                                  corpus_id=corpus_id)
+            else:
+                staged = decision.get("staged", {})
+                # Order matters: ask the guard before writing the receipt. An
+                # "N bytes transmitted" record for bytes that never moved is a
+                # false entry in the audit log, and a false entry is worse
+                # than a missing one.
+                egress_guard.assert_egress_allowed("BIG-AI gateway")
+                bus.notify("egress.approved",
+                           "Data left on-prem for BIG-AI",
+                           "%d bytes transmitted (%d file%s). Approved by human "
+                           "at the egress gate. Mode: %s."
+                           % (staged.get("total_bytes", 0),
+                              len(staged.get("files", [])),
+                              "" if len(staged.get("files", [])) == 1 else "s",
+                              decision["mode"]),
+                           severity="warning", task_id=task_id,
+                           payload_bytes=staged.get("total_bytes", 0),
+                           files=[f["path"] for f in staged.get("files", [])])
+                bigai.run(prompt, CFG, task_id, staged)
     except Exception as exc:                      # demo must never hard-crash
         bus.emit("phase", task_id=task_id, phase="error", detail=str(exc))
         bus.notify("agent.error", "Task failed", str(exc),
@@ -150,6 +229,15 @@ class Handler(BaseHTTPRequestHandler):
     def _path(self) -> str:
         return self.path.split("?")[0]
 
+    def _actor(self) -> str:
+        """
+        Who moved the perimeter. The demo binds to loopback and has no auth, so
+        this is the client address, not an identity - an audit record that
+        names a real user needs an identity provider this node does not have.
+        """
+        return "client:%s" % (self.client_address[0]
+                              if self.client_address else "unknown")
+
     # -- routes -----------------------------------------------------------
     def do_GET(self):
         p = self._path()
@@ -183,6 +271,8 @@ class Handler(BaseHTTPRequestHandler):
                 "keyword_count": CFG.term_count(),
                 "protected_paths": CFG.protected_paths,
                 "roadmap": CFG.keywords.get("rules_engine_roadmap", {}),
+                "defaults": CFG.policy.get("defaults", {}),
+                "posture": posture_state(),
                 "onprem_health": health,
                 "seq": bus.current_seq(),
             })
@@ -202,6 +292,9 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/metrics":
             return self._send(200, metrics.snapshot(CFG.policy.get("pricing", {})))
 
+        if p == "/api/posture":
+            return self._send(200, posture_state())
+
         if p == "/api/health":
             return self._send(200, onprem_health())
 
@@ -216,13 +309,47 @@ class Handler(BaseHTTPRequestHandler):
         p = self._path()
         data = self._body()
 
+        # --- posture change. Arms or disarms the egress guard. -----------
+        if p == "/api/posture":
+            want = data.get("mode")
+            pinned = locked_mode()
+            if pinned and want != pinned:
+                bus.notify("posture.released" if want else "agent.error",
+                           "Posture change refused",
+                           "This node is pinned to '%s' by defaults.lock_mode "
+                           "in router/policy.yaml. A request to switch to %r "
+                           "was refused at the API." % (pinned, want),
+                           severity="critical")
+                return self._send(409, {"error": "posture is pinned",
+                                        "lock_mode": pinned,
+                                        "posture": posture_state()})
+            try:
+                return self._send(200, set_posture(want, actor=self._actor()))
+            except ValueError as exc:
+                return self._send(400, {"error": str(exc)})
+            except egress_guard.EgressBlocked as exc:
+                # Fail closed: an unverified guard means no sealed posture.
+                return self._send(503, {"error": str(exc),
+                                        "posture": posture_state()})
+
         # --- dry run. No model touched, no socket opened. ----------------
         if p == "/api/classify":
             prompt = (data.get("prompt") or "").strip()
             if not prompt:
                 return self._send(400, {"error": "empty prompt"})
+
+            # The mode bar is a UI affordance; the pin is enforced here, where
+            # a hand-rolled curl lands too.
+            pinned = locked_mode()
+            requested = data.get("mode", "slow")
+            if pinned and requested != pinned:
+                return self._send(409, {"error": "posture is pinned to '%s'"
+                                                 % pinned, "lock_mode": pinned})
+            if requested != posture_state()["mode"]:
+                set_posture(requested, actor=self._actor())
+
             decision = dispatch.decide(
-                prompt, data.get("mode", "slow"), CFG,
+                prompt, requested, CFG,
                 corpus_id=data.get("corpus", "alpha-ip"),
                 user_requested_escalation=bool(data.get("escalate")))
             d = decision.to_dict()
@@ -239,7 +366,10 @@ class Handler(BaseHTTPRequestHandler):
 
             metrics.record_decision(d)
 
-            if d["locked"]:
+            if d.get("sealed") and not d["classification"]["matched"]:
+                bus.notify("posture.sealed", "Handled on-prem - posture sealed",
+                           d["reason"], severity="info", task_id=d["task_id"])
+            elif d["locked"]:
                 bus.notify("routing.local", "Protected IP - pinned on-prem",
                            d["reason"], severity="info", task_id=d["task_id"],
                            terms=sorted({m["term"] for m in
@@ -261,6 +391,24 @@ class Handler(BaseHTTPRequestHandler):
             if not entry:
                 return self._send(404, {"error": "unknown or expired task_id"})
             if entry["decision"]["target"] == "bigai":
+                # The posture can change between staging a payload and
+                # approving it. The perimeter that is up NOW decides.
+                if egress_guard.is_armed():
+                    with _pending_lock:
+                        _pending.pop(task_id, None)
+                    bus.notify("egress.blocked",
+                               "Approved egress refused - perimeter is sealed",
+                               "This task was staged for BIG-AI under a "
+                               "permissive posture and approved by a human, "
+                               "but the node has been sealed since. %d bytes "
+                               "were NOT transmitted."
+                               % entry["decision"].get("staged", {})
+                                    .get("total_bytes", 0),
+                               severity="critical", task_id=task_id)
+                    metrics.record_block()
+                    return self._send(409, {
+                        "error": "sovereign posture is armed; egress refused",
+                        "task_id": task_id, "posture": posture_state()})
                 metrics.record_egress(entry["decision"].get("staged", {}),
                                       approved=True, task_id=task_id)
             threading.Thread(
@@ -313,8 +461,31 @@ def prewarm():
         time.sleep(600)
 
 
+def boot_guard() -> dict:
+    """
+    Install the egress guard and prove it works before anything relies on it.
+
+    The self-test deliberately attempts a real outbound connection to
+    192.0.2.1 (RFC 5737 TEST-NET-1 - unroutable, so no packet reaches anyone
+    even in the failure case) and requires that it be refused. It also
+    requires that loopback still be permitted, because a guard that blocks
+    everything would pass the first check while taking the on-prem model
+    offline with it.
+
+    If the test fails the guard is left unverified and arm() refuses, so the
+    sovereign mode becomes unavailable rather than unenforced. Claiming a
+    perimeter you have not demonstrated is the failure mode this whole
+    product exists to argue against.
+    """
+    egress_guard.install()
+    return egress_guard.self_test()
+
+
 def main():
     health = onprem_health()
+    guard = boot_guard()
+    pinned = locked_mode()
+
     print("\n  AI-Paladin router demo")
     print("  " + "-" * 52)
     print("  on-prem   dev-mistral-2 (%s)" % CFG.nodes["onprem"]["ollama_model"])
@@ -323,6 +494,15 @@ def main():
     print("  BIG-AI    SIMULATED (no ANTHROPIC_API_KEY on this node)")
     print("  rules     %d protected terms, %d protected paths"
           % (CFG.term_count(), len(CFG.protected_paths)))
+    print("  guard     egress self-test %s  (probe %s)"
+          % ("PASSED" if guard["passed"] else "FAILED", guard["probe"]))
+    for c in guard["checks"]:
+        print("            [%s] %-18s %s"
+              % ("ok" if c["passed"] else "XX", c["check"], c["detail"]))
+    if not guard["passed"]:
+        print("            sovereign mode UNAVAILABLE - guard unverified")
+    print("  posture   %s" % ("PINNED to '%s' by defaults.lock_mode" % pinned
+                              if pinned else "selectable, every change audited"))
     print("  " + "-" * 52)
     print("  http://localhost:%d\n" % PORT)
 
@@ -331,7 +511,19 @@ def main():
                "Invariant active: protected-IP keyword match pins execution to "
                "on-prem in every mode.", severity="info")
 
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    # Bind before sealing: server_bind() resolves its own listen address, and
+    # the guard has no way to tell that lookup apart from an outbound one.
+    httpd = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+
+    # Apply the starting posture. An operator pin wins over the default, and
+    # sealing at boot means the perimeter is up before the first prompt.
+    start_mode = pinned or CFG.policy.get("defaults", {}).get("mode", "slow")
+    try:
+        set_posture(start_mode, actor="boot")
+    except (ValueError, egress_guard.EgressBlocked) as exc:
+        print("  could not enter posture %r: %s" % (start_mode, exc))
+
+    httpd.serve_forever()
 
 
 if __name__ == "__main__":

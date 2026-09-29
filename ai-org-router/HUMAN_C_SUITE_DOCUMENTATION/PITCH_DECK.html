@@ -78,6 +78,20 @@ td.mode{font-family:var(--mono);font-weight:700;white-space:nowrap}
 .out{color:var(--body)}
 .dest{color:var(--amber);font-family:var(--mono);font-size:13.5px;font-weight:700}
 
+/* Two full-app captures side by side. Each is the whole application window,
+   uncropped - the comparison is only honest if nothing was trimmed out of
+   frame. */
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:14px 0 0;
+       align-items:start}
+.shots figure{margin:0}
+.shots img{width:100%;max-width:100%;max-height:none;display:block;
+           border:1px solid var(--line);border-radius:10px;
+           box-shadow:0 8px 26px rgba(15,28,46,.16)}
+.shots figcaption{text-align:left;margin-top:11px;font-size:12.5px;
+                  line-height:1.5}
+.shots .cn{font-family:var(--mono);font-weight:700;letter-spacing:.4px}
+@media(max-width:860px){.shots{grid-template-columns:1fr}}
+
 figure{margin:22px 0 0}
 /* Screenshots are 1560x940 landscape. Unconstrained they push a slide past
    the viewport, which breaks both scroll-snapping on screen and pagination in
@@ -100,6 +114,20 @@ li{margin-bottom:7px} li strong{color:var(--bold)}
 .tag.real{color:var(--green);border-color:#b9dcc6;background:#eefaf2}
 .tag.sim{color:var(--amber);border-color:#e8cfa3;background:#fdf6ea}
 .tag.next{color:var(--dim);border-color:var(--line);background:var(--panel)}
+
+.term{background:#0f1c2e;border:1px solid #1e3a5c;border-radius:11px;
+      padding:17px 19px;font-family:var(--mono);font-size:13px;line-height:1.65;
+      color:#c8d8ea;overflow-x:auto;margin:14px 0 6px;white-space:pre}
+.term .ok{color:#5fd39a;font-weight:700}
+.term .k{color:#7fb2f0}
+.term .c{color:#7b8ea6}
+
+.caution{border:1px solid #e8cfa3;background:#fdf6ea;border-radius:12px;
+         padding:17px 20px;margin:16px 0 0}
+.caution .t{font-family:var(--mono);font-size:11px;letter-spacing:1.4px;
+            text-transform:uppercase;color:var(--amber);font-weight:700;
+            margin-bottom:7px}
+.caution p{font-size:15px;margin:0}
 
 .states{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px}
 .st{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px}
@@ -160,6 +188,13 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   .st .n{font-size:12px}
   .st .d{font-size:9.5px;margin-top:3px}
   .tag{font-size:9px;padding:2px 6px}
+  .term{font-size:9px;line-height:1.4;padding:8px 10px;margin:6px 0 3px}
+  .caution{padding:8px 11px;margin:7px 0 0}
+  .caution p{font-size:11px}
+  .shots{gap:10px;margin:6px 0 0}
+  .shots img{max-height:66mm;width:100%;height:auto;box-shadow:none}
+  .shots figcaption{font-size:9px;margin-top:5px;line-height:1.35}
+  .caution .t{font-size:9px;margin-bottom:3px}
 
   /* Replaced elements need width:auto before max-height can shrink them. */
   figure{margin:8px 0 0}
@@ -360,9 +395,15 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 <!-- 5 -->
 <section class="slide" id="s5">
   <div class="kicker">The control surface</div>
-  <h2>Three postures. One thing they cannot change.</h2>
+  <h2>Four postures. One thing they cannot change.</h2>
   <table>
     <tr><th>Mode</th><th>Protected IP</th><th>Everything else</th></tr>
+    <tr><td class="mode" style="color:var(--blue)">sovereign<br>
+        <span style="font-weight:400;color:var(--dim);font-size:12px">Nothing leaves this machine</span></td>
+      <td class="pin">&#128274; on-prem &middot; locked</td>
+      <td>Stays on-prem too &mdash; but not because a rule chose to. There is no
+        reachable destination. The egress guard refuses every address that is
+        not this machine, at the socket.</td></tr>
     <tr><td class="mode" style="color:var(--green)">slow<br>
         <span style="font-weight:400;color:var(--dim);font-size:12px">Prefer on-prem</span></td>
       <td class="pin">&#128274; on-prem &middot; locked</td>
@@ -384,6 +425,12 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   posture we ship treats protected IP exactly as the most restrictive one does.
   That is not a default a user can drift away from &mdash; it is the one thing the
   control surface does not expose.</p>
+  <p>Then read the top row on its own. The other three postures are
+  <em>routing decisions</em> &mdash; they choose where work goes.
+  <strong>Sovereign is a perimeter</strong>: it does not decide where work
+  goes, it removes the capability to send it anywhere. In <code>slow</code> a
+  human decides not to send it. In <code>sovereign</code> there is nothing to
+  decide.</p>
 </section>
 
 <!-- 6 -->
@@ -653,9 +700,103 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
     said so out loud.</figcaption></figure>
 </section>
 
+<!-- posture switch -->
+<section class="slide" id="s-posture-switch">
+  <div class="kicker">Proof &middot; 08</div>
+  <h2>One click changes the perimeter,<br>not the routing table.</h2>
+  <p>The same application, one second apart. On the left the node is in
+  <code>slow</code> &mdash; the safest <em>routing</em> posture, where egress is
+  possible and a human is asked first. On the right the operator has selected
+  <code>sovereign</code>, and a blue bar has appeared that is not a status
+  message: it is the egress guard reporting that it is armed.</p>
+
+  <div class="shots">
+    <figure>
+      <img src="screenshots/14-posture-slow.png" alt="AI-Paladin in slow mode, no perimeter bar">
+      <figcaption><span class="cn" style="color:var(--green)">slow</span> &mdash;
+      selected. No perimeter bar, because there is no perimeter. BIG-AI is
+      reachable; the guarantee is that a human is asked before anything moves.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/15-posture-sovereign.png" alt="AI-Paladin in sovereign mode, perimeter sealed">
+      <figcaption><span class="cn" style="color:var(--blue)">sovereign</span> &mdash;
+      selected. <strong>PERIMETER SEALED &middot; loopback only (127.0.0.0/8, ::1,
+      AF_UNIX)</strong>, and <em>guard verified at boot</em>. BIG-AI is still on
+      the org chart, and is now unreachable.</figcaption>
+    </figure>
+  </div>
+
+  <p style="margin-top:20px">Two details worth pointing at. The invariant chip
+  in the header &mdash; <code>protected-ip &rarr; on-prem &middot; not
+  overridable</code> &mdash; is <em>identical</em> in both frames: the rules
+  engine never depended on the posture. And the transition itself is an audit
+  record. Arming is logged; <strong>lifting is logged at critical severity</strong>,
+  because taking a perimeter down is the event an auditor will ask about.</p>
+</section>
+
+<!-- sovereign -->
+<section class="slide" id="s-sovereign">
+  <div class="kicker">Proof &middot; 09</div>
+  <h2>The posture that does not decide.<br>It removes the option.</h2>
+  <p>Three of our four postures are routing rules &mdash; they choose where work
+  goes. <code>sovereign</code> is not a routing rule. While it is armed, every
+  destination that is not this machine is refused <strong>at the socket, before
+  the connect() syscall</strong>, DNS included &mdash; because resolving a name
+  is itself a packet leaving. BIG-AI is not declined. It is unreachable.</p>
+
+  <div class="two" style="margin-top:4px">
+    <div>
+      <h3>It is proven at boot, not asserted</h3>
+      <p style="font-size:15.5px">The router attempts a real outbound
+      connection on every start and requires it to fail. If any check fails,
+      the posture becomes <em>unavailable</em> &mdash; not unenforced. A
+      perimeter you have not demonstrated is a label.</p>
+      <div class="term"><span class="c">$ ./run_demo.sh</span>
+  guard     egress self-test <span class="ok">PASSED</span>
+            <span class="c">probe 192.0.2.1:443 (RFC 5737, unroutable)</span>
+            [<span class="ok">ok</span>] <span class="k">socket-connect</span>     refused, no packet sent
+            [<span class="ok">ok</span>] <span class="k">create-connection</span>  refused, no packet sent
+            [<span class="ok">ok</span>] <span class="k">dns-resolution</span>     refused, no packet sent
+            [<span class="ok">ok</span>] <span class="k">loopback-permitted</span> on-prem model reachable</div>
+      <p style="font-size:13.5px;color:var(--dim);margin-top:10px">The fourth
+      check is the one people miss: a guard that blocked <em>everything</em>
+      would pass the first three while taking the local model offline with it.</p>
+    </div>
+    <div>
+      <h3>The receipt cannot lie either</h3>
+      <p style="font-size:15.5px">Stage a payload in the riskiest mode, seal the
+      node, then approve the egress anyway. The run is refused and the audit
+      log records the refusal. No <em>&ldquo;N bytes transmitted&rdquo;</em>
+      entry is written, because no bytes moved &mdash; a false record in an
+      audit log is worse than a missing one.</p>
+      <div class="term">POST /api/run        <span style="color:#f0a05f">409</span>
+  <span class="k">egress.blocked</span>  <span class="c">critical</span>
+  Approved egress refused &mdash; perimeter
+  is sealed. 480 bytes were NOT
+  transmitted.</div>
+      <h3 style="margin-top:20px">And the operator, not the developer, holds it</h3>
+      <p style="font-size:15.5px">Set <code>lock_mode: sovereign</code> in
+      policy and the posture is pinned: the mode bar greys out and the API
+      returns <code>409</code> to any other mode. A developer cannot click
+      &mdash; or <code>curl</code> &mdash; their way out of a posture their
+      organisation set.</p>
+    </div>
+  </div>
+
+  <div class="caution">
+    <div class="t">The limit, stated before you find it</div>
+    <p>This is a <strong>process-level</strong> guard, not a host firewall. It
+    covers every socket the router opens; it does not cover the rest of the
+    machine. It is fail-closed and demonstrable &mdash; it is not an air gap,
+    and we will not call it one. The LAN-scoped ring that follows it (a second
+    node, a pooled GPU box, still nothing to the internet) needs peer identity
+    to be provable, and is roadmap.</p>
+  </div>
+</section>
+
 <!-- topics -->
 <section class="slide" id="s-topics">
-  <div class="kicker">Proof &middot; 08</div>
+  <div class="kicker">Proof &middot; 10</div>
   <h2>Every decision lands on a topic.</h2>
   <div class="two">
     <div>
@@ -835,7 +976,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- org chart -->
 <section class="slide" id="s-org">
-  <div class="kicker">Proof &middot; 09</div>
+  <div class="kicker">Proof &middot; 11</div>
   <h2>Most work does not need<br>the expensive model.</h2>
   <p>Decode speed is set by memory bandwidth, so
   <code>tok/s &asymp; bandwidth &divide; model size</code> cuts both ways: if a
@@ -902,6 +1043,9 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
         <li>Agent states, from real file reads and the real token stream</li>
         <li>Notification topics and the append-only audit sinks</li>
         <li>The outbound egress block</li>
+        <li>The <code>sovereign</code> posture and its socket-level egress
+            guard &mdash; including the boot self-test that proves it blocks,
+            and the operator pin that holds it</li>
       </ul>
     </div>
     <div class="card">
@@ -921,11 +1065,16 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   <p style="margin-top:20px">Everything that constitutes the <em>product</em>
   &mdash; the decision, the gate, the disclosure, the record &mdash; is running.
   What is stubbed is the part any vendor can supply.</p>
+  <p>One scope note we volunteer rather than wait to be asked: the egress guard
+  is <strong>process-level</strong>. It covers every socket the router opens
+  and it fails closed, but it is not a host firewall and it is not an air gap.
+  The LAN-scoped perimeter &mdash; a second on-prem node, a pooled GPU box,
+  still nothing to the internet &mdash; is on the roadmap, not in the box.</p>
 </section>
 
 <!-- future -->
 <section class="slide" id="s-future">
-  <div class="kicker">Future endeavour &middot; 1 of 5</div>
+  <div class="kicker">Future endeavour &middot; 1 of 6</div>
   <h2>The two things that make it compound.</h2>
   <div class="two" style="margin-top:6px">
     <div>
@@ -979,7 +1128,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- fleet 1 -->
 <section class="slide" id="s-fleet">
-  <div class="kicker">Future endeavour &middot; 2 of 5</div>
+  <div class="kicker">Future endeavour &middot; 2 of 6</div>
   <h2>Five developers or five hundred:<br>mesh the router, pool the compute.</h2>
   <p>Asked whether a team should give every developer a node or pool
   $100k&ndash;$300k of GPUs on-prem, the answer is <strong>both &mdash; and the
@@ -1013,7 +1162,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- fleet 2 -->
 <section class="slide" id="s-fleet-econ">
-  <div class="kicker">Future endeavour &middot; 3 of 5</div>
+  <div class="kicker">Future endeavour &middot; 3 of 6</div>
   <h2>The crossover is about fourteen desks.</h2>
   <p style="margin-bottom:8px">Mesh capex is flat per head &mdash; every desk buys
   the same box. Pooled capex <strong>declines per head</strong>, because each card
@@ -1083,7 +1232,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- fleet 3 -->
 <section class="slide" id="s-fleet-buy">
-  <div class="kicker">Future endeavour &middot; 4 of 5</div>
+  <div class="kicker">Future endeavour &middot; 4 of 6</div>
   <h2>Two ways to buy it.<br>One thing to measure first.</h2>
   <div class="grid g2" style="margin-top:4px">
     <div class="card">
@@ -1124,7 +1273,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- continuity -->
 <section class="slide" id="s-dr">
-  <div class="kicker">Future endeavour &middot; 5 of 5</div>
+  <div class="kicker">Future endeavour &middot; 5 of 6</div>
   <h2>On-prem does not mean<br>one prem.</h2>
   <p>The first question a regulated buyer asks after &ldquo;where does my code
   run&rdquo; is <strong>&ldquo;what happens when that building burns down&rdquo;</strong>.
@@ -1188,6 +1337,50 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   </div>
 </section>
 
+
+<!-- sovereign roadmap -->
+<section class="slide" id="s-lan">
+  <div class="kicker">Future endeavour &middot; 6 of 6</div>
+  <h2>The perimeter widens to the LAN.<br>Never to the internet.</h2>
+  <p>The customer picture is not one machine. It is a developer workstation, a
+  second node on the same LAN, and a pooled GPU box in the micro datacentre.
+  All of those are inside the building. <strong>BIG-AI is not.</strong> The
+  real boundary was never the host &mdash; it is the external firewall.</p>
+  <p>Today <code>sovereign</code> collapses that to loopback, because a
+  one-machine perimeter is the only one we can enforce <em>and prove</em> right
+  now. Widening the ring is one function &mdash; but it is the four things
+  around it that make it a perimeter rather than an allowlist:</p>
+  <div class="grid g2" style="margin-top:6px">
+    <div class="card">
+      <div class="t">Declared destinations, not &ldquo;the LAN&rdquo;</div>
+      <p><code>10.0.0.0/8</code> is not a security boundary.
+      <code>10.20.4.7:11434, the GPU pool</code> is. Anything not named is
+      refused exactly as <code>api.anthropic.com</code> is today.</p>
+    </div>
+    <div class="card">
+      <div class="t">Peer identity, not peer address</div>
+      <p>An IP allowlist authorises whoever holds the IP. mTLS between nodes is
+      what makes &ldquo;the pooled GPU box&rdquo; mean the box. This is the
+      reason the wider ring is a design note and not a config change.</p>
+    </div>
+    <div class="card">
+      <div class="t">Encrypted inside the perimeter</div>
+      <p>Code crossing your own LAN to reach a shared multi-tenant cluster is
+      protected material on a network. Same discipline as any other egress:
+      encrypted, logged to the same topics, declared destinations only.</p>
+    </div>
+    <div class="card">
+      <div class="t">The gate stays at the edge</div>
+      <p>The router is meshed even when the compute centralises. Widening the
+      ring must not move the decision point outward with it &mdash; nothing
+      reaches the cluster a local gate has not already cleared.</p>
+    </div>
+  </div>
+  <p style="margin-top:20px">We are shipping the tight ring first on purpose.
+  Shipping the wide one first would mean shipping an IP allowlist and calling
+  it a perimeter &mdash; which is the exact move this company exists to argue
+  against.</p>
+</section>
 
 <!-- 14 -->
 <section class="slide" id="s14">

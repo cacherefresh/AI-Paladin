@@ -1,0 +1,58 @@
+{
+  "name": "ai-paladin",
+  "displayName": "AI-Paladin",
+  "description": "Shows the AI-Paladin router's egress posture in the status bar, and opens its console. Read-only: this extension never changes the posture.",
+  "version": "0.1.0",
+  "publisher": "cacherefresh",
+  "license": "SEE LICENSE IN LICENSE.lic",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ai-paladin",
+    "on-prem",
+    "egress",
+    "security"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiPaladin.openConsole",
+        "title": "AI-Paladin: Open Console"
+      },
+      {
+        "command": "aiPaladin.openInBrowser",
+        "title": "AI-Paladin: Open Console in Browser"
+      }
+    ],
+    "configuration": {
+      "title": "AI-Paladin",
+      "properties": {
+        "aiPaladin.endpoint": {
+          "type": "string",
+          "default": "http://127.0.0.1:8722",
+          "markdownDescription": "Base URL of the AI-Paladin router. The router binds to loopback only; pointing this at a remote host will not work and is not supported."
+        },
+        "aiPaladin.pollSeconds": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 60,
+          "description": "How often to read the router's posture while it is reachable. Backs off automatically while it is not."
+        },
+        "aiPaladin.showWhenOffline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep the status bar item visible when the router is not running. Turn off to hide it entirely until the router comes up."
+        }
+      }
+    }
+  }
+}

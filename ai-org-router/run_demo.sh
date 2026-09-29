@@ -33,7 +33,7 @@ case "${1:-start}" in
     curl -sf -m 3 http://localhost:11434/api/tags >/dev/null \
       || { echo "ollama is not responding on :11434 - run 'ollama serve'"; exit 1; }
     mkdir -p logs
-    nohup "$PY" -m server.app > logs/server.log 2>&1 &
+    nohup "$PY" -u -m server.app > logs/server.log 2>&1 &
     sleep 2
     curl -sf -m 3 "http://localhost:$PORT/api/health" >/dev/null \
       && echo "AI-Paladin up -> http://localhost:$PORT  ($PY)" \

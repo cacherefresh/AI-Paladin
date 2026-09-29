@@ -26,14 +26,27 @@ cold load of the 15 GB model is ~35 s of dead air in front of an audience.
 
 Defined in [`router/policy.yaml`](../router/policy.yaml) as `invariant`,
 enforced in [`router/dispatch.py`](../router/dispatch.py) *before* the mode is
-consulted. The three modes only govern what happens to traffic that does
+consulted. The four modes only govern what happens to traffic that does
 **not** match.
 
 | Mode | Keyword match | No match |
 |---|---|---|
+| `sovereign` — Nothing leaves this machine | on-prem, locked | on-prem; there is no reachable destination |
 | `slow` — Prefer on-prem | on-prem, locked | on-prem; escalation offered, never automatic |
 | `fast` — Limit on-prem to Protected Alpha IP | on-prem, locked | BIG-AI, full payload, confirm gate |
 | `superfast` — Risky | on-prem, locked | BIG-AI, **minimal** payload + disclosure window |
+
+`sovereign` is the odd one out on purpose: the other three are routing
+decisions, and it is a perimeter. It arms
+[`security/egress_guard.py`](../security/egress_guard.py), which refuses every
+non-loopback destination at the socket. Set `defaults.lock_mode: sovereign` in
+`router/policy.yaml` to pin the node to it — the mode bar greys out and
+`/api/classify` returns 409 for any other mode, so a hand-rolled `curl` cannot
+get around it either.
+
+> Demonstrating the sovereign posture against a real third-party codebase —
+> including which windows sit inside the perimeter and which do not — has its
+> own runbook: [`DEMO_SOVEREIGN_MIXXX.md`](DEMO_SOVEREIGN_MIXXX.md).
 
 ## Demo script (~6 minutes)
 
@@ -84,10 +97,46 @@ The `retrieving` state fires, then the request is blocked against
 `egress.blocked` notification lands, and the model answers from local
 knowledge only — visibly stale, which is the honest cost of the perimeter.
 
+**4b. Sovereign — the posture that removes the option.**
+Click **`sovereign — Nothing leaves this machine`**. A blue *PERIMETER SEALED*
+bar appears under the mode bar and a `posture.sealed` notification lands. Now
+send the *same* clean prompt from step 2 — the one that opened the egress gate:
+
+> *truncate in string_helpers exceeds the limit, please fix*
+
+No gate, no disclosure window, no choice to get wrong. It runs on-prem, and
+the routing card says why: *no destination outside this machine is reachable*.
+
+The line that lands with a security buyer: **in `slow` mode a human decides
+not to send it; in `sovereign` there is nothing to decide.** BIG-AI is not
+declined — it is unreachable.
+
+Two things worth showing if they push:
+
+- **It is proven, not asserted.** `logs/server.log` shows the boot self-test:
+  a real outbound connect to `192.0.2.1` (RFC 5737 TEST-NET-1 — unroutable, so
+  no packet reaches anyone even if the guard failed) is refused, DNS
+  resolution is refused, and loopback is confirmed still working. If any check
+  fails the posture becomes *unavailable*, not unenforced.
+- **The receipt cannot lie.** Stage a payload in `superfast`, seal the node,
+  then approve the egress. `/api/run` returns **409** and the audit log records
+  *"Approved egress refused — perimeter is sealed"*. No "N bytes transmitted"
+  record is written, because no bytes moved.
+
+State the limit out loud, before they find it: this is a process-level guard
+covering every socket the router opens, **not a host firewall**. It is
+fail-closed and demonstrable; it is not an air gap. See
+[`docs/ROADMAP.md` §5](ROADMAP.md) for the LAN-scoped ring that comes next.
+
 **5. The ledger — the slide a CFO cares about.**
 Point at the **Session ledger** card on the right rail. It has been counting
 since the first prompt: tasks pinned on-prem, distinct protected terms fired,
 bytes withheld broken out by *why* they stayed, and a containment percentage.
+Note that posture and gate are counted **separately** —
+`bytes_withheld_by_posture` never rolls into `bytes_withheld_by_gate`, because
+"the rules engine caught protected IP" and "the posture had no exit for
+anything" are different claims and folding one into the other would flatter
+the first.
 Underneath it, BIG-AI consumption — tokens sent out and tokens returned,
 counted separately because that is how hosted providers bill — and the share
 of all tokens handled locally instead.
@@ -112,7 +161,8 @@ ranker; the payload staging and byte accounting; the disclosure window
 contents; the on-prem model, its output, and every latency number attached to
 it; the agent states (file reads are real; phase changes are parsed from the
 model's own stream); the notification bus and audit sinks; the egress policy
-block.
+block; the sovereign posture and its socket-level egress guard, including the
+boot self-test that proves it blocks.
 
 **Not real:** the BIG-AI response. This node has no `ANTHROPIC_API_KEY`, so
 [`bigai/simulated.py`](../bigai/simulated.py) streams a stub at a *modelled*
@@ -151,7 +201,8 @@ JSONL sink. Swapping it for NATS/Kafka is an adapter change.
 
 ```
 router/keywords.yaml    the gate: protected terms, paths, exclusions
-router/policy.yaml      the invariant + the three modes
+router/policy.yaml      the invariant + the four postures + lock_mode
+security/egress_guard.py  socket-level egress enforcement for `sovereign`
 router/rules.py         matching (MVP exact; fuzzy stubbed for post-MVP)
 router/classifier.py    corpus index, IDF ranking, payload slicing
 router/dispatch.py      the routing decision
