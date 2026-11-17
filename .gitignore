@@ -5,8 +5,7 @@
 # reading stale notes as if they were documentation is worse than having none.
 # Anything worth keeping graduates into docs/ and gets committed.
 # ---------------------------------------------------------------------------
-TEMPORARY/
-TEMP_NOTES.md
+TEMPORARY/TEMP_NOTES.md
 
 # Python
 __pycache__/
