@@ -1,0 +1,9 @@
+{"ts": "2026-08-16T00:17:56.813221+00:00", "kind": "decision", "task_id": "task-5c97b6f4e4", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1207}
+{"ts": "2026-08-16T00:17:57.119055+00:00", "kind": "decision", "task_id": "task-5339caec7f", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.428557+00:00", "kind": "decision", "task_id": "task-8643c53f1d", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.723369+00:00", "kind": "decision", "task_id": "task-09be8a0358", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.984547+00:00", "kind": "decision", "task_id": "task-86955e2b98", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1098}
+{"ts": "2026-08-16T00:17:58.213186+00:00", "kind": "decision", "task_id": "task-7ddf295a97", "target": "onprem", "locked": true, "sealed": false, "posture": "speed-first", "withheld_bytes": 1098}
+{"ts": "2026-08-16T01:02:37.940608+00:00", "kind": "decision", "task_id": "task-544d8d3a4f", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 72}
+{"ts": "2026-10-14T20:06:43.415868+00:00", "kind": "decision", "task_id": "task-aa1af15c7c", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-10-14T20:07:01.071002+00:00", "kind": "usage", "source": "onprem", "tokens_in": 146, "tokens_out": 58, "seconds": 17.64709997177124, "estimated": false}

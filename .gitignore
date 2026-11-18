@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Scratch notes. TEMPORARY/ is the working directory for session-specific
+# staging notes - things that are true for one afternoon and misleading a week
+# later. Keeping them out of the repository is deliberate: a future session
+# reading stale notes as if they were documentation is worse than having none.
+# Anything worth keeping graduates into docs/ and gets committed.
+# ---------------------------------------------------------------------------
+TEMPORARY/TEMP_NOTES.md
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Secrets. Nothing in this repo should need one, which is why any that appear
+# must never be committed.
+.env
+.env.*
+*.pem
+*.key
+
+# Per-machine model selection (ROADMAP section 8). The committed roster is the
+# default; this file is one machine's override and describes that machine.
+ai-org-router/config/local_models.yaml
+
+# Model weights. Gigabytes each, and pulled by a person, never committed.
+*.gguf
+*.safetensors
+
+# VS Code extension packaging (paladin-vscode)
+node_modules/
+*.vsix
+
+# Editor / OS / local tool settings
+.DS_Store
+.idea/
+*.swp
+*~
+.claude/settings.local.json
+
+# NOT ignored on purpose: ai-org-router/logs/*.jsonl and logs/server.log are
+# tracked as demo evidence (see stop_demo.sh). Do not add logs/ here.

@@ -1,0 +1,135 @@
+# =============================================================================
+# PROTECTED ALPHA INTELLECTUAL PROPERTY - KEYWORD GATE
+# =============================================================================
+# This file is the MVP rules engine. If a prompt (or any file the prompt would
+# carry with it) matches ANY term below, the task is pinned to on-prem.
+#
+# THIS IS AN INVARIANT, NOT A PREFERENCE. It holds in every routing mode,
+# including superfast-risky. The mode only decides what happens to traffic
+# that does NOT match.
+#
+# Gates are data, not prompt instructions: a manipulated agent can ignore
+# "please keep this internal"; it cannot ignore a router that never opens
+# the socket.
+# =============================================================================
+
+version: 1
+updated: 2026-08-11
+
+# Terms are matched case-insensitively against the prompt and against the
+# content of any file staged for egress.
+protected_terms:
+
+  - group: alpha-ip
+    label: Protected Alpha IP
+    severity: critical
+    terms:
+      - alpha-ip
+      - alpha ip
+      - protected alpha
+      - project-nightjar
+      - nightjar
+
+  - group: core-algorithms
+    label: Core Proprietary Algorithms
+    severity: critical
+    terms:
+      - ranking algorithm
+      - scoring kernel
+      - margin model
+      - pricing engine
+      - yield curve model
+      - propensity model
+      - secret sauce
+
+  - group: credentials
+    label: Secrets & Credentials
+    severity: critical
+    terms:
+      - api_key
+      - api key
+      - secret_key
+      - private key
+      - password
+      - credential
+      - .env
+      - bearer token
+
+  - group: customer-data
+    label: Customer / PII
+    severity: high
+    terms:
+      - customer list
+      - customer data
+      - pii
+      - ssn
+      - social security
+      - patient record
+      - cardholder
+
+  - group: legal-financial
+    label: Legal & Financial
+    severity: high
+    terms:
+      - acquisition
+      - term sheet
+      - cap table
+      - due diligence
+      - unreleased earnings
+      - merger
+
+  - group: infrastructure
+    label: Internal Infrastructure
+    severity: medium
+    terms:
+      - internal.local
+      - vpn config
+      - prod database
+      - kubeconfig
+
+# The rules files enumerate protected terms BY DEFINITION. Scanning them would
+# match every task and pin everything on-prem for the wrong reason - the gate
+# must not trip on its own definition of the gate. Excluded from staging and
+# from content scanning.
+scan_exclude:
+  - "*/router/keywords.yaml"
+  - "*/router/policy.yaml"
+  - "*/security/policies/*.yaml"
+  - "*/security/monitors/*.yaml"
+  - "router/keywords.yaml"
+  - "router/policy.yaml"
+  - "ai-org-router/router/keywords.yaml"
+  - "ai-org-router/router/policy.yaml"
+  - "ai-org-router/security/policies/*.yaml"
+  - "ai-org-router/security/monitors/*.yaml"
+
+# Paths whose CONTENTS are protected regardless of the words inside them.
+protected_paths:
+  - "**/alpha-ip/**"
+  - "**/.env"
+  - "**/secrets/**"
+  - "**/*.pem"
+  - "**/*.key"
+
+# ---------------------------------------------------------------------------
+# NON-MVP - roadmap, parsed and displayed in the UI but NOT enforced tonight.
+# The full boolean + fuzzy rules engine.
+# ---------------------------------------------------------------------------
+rules_engine_roadmap:
+  enabled: false
+  note: >
+    Post-MVP: boolean composition (must_contain / cannot_contain / any / all /
+    and / or / not) plus inexact string matching, so a one-character
+    misspelling ("nightjr", "pricng engine") still trips the gate instead of
+    sailing out to BIG-AI. Edit distance <= 2 or similarity >= 0.85 scores as
+    a match, with the near-miss surfaced to the ops dashboard as an evasion
+    signal.
+  example_rules:
+    - id: alpha-ip-strict
+      all:
+        - any: ["nightjar", "alpha-ip"]
+        - not: { any: ["public", "press release"] }
+      fuzzy:
+        algorithm: damerau-levenshtein
+        max_distance: 2
+        min_similarity: 0.85
