@@ -128,6 +128,25 @@ li{margin-bottom:7px} li strong{color:var(--bold)}
             text-transform:uppercase;color:var(--amber);font-weight:700;
             margin-bottom:7px}
 .caution p{font-size:15px;margin:0}
+p.sm{font-size:15.5px}
+p.note{font-size:13.5px;color:var(--dim);margin-top:8px}
+.card p.meth{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-bottom:8px}
+ul.sm{font-size:15px;line-height:1.55} ul.sm li{margin-bottom:5px}
+/* Three internet-access settings, each with its live capture. */
+.who3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:6px 0 0;
+      align-items:start}
+@media(max-width:860px){.who3{grid-template-columns:1fr}}
+/* Captures differ in height (the read-only description is longest). Frame
+   all three at the tallest one's aspect, filled with the app's own card
+   colour, so the headings line up without altering any image. */
+.who3 .frame{aspect-ratio:700/415;background:#111823;border-radius:8px;
+             border:1px solid var(--line);overflow:hidden;margin:0 0 12px}
+.who3 img{width:100%;display:block}
+.who3 .t{font-size:18px}
+.mx{font-family:var(--mono);font-size:12px;line-height:1.5;margin-top:9px;
+    color:var(--body)}
+.mx b{display:inline-block;min-width:66px;letter-spacing:.8px;font-size:10.5px}
+.mx .ok{color:var(--green)} .mx .no{color:var(--red)}
 
 .states{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:11px}
 .st{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px}
@@ -191,10 +210,22 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   .term{font-size:9px;line-height:1.4;padding:8px 10px;margin:6px 0 3px}
   .caution{padding:8px 11px;margin:7px 0 0}
   .caution p{font-size:11px}
+  p.sm{font-size:11.5px}
+  ul.sm{font-size:11px;line-height:1.4} ul.sm li{margin-bottom:2px}
+  .who3{grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 0}
+  .who3 .frame{margin-bottom:5px}
+  .who3 .t{font-size:13px}
+  .mx{font-size:9px;margin-top:4px} .mx b{min-width:48px;font-size:8px}
+  p.note{font-size:9.5px;margin-top:4px}
+  .card p.meth{font-size:10px;margin-bottom:4px}
   .shots{gap:10px;margin:6px 0 0}
   .shots img{max-height:66mm;width:100%;height:auto;box-shadow:none}
   .shots figcaption{font-size:9px;margin-top:5px;line-height:1.35}
   .caution .t{font-size:9px;margin-bottom:3px}
+  /* An A4 page is narrower than the 860px mobile breakpoint, which would
+     stack every two-column slide and push it onto a second page. */
+  .two{grid-template-columns:1fr 1fr}
+  .shots{grid-template-columns:1fr 1fr}
 
   /* Replaced elements need width:auto before max-height can shrink them. */
   figure{margin:8px 0 0}
@@ -700,9 +731,104 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
     said so out loud.</figcaption></figure>
 </section>
 
+<!-- internet access: three settings -->
+<section class="slide" id="s-web-modes">
+  <div class="kicker">Proof &middot; 08</div>
+  <h2>LLM, RAG, or bot.<br>The operator picks. The model cannot.</h2>
+  <p class="lead" style="max-width:none">One setting decides what the on-prem
+  model is on the web: the tools it is handed and the HTTP methods they may send.</p>
+
+  <div class="who3">
+    <div class="card">
+      <div class="frame"><img src="screenshots/16-internet-llm-isolated.png" alt="Internet access set to no-external-network-io"></div>
+      <div class="t"><span class="dot" style="background:var(--blue)"></span>LLM &mdash; isolated</div>
+      <p>A plain model. It knows what it was trained on and the files you give
+      it, and nothing on the web. Asked for live data, it says it does not
+      have it.</p>
+      <div class="mx"><b class="ok">ALLOWED</b>none</div>
+      <div class="mx"><b class="no">BLOCKED</b>every method &mdash; GET, QUERY,
+      POST, PUT, PATCH, DELETE. Sealed to loopback.</div>
+    </div>
+    <div class="card">
+      <div class="frame"><img src="screenshots/17-internet-rag-readonly.png" alt="Internet access set to read-only"></div>
+      <div class="t"><span class="dot" style="background:var(--cyan)"></span>RAG LLM &mdash; read-only <span class="tag next">default</span></div>
+      <p>An LLM that looks things up. It searches and reads public pages to
+      ground its answers. No cookies, no sign-in. It can read the web; it
+      cannot write to it.</p>
+      <div class="mx"><b class="ok">ALLOWED</b>GET, QUERY</div>
+      <div class="mx"><b class="no">BLOCKED</b>POST, PUT, PATCH, DELETE,
+      TRACE, CONNECT</div>
+    </div>
+    <div class="card">
+      <div class="frame"><img src="screenshots/18-internet-bot-readwrite.png" alt="Internet access set to read/write"></div>
+      <div class="t"><span class="dot" style="background:var(--red)"></span>Bot &mdash; read/write</div>
+      <p>A RAG that can also do its own thing on the web: submit forms, call
+      write APIs, sign in with accounts whose secrets it never sees. Turning it
+      on needs a confirmation; every write is logged as critical.</p>
+      <div class="mx"><b class="ok">ALLOWED</b>GET, QUERY, POST, PUT, PATCH,
+      DELETE</div>
+      <div class="mx"><b class="no">BLOCKED</b>TRACE, CONNECT</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:10px;max-width:none">Live captures, cropped
+  to the internet-access control. A method not on a setting&rsquo;s list is
+  refused before a connection opens.</p>
+</section>
+
+<!-- internet access: the verb is the gate -->
+<section class="slide" id="s-web-verbs">
+  <div class="kicker">Proof &middot; 09</div>
+  <h2>Read and write are HTTP verbs.<br>We enforce the verb.</h2>
+  <p>The model never opens a socket. It asks for a tool call, and before any
+  connection opens, the HTTP method is checked against <code>policy.yaml</code>.
+  The policy file is the gate, not a description of one.</p>
+
+  <div class="two" style="margin-top:4px">
+    <div>
+      <h3>The most restrictive setting wins</h3>
+      <ul class="sm">
+        <li>The <code>sovereign</code> posture forces <strong>LLM</strong>,
+          whatever is selected.</li>
+        <li>A task carrying protected IP is lowered from bot to
+          <strong>RAG</strong>.</li>
+        <li>The operator can pin the setting in policy; the API refuses any
+          other, so a developer cannot click their way to more access.</li>
+        <li>Everything the model writes that would leave &mdash; a search, a
+          URL, a form field &mdash; passes the same keyword gate as a prompt.</li>
+      </ul>
+      <p class="sm"><strong>QUERY</strong> is the newest HTTP method: a read
+      like GET, with the question in the body like POST. It counts as a read;
+      its body passes the keyword gate and a size cap.</p>
+    </div>
+    <div>
+      <h3>A floor the policy file cannot lower</h3>
+      <p class="sm">An edited <code>policy.yaml</code> still cannot give
+      read-only a write method. A policy that tries leaves the task with
+      <em>no</em> web access, not a best guess.</p>
+      <div class="term"><span class="c"># RAG setting, the model asks for a PUT</span>
+<span class="k">BLOCKED BY POLICY</span>: web_submit refused:
+  internet access is 'read'; writes need readwrite
+<span class="c"># policy.yaml edited to give read-only POST</span>
+<span class="k">ValueError</span>: policy.yaml lists POST for 'read';
+  read may only list safe methods
+  ['GET', 'HEAD', 'OPTIONS', 'QUERY']</div>
+      <p class="note">Real output from <code>nodes/web_tools.py</code>, network stubbed.</p>
+    </div>
+  </div>
+
+  <div class="caution">
+    <div class="t">What &ldquo;read-only&rdquo; does not mean</div>
+    <p style="max-width:none">This client sends only read methods &mdash; not
+    that nothing leaves: URLs, search terms and QUERY bodies go out, counted as
+    egress. &ldquo;Read&rdquo; is the method&rsquo;s promise; a badly built
+    server can still change data on a GET. The content gate matches keywords,
+    not meaning. Enforced in the router&rsquo;s process, not by a host firewall.</p>
+  </div>
+</section>
+
 <!-- posture switch -->
 <section class="slide" id="s-posture-switch">
-  <div class="kicker">Proof &middot; 08</div>
+  <div class="kicker">Proof &middot; 10</div>
   <h2>One click changes the perimeter,<br>not the routing table.</h2>
   <p>The same application, one second apart. On the left the node is in
   <code>slow</code> &mdash; the safest <em>routing</em> posture, where egress is
@@ -736,7 +862,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- sovereign -->
 <section class="slide" id="s-sovereign">
-  <div class="kicker">Proof &middot; 09</div>
+  <div class="kicker">Proof &middot; 11</div>
   <h2>The posture that does not decide.<br>It removes the option.</h2>
   <p>Three of our four postures are routing rules &mdash; they choose where work
   goes. <code>sovereign</code> is not a routing rule. While it is armed, every
@@ -747,7 +873,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   <div class="two" style="margin-top:4px">
     <div>
       <h3>It is proven at boot, not asserted</h3>
-      <p style="font-size:15.5px">The router attempts a real outbound
+      <p class="sm">The router attempts a real outbound
       connection on every start and requires it to fail. If any check fails,
       the posture becomes <em>unavailable</em> &mdash; not unenforced. A
       perimeter you have not demonstrated is a label.</p>
@@ -758,13 +884,13 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
             [<span class="ok">ok</span>] <span class="k">create-connection</span>  refused, no packet sent
             [<span class="ok">ok</span>] <span class="k">dns-resolution</span>     refused, no packet sent
             [<span class="ok">ok</span>] <span class="k">loopback-permitted</span> on-prem model reachable</div>
-      <p style="font-size:13.5px;color:var(--dim);margin-top:10px">The fourth
+      <p class="note">The fourth
       check is the one people miss: a guard that blocked <em>everything</em>
       would pass the first three while taking the local model offline with it.</p>
     </div>
     <div>
       <h3>The receipt cannot lie either</h3>
-      <p style="font-size:15.5px">Stage a payload in the riskiest mode, seal the
+      <p class="sm">Stage a payload in the riskiest mode, seal the
       node, then approve the egress anyway. The run is refused and the audit
       log records the refusal. No <em>&ldquo;N bytes transmitted&rdquo;</em>
       entry is written, because no bytes moved &mdash; a false record in an
@@ -775,7 +901,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   is sealed. 480 bytes were NOT
   transmitted.</div>
       <h3 style="margin-top:20px">And the operator, not the developer, holds it</h3>
-      <p style="font-size:15.5px">Set <code>lock_mode: sovereign</code> in
+      <p class="sm">Set <code>lock_mode: sovereign</code> in
       policy and the posture is pinned: the mode bar greys out and the API
       returns <code>409</code> to any other mode. A developer cannot click
       &mdash; or <code>curl</code> &mdash; their way out of a posture their
@@ -796,7 +922,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- topics -->
 <section class="slide" id="s-topics">
-  <div class="kicker">Proof &middot; 10</div>
+  <div class="kicker">Proof &middot; 12</div>
   <h2>Every decision lands on a topic.</h2>
   <div class="two">
     <div>
@@ -976,7 +1102,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 
 <!-- org chart -->
 <section class="slide" id="s-org">
-  <div class="kicker">Proof &middot; 11</div>
+  <div class="kicker">Proof &middot; 13</div>
   <h2>Most work does not need<br>the expensive model.</h2>
   <p>Decode speed is set by memory bandwidth, so
   <code>tok/s &asymp; bandwidth &divide; model size</code> cuts both ways: if a
@@ -1043,6 +1169,10 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
         <li>Agent states, from real file reads and the real token stream</li>
         <li>Notification topics and the append-only audit sinks</li>
         <li>The outbound egress block</li>
+        <li>The internet-access setting &mdash; isolated, read-only, read/write
+            &mdash; and its HTTP method allowlist. Read-only search and page
+            reads run live; QUERY and the write methods are proven by unit
+            tests against a stubbed network, not yet against live sites</li>
         <li>The <code>sovereign</code> posture and its socket-level egress
             guard &mdash; including the boot self-test that proves it blocks,
             and the operator pin that holds it</li>

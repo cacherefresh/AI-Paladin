@@ -12,15 +12,31 @@ talked into a method this module does not implement for its mode.
                 under security/egress_guard.sealed_thread(), so a socket to anything
                 but loopback is refused before connect(). Process scope: see
                 the guard's own docstring for what that does not cover.
-    read        RAG research. web_search + web_fetch, GET only, no cookies,
-                no auth headers, no request body. The default.
-    readwrite   Adds web_submit (POST) and a per-task cookie jar, so a login
-                persists for the rest of that task. Sign-in uses accounts from
-                config/web_accounts.yaml; the model names an account, never
-                sees its secret values.
+    read        RAG research. web_search + web_fetch (GET) and web_query
+                (QUERY). No cookies, no auth headers. The only request body
+                is a QUERY body, which passes the keyword gate and a size cap
+                like any other outbound text. The default.
+    readwrite   Adds web_submit (POST, PUT, PATCH, DELETE) and a per-task
+                cookie jar, so a login persists for the rest of that task.
+                Sign-in uses accounts from config/web_accounts.yaml; the model
+                names an account, never sees its secret values.
+
+HTTP METHODS
+    The method allowlist for each mode is `internet_access.modes[].methods`
+    in router/policy.yaml, and _request() refuses any method not on it
+    before a connection is opened. The YAML is the gate. Code adds a floor
+    under it that no YAML edit lifts: TRACE and CONNECT are never sent, an
+    unknown method is never sent, and 'read' may only list safe methods
+    (GET, HEAD, OPTIONS, QUERY). A policy that breaks the floor fails closed:
+    the session is not created and no web access happens.
+
+    "Safe" is the server's declared semantics (RFC 9110; QUERY per the IETF
+    httpbis QUERY method specification). A client cannot verify that a
+    server keeps that promise - a GET handler can still change data. The
+    method classes bound what this client asks for, not what a server does.
 
 WHAT EVERY CALL PASSES, IN ORDER
-    1. mode allows this tool               (method allowlist)
+    1. mode allows this tool and its HTTP method   (method allowlist)
     2. per-task call budget not spent      (limits.max_calls_per_task)
     3. destination is http(s), port 80/443, and every address the host
        resolves to is a public internet address - no loopback, no LAN, no
@@ -66,6 +82,15 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ACCOUNTS_PATH = os.path.join(BASE, "config", "web_accounts.yaml")
 
 MODES = ("off", "read", "readwrite")
+
+# Method classes. SAFE is what 'read' may list; WRITE needs 'readwrite';
+# NEVER is refused whatever policy.yaml says (TRACE echoes the request back,
+# CONNECT opens a tunnel past every check below).
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "QUERY"})
+WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+NEVER_METHODS = frozenset({"TRACE", "CONNECT"})
+BODY_TYPES = ("application/json", "application/x-www-form-urlencoded",
+              "text/plain")
 ALLOWED_PORTS = (80, 443)
 # Generic client name. Never a person's name or address.
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AI-Paladin-onprem/0.1"
@@ -75,8 +100,41 @@ DEFAULT_LIMITS = {
     "max_response_bytes": 600_000,
     "max_result_chars": 5000,
     "max_query_chars": 300,
+    "max_body_chars": 4000,
     "timeout_s": 15,
 }
+
+
+def methods_for(mode: str, policy: dict) -> frozenset:
+    """
+    The HTTP methods `mode` may send, read from policy.yaml. Fails closed:
+    a missing mode entry or a method below the code floor raises, so no
+    session is built from a policy this module cannot honour exactly.
+    """
+    if mode not in MODES:
+        raise ValueError("unknown internet mode %r" % mode)
+    if mode == "off":
+        return frozenset()
+    modes = ((policy or {}).get("internet_access") or {}).get("modes") or []
+    entry = next((m for m in modes if str(m.get("id")) == mode), None)
+    if entry is None:
+        raise ValueError("internet mode %r has no entry in policy.yaml; "
+                         "refusing to guess its methods" % mode)
+    out = set()
+    for raw in entry.get("methods") or []:
+        m = str(raw).strip().upper()
+        if m in NEVER_METHODS:
+            raise ValueError("policy.yaml lists %s for %r; %s is never sent"
+                             % (m, mode, m))
+        if m not in SAFE_METHODS | WRITE_METHODS:
+            raise ValueError("policy.yaml lists unknown method %r for %r"
+                             % (raw, mode))
+        if mode == "read" and m not in SAFE_METHODS:
+            raise ValueError("policy.yaml lists %s for 'read'; read may only "
+                             "list safe methods %s"
+                             % (m, sorted(SAFE_METHODS)))
+        out.add(m)
+    return frozenset(out)
 
 
 class WebBlocked(Exception):
@@ -100,25 +158,53 @@ _FETCH = {"type": "function", "function": {
     "parameters": {"type": "object", "required": ["url"], "properties": {
         "url": {"type": "string", "description": "http(s) URL"}}}}}
 
-_SUBMIT = {"type": "function", "function": {
-    "name": "web_submit",
-    "description": "Submit a form (HTTP POST), e.g. to sign in. To sign in, "
-                   "pass the name of a configured account; its stored fields "
-                   "are added for you and you never see them. Cookies persist "
-                   "for the rest of this task.",
-    "parameters": {"type": "object", "required": ["url"], "properties": {
-        "url": {"type": "string"},
-        "fields": {"type": "object", "description": "form fields you write"},
-        "account": {"type": "string",
-                    "description": "configured account name, for sign-in"}}}}}
+_QUERY = {"type": "function", "function": {
+    "name": "web_query",
+    "description": "Send an HTTP QUERY to a public API: a read-only request "
+                   "whose query is in the body instead of the URL. Use it "
+                   "only for APIs that document QUERY support.",
+    "parameters": {"type": "object", "required": ["url", "body"],
+                   "properties": {
+        "url": {"type": "string", "description": "http(s) URL"},
+        "body": {"type": "string", "description": "the query"},
+        "content_type": {"type": "string", "enum": list(BODY_TYPES),
+                         "description": "media type of body"}}}}}
 
 
-def tools_for(mode: str) -> list:
-    if mode == "read":
-        return [_SEARCH, _FETCH]
-    if mode == "readwrite":
-        return [_SEARCH, _FETCH, _SUBMIT]
-    return []
+def _submit_schema(write_methods) -> dict:
+    methods = sorted(write_methods)
+    return {"type": "function", "function": {
+        "name": "web_submit",
+        "description": "Write to a web endpoint (HTTP %s), e.g. submit a form "
+                       "or sign in. To sign in, use POST and pass the name of "
+                       "a configured account; its stored fields are added for "
+                       "you and you never see them. Cookies persist for the "
+                       "rest of this task." % "/".join(methods),
+        "parameters": {"type": "object", "required": ["url"], "properties": {
+            "url": {"type": "string"},
+            "method": {"type": "string", "enum": methods,
+                       "description": "HTTP method (default POST)"},
+            "fields": {"type": "object",
+                       "description": "fields you write; DELETE takes none"},
+            "format": {"type": "string", "enum": ["form", "json"],
+                       "description": "body encoding (default form)"},
+            "account": {"type": "string",
+                        "description": "configured account name, for "
+                                       "sign-in (POST only)"}}}}}
+
+
+def tools_for(mode: str, policy: dict) -> list:
+    """Tools offered to the model: only those whose method the mode allows."""
+    allowed = methods_for(mode, policy)
+    tools = []
+    if "GET" in allowed:
+        tools += [_SEARCH, _FETCH]
+    if "QUERY" in allowed:
+        tools.append(_QUERY)
+    writes = allowed & WRITE_METHODS
+    if mode == "readwrite" and writes:
+        tools.append(_submit_schema(writes))
+    return tools
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +312,7 @@ class WebSession:
             raise ValueError("unknown internet mode %r" % mode)
         self.mode = mode
         self.cfg = cfg
+        self.methods = methods_for(mode, getattr(cfg, "policy", None))
         self.task_id = task_id
         self.limits = dict(DEFAULT_LIMITS, **(limits or {}))
         self.search_cfg = search_cfg or {}
@@ -236,6 +323,9 @@ class WebSession:
         if self.jar is not None:
             handlers.append(urllib.request.HTTPCookieProcessor(self.jar))
         self.opener = urllib.request.build_opener(*handlers)
+
+    def tools(self) -> list:
+        return tools_for(self.mode, getattr(self.cfg, "policy", None))
 
     # -- gates ---------------------------------------------------------------
 
@@ -250,7 +340,7 @@ class WebSession:
 
     def _check_mode(self, tool: str):
         if tool == "web_submit" and self.mode != "readwrite":
-            self._block(tool, "internet access is '%s'; POST needs readwrite"
+            self._block(tool, "internet access is '%s'; writes need readwrite"
                         % self.mode, "web_tools#method")
         if self.mode == "off":
             self._block(tool, "internet access is off (no-external-network-io)",
@@ -259,6 +349,18 @@ class WebSession:
             self._block(tool, "the sovereign posture is armed - no "
                         "destination outside this machine is reachable",
                         "egress_guard#sovereign")
+
+    def _check_method(self, method: str, what: str):
+        """The policy.yaml method allowlist. Runs before any connection."""
+        m = (method or "").upper()
+        if m in NEVER_METHODS:
+            self._block(what, "%s is never sent" % m, "web_tools#method")
+        if m not in self.methods:
+            self._block(what, "%s is not allowed when internet access is "
+                        "'%s' (allowed: %s)"
+                        % (m, self.mode, ", ".join(sorted(self.methods))
+                           or "none"), "web_tools#method")
+        return m
 
     def _check_budget(self, tool: str):
         if self.calls >= int(self.limits["max_calls_per_task"]):
@@ -311,12 +413,14 @@ class WebSession:
     # -- transport -------------------------------------------------------------
 
     def _request(self, method: str, url: str, body: bytes = None,
-                 what: str = "request"):
+                 what: str = "request",
+                 content_type: str = "application/x-www-form-urlencoded"):
+        method = self._check_method(method, what)
         host = self._check_destination(url, what)
         headers = {"User-Agent": USER_AGENT, "Accept": "text/html,*/*;q=0.8",
                    "Accept-Language": "en"}
         if body is not None:
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            headers["Content-Type"] = content_type
         req = urllib.request.Request(url, data=body, headers=headers,
                                      method=method)
         bytes_out = len(method) + len(url) + sum(len(k) + len(v)
@@ -382,14 +486,62 @@ class WebSession:
         return {"url": final, "status": status, "title": title,
                 "text": text[:cap], "truncated": len(text) > cap}
 
-    def submit(self, url: str, fields: dict = None, account: str = None) -> dict:
+    def query(self, url: str, body: str, content_type: str = None) -> dict:
+        """HTTP QUERY: a safe, read-only request with the query in the body."""
+        self._check_mode("web_query")
+        what = "web_query(%s)" % (url or "").strip()
+        self._check_method("QUERY", what)
+        url = (url or "").strip()
+        body = body or ""
+        content_type = content_type or "application/json"
+        if content_type not in BODY_TYPES:
+            self._block(what, "content type %r is not one of %s"
+                        % (content_type, ", ".join(BODY_TYPES)),
+                        "web_tools#body")
+        cap = int(self.limits["max_body_chars"])
+        if len(body) > cap:
+            self._block(what, "body is %d chars; the cap is %d"
+                        % (len(body), cap), "web_tools#body")
+        # The body is model-authored outbound text: same gate as a URL.
+        self._check_content(url + "\n" + body, what)
+        self._check_budget("web_query")
+        data = body.encode("utf-8")
+        raw, ctype, final, status = self._request(
+            "QUERY", url, body=data, what="web_query",
+            content_type=content_type)
+        title, text = html_to_text(raw) if "html" in ctype else ("", raw)
+        self.sources.append({"title": title or final, "url": final})
+        bus.notify("internet.read", "On-prem sent a QUERY",
+                   "QUERY %s (%d body bytes) -> %d. Read-only method; the "
+                   "body left and is counted as egress."
+                   % (final, len(data), status),
+                   severity="info", task_id=self.task_id, url=final)
+        rcap = int(self.limits["max_result_chars"])
+        return {"url": final, "status": status, "title": title,
+                "text": text[:rcap], "truncated": len(text) > rcap}
+
+    def submit(self, url: str, fields: dict = None, account: str = None,
+               method: str = None, fmt: str = None) -> dict:
         self._check_mode("web_submit")
+        method = (method or "POST").strip().upper()
+        what = "web_submit(%s %s)" % (method, (url or "").strip())
+        if method not in WRITE_METHODS:
+            self._block(what, "%s is not a write method; web_submit sends "
+                        "only %s" % (method, ", ".join(sorted(WRITE_METHODS))),
+                        "web_tools#method")
+        self._check_method(method, what)
+        fmt = (fmt or "form").lower()
+        if fmt not in ("form", "json"):
+            self._block(what, "format must be form or json", "web_tools#body")
+        if account and method != "POST":
+            self._block(what, "account sign-in is POST only", "web_tools#method")
+        if method == "DELETE" and fields:
+            self._block(what, "DELETE takes no fields", "web_tools#body")
         url = (url or "").strip()
         fields = {str(k): str(v) for k, v in (fields or {}).items()}
         # Gate what the MODEL wrote. Account secrets are not model-authored,
         # never pass through the model, and are bound to their domains below.
-        self._check_content(url + "\n" + json.dumps(fields),
-                            "web_submit(%s)" % url)
+        self._check_content(url + "\n" + json.dumps(fields), what)
         host = (urllib.parse.urlsplit(url).hostname or "").lower()
         if account:
             acct = load_accounts().get(account)
@@ -403,13 +555,21 @@ class WebSession:
             fields.update({str(k): str(v)
                            for k, v in (acct.get("fields") or {}).items()})
         self._check_budget("web_submit")
-        body = urllib.parse.urlencode(fields).encode("utf-8")
-        raw, ctype, final, status = self._request("POST", url, body=body,
-                                                  what="web_submit")
+        if method == "DELETE":
+            body, ctype_out = None, None
+        elif fmt == "json":
+            body = json.dumps(fields).encode("utf-8")
+            ctype_out = "application/json"
+        else:
+            body = urllib.parse.urlencode(fields).encode("utf-8")
+            ctype_out = "application/x-www-form-urlencoded"
+        raw, ctype, final, status = self._request(
+            method, url, body=body, what="web_submit",
+            content_type=ctype_out or "application/x-www-form-urlencoded")
         title, text = html_to_text(raw) if "html" in ctype else ("", raw)
         bus.notify("internet.write", "On-prem WROTE to the internet",
-                   "POST %s (%d bytes, %d fields%s) -> %d. Mode readwrite."
-                   % (url, len(body), len(fields),
+                   "%s %s (%d bytes, %d fields%s) -> %d. Mode readwrite."
+                   % (method, url, len(body or b""), len(fields),
                       ", account '%s'" % account if account else "", status),
                    severity="critical", task_id=self.task_id, url=url,
                    account=account or "")
@@ -429,9 +589,13 @@ class WebSession:
                 out = self.search(args.get("query", ""))
             elif name == "web_fetch":
                 out = self.fetch(args.get("url", ""))
+            elif name == "web_query":
+                out = self.query(args.get("url", ""), args.get("body", ""),
+                                 args.get("content_type"))
             elif name == "web_submit":
                 out = self.submit(args.get("url", ""), args.get("fields"),
-                                  args.get("account"))
+                                  args.get("account"), args.get("method"),
+                                  args.get("format"))
             else:
                 return json.dumps({"error": "unknown tool %r" % name})
             return json.dumps(out, ensure_ascii=False)

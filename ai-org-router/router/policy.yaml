@@ -144,22 +144,26 @@ internet_access:
       label: Read-only research
       short: READ-ONLY
       color: "#06b6d4"
-      methods: [GET]
+      methods: [GET, QUERY]   # safe methods only; web_tools.py refuses others
       cookies: false
       description: >
-        RAG mode. The model may search and read public pages with GET. No
-        cookies, no sign-in, no request bodies, public addresses only. Query
-        strings and URLs still leave and are counted as egress.
+        RAG mode. The model may search and read public pages with GET, and
+        send HTTP QUERY to APIs that support it. No cookies, no sign-in,
+        public addresses only. The only request body is a QUERY body, which
+        passes the keyword gate and a size cap. Query strings, URLs and
+        QUERY bodies still leave and are counted as egress. "Read-only" is
+        the method's declared meaning; this client cannot verify that a
+        server changes nothing.
     - id: readwrite
       label: Read / write
       short: READ/WRITE
       color: "#ef4444"
-      methods: [GET, POST]
+      methods: [GET, QUERY, POST, PUT, PATCH, DELETE]
       cookies: true
       require_confirmation: true
       description: >
-        Adds form submission and a per-task cookie jar, so the model can sign
-        in using accounts from config/web_accounts.yaml (gitignored). The
+        Adds writes (POST, PUT, PATCH, DELETE) and a per-task cookie jar, so
+        the model can submit forms, call write APIs, and sign in using accounts from config/web_accounts.yaml (gitignored). The
         model names an account; it never sees the secret. Every write is a
         critical notification.
   limits:
@@ -167,6 +171,7 @@ internet_access:
     max_response_bytes: 600000
     max_result_chars: 5000
     max_query_chars: 300
+    max_body_chars: 4000      # cap on a QUERY body the model writes
     timeout_s: 15
   search:
     endpoint: https://lite.duckduckgo.com/lite/

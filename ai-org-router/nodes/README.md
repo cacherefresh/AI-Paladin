@@ -15,8 +15,16 @@ Set in the dashboard, default from `internet_access` in router/policy.yaml.
 | Setting | What the model can do | Enforced by |
 |---|---|---|
 | no-external-network-io | Read files and write code on-prem. No web. | No web tools offered; worker thread sealed to loopback by `security/egress_guard.sealed_thread()` |
-| read-only (default) | Search and read public pages, GET only | `web_tools.py`: method allowlist, no cookies, public addresses only, outbound text through the keyword gate |
-| read/write | Also submit forms and sign in | As read-only, plus a per-task cookie jar and accounts bound to their domains |
+| read-only (default) | Search and read public pages (GET); send HTTP QUERY to APIs that support it | `web_tools.py`: method allowlist from `policy.yaml`, no cookies, public addresses only, outbound text (including a QUERY body) through the keyword gate |
+| read/write | Also write: POST, PUT, PATCH, DELETE; submit forms and sign in | As read-only, plus a per-task cookie jar and accounts bound to their domains |
+
+The HTTP methods each setting may send are `internet_access.modes[].methods`
+in router/policy.yaml, checked in `web_tools.py` before any connection opens.
+Code adds a floor under the YAML: TRACE and CONNECT are never sent, and
+read-only may only list safe methods (GET, HEAD, OPTIONS, QUERY). A policy
+that breaks the floor fails closed, so no web session starts. "Safe" is what
+the method promises, not something this client can verify: a server can still
+change data on a GET or QUERY.
 
 Most restrictive wins. The sovereign posture forces no-external-network-io.
 A protected-IP task is lowered from read/write to read-only. A query, URL or
