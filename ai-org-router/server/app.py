@@ -166,7 +166,7 @@ def onprem_health() -> dict:
 # setting cannot quietly survive a restart.
 
 _onprem_lock = threading.Lock()
-_onprem = {"model": None, "internet": None}
+_onprem = {"model": None, "internet": None, "toggles": {}}
 
 
 def load_catalog() -> dict:
@@ -215,6 +215,18 @@ def internet_lock():
     return lk if lk in internet_modes() else None
 
 
+def method_toggles() -> list:
+    return web_tools.method_toggles(CFG.policy)
+
+
+def method_summary(mode: str, toggles: dict) -> dict:
+    """What a setting may send, and everything it may not, by name."""
+    allowed = web_tools.methods_for(mode, CFG.policy, toggles)
+    known = web_tools.KNOWN_METHODS - {"*"}
+    return {"allowed": sorted(allowed), "blocked": sorted(known - allowed),
+            "known": len(known)}
+
+
 def effective_internet(protected: bool = False, sealed: bool = False) -> dict:
     """
     The setting a task actually runs with. Most restrictive wins, and the
@@ -222,13 +234,21 @@ def effective_internet(protected: bool = False, sealed: bool = False) -> dict:
     """
     with _onprem_lock:
         chosen = _onprem["internet"] or "off"
+        toggles = dict(_onprem["toggles"])
     if sealed or egress_guard.is_armed():
-        return {"mode": "off", "chosen": chosen,
-                "why": "sovereign posture is armed - no external network"}
-    if protected and chosen == "readwrite":
-        return {"mode": "read", "chosen": chosen,
-                "why": "protected-IP task - read/write lowered to read-only"}
-    return {"mode": chosen, "chosen": chosen, "why": ""}
+        out = {"mode": "off", "chosen": chosen,
+               "why": "sovereign posture is armed - no external network"}
+    elif protected and chosen == "readwrite":
+        out = {"mode": "read", "chosen": chosen,
+               "why": "protected-IP task - read/write lowered to read-only"}
+    else:
+        out = {"mode": chosen, "chosen": chosen, "why": ""}
+    # The task's receipt records the toggles and the resulting method list,
+    # so the audit trail says exactly what the model could send.
+    out["toggles"] = toggles
+    out["methods"] = sorted(web_tools.methods_for(out["mode"], CFG.policy,
+                                                  toggles))
+    return out
 
 
 def _boot_onprem():
@@ -252,6 +272,9 @@ def _boot_onprem():
     with _onprem_lock:
         _onprem["model"] = model
         _onprem["internet"] = default if default in internet_modes() else "off"
+        # Like the internet setting, toggles are not persisted: every boot
+        # starts at policy.yaml's defaults.
+        _onprem["toggles"] = web_tools.toggle_defaults(CFG.policy)
 
 
 def _persist_model(tag: str):
@@ -295,6 +318,9 @@ def onprem_state() -> dict:
         "internet_why": eff["why"],
         "internet_lock": internet_lock(),
         "internet_modes": _ia().get("modes", []),
+        "method_toggles": [dict(t, on=bool(eff["toggles"].get(t["id"])))
+                           for t in method_toggles()],
+        "methods": method_summary(eff["mode"], eff["toggles"]),
         "accounts": len(web_tools.account_names()),
     }
 
@@ -350,13 +376,31 @@ def set_onprem(data: dict, actor: str) -> dict:
         if (internet_modes()[want_net].get("require_confirmation")
                 and not data.get("confirm")):
             raise PermissionError("read/write needs explicit confirmation")
+    want_tog = data.get("toggles") or {}
+    if not isinstance(want_tog, dict):
+        raise ValueError("toggles must be an object of id -> true/false")
+    defs = {t["id"]: t for t in method_toggles()}
+    for tid, on in want_tog.items():
+        if tid not in defs:
+            raise ValueError("unknown method toggle %r" % tid)
+        if internet_lock() and bool(on) != defs[tid]["default"]:
+            raise PermissionError("internet access is pinned by "
+                                  "internet_access.lock; method toggles stay "
+                                  "at their policy defaults")
+        if (on and defs[tid].get("require_confirmation")
+                and not data.get("confirm")):
+            raise PermissionError("enabling %s needs explicit confirmation"
+                                  % defs[tid].get("label", tid))
 
     with _onprem_lock:
         old_model, old_net = _onprem["model"], _onprem["internet"]
+        old_tog = dict(_onprem["toggles"])
         if want_model:
             _onprem["model"] = entry["id"]
         if want_net:
             _onprem["internet"] = want_net
+        for tid, on in want_tog.items():
+            _onprem["toggles"][tid] = bool(on)
 
     if want_model and not _same_tag(old_model or "", entry["id"]):
         _persist_model(entry["id"])
@@ -374,6 +418,20 @@ def set_onprem(data: dict, actor: str) -> dict:
                    "%s -> %s by %s. %s" % (old_net, want_net, actor,
                                            " ".join(m.get("description", "").split())),
                    severity=sev, actor=actor, internet=want_net)
+    for tid, on in want_tog.items():
+        if bool(on) == bool(old_tog.get(tid)):
+            continue
+        t = defs[tid]
+        # Widening write access is the event an auditor asks about.
+        sev = ("critical" if on and t["writes"] else
+               "warning" if on else "info")
+        bus.notify("onprem.changed",
+                   "Method toggle %s: %s" % (t.get("label", tid),
+                                             "ON" if on else "off"),
+                   "%s (%s) switched %s by %s."
+                   % (t.get("label", tid), ", ".join(t["methods"]),
+                      "on" if on else "off", actor),
+                   severity=sev, actor=actor, toggle=tid, on=bool(on))
     return onprem_state()
 
 
@@ -400,6 +458,7 @@ def execute(decision: dict, prompt: str, corpus_id: str):
                 model = (_catalog_entry(decision.get("onprem_model") or "")
                          or selected_model())
                 net = (decision.get("internet") or {}).get("mode", "off")
+                toggles = (decision.get("internet") or {}).get("toggles")
                 # no-external-network-io is enforced at the socket for this
                 # worker thread, not only by withholding the web tools.
                 no_net = (egress_guard.sealed_thread(
@@ -408,7 +467,7 @@ def execute(decision: dict, prompt: str, corpus_id: str):
                 with no_net:
                     ollama_worker.run(prompt, CFG, task_id, staged_files=staged,
                                       corpus_id=corpus_id, model=model,
-                                      internet=net)
+                                      internet=net, toggles=toggles)
             else:
                 staged = decision.get("staged", {})
                 # Order matters: ask the guard before writing the receipt. An

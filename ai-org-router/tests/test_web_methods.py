@@ -47,6 +47,30 @@ class _Opener:
         return _Resp(req.full_url)
 
 
+def _fake_destination(self, url, what="request"):
+    """No DNS in tests: 'internal' hosts stand in for loopback/LAN."""
+    if "internal" in url:
+        self._block(what, "resolves to a private address",
+                    "web_tools#destination")
+    return "example.com"
+
+
+# The IANA HTTP Method Registry as fetched 2026-11-22 (last updated
+# 2026-06-17): name -> safe. 41 rows, "*" included.
+IANA = {
+    "ACL": 0, "BASELINE-CONTROL": 0, "BIND": 0, "CHECKIN": 0, "CHECKOUT": 0,
+    "CONNECT": 0, "COPY": 0, "DELETE": 0, "GET": 1, "HEAD": 1, "LABEL": 0,
+    "LINK": 0, "LOCK": 0, "MERGE": 0, "MKACTIVITY": 0, "MKCALENDAR": 0,
+    "MKCOL": 0, "MKREDIRECTREF": 0, "MKWORKSPACE": 0, "MOVE": 0,
+    "OPTIONS": 1, "ORDERPATCH": 0, "PATCH": 0, "POST": 0, "PRI": 1,
+    "PROPFIND": 1, "PROPPATCH": 0, "PUT": 0, "QUERY": 1, "REBIND": 0,
+    "REPORT": 1, "SEARCH": 1, "TRACE": 1, "UNBIND": 0, "UNCHECKOUT": 0,
+    "UNLINK": 0, "UNLOCK": 0, "UPDATE": 0, "UPDATEREDIRECTREF": 0,
+    "VERSION-CONTROL": 0, "*": 0,
+}
+ALL_ON = {"head_options": True, "webdav": True, "delete": True}
+
+
 class MethodTests(unittest.TestCase):
 
     def setUp(self):
@@ -59,7 +83,7 @@ class MethodTests(unittest.TestCase):
             mock.patch.object(web_tools.egress_guard, "is_armed",
                               return_value=False),
             mock.patch.object(web_tools.WebSession, "_check_destination",
-                              lambda self, url, what="request": "example.com"),
+                              _fake_destination),
         ]
         for p in self.patches:
             p.start()
@@ -68,8 +92,9 @@ class MethodTests(unittest.TestCase):
         for p in self.patches:
             p.stop()
 
-    def session(self, mode, cfg=None):
-        s = web_tools.WebSession(mode, cfg or self.cfg, "t-test")
+    def session(self, mode, cfg=None, toggles=None):
+        s = web_tools.WebSession(mode, cfg or self.cfg, "t-test",
+                                 toggles=toggles)
         s.opener = _Opener()
         return s
 
@@ -182,9 +207,9 @@ class MethodTests(unittest.TestCase):
         for m in cfg.policy["internet_access"]["modes"]:
             if m["id"] == "readwrite":
                 m["methods"] = ["GET", "POST"]
-        s = self.session("readwrite", cfg)
+        s = self.session("readwrite", cfg, toggles={})   # every toggle off
         out = json.loads(s.call("web_submit", {"url": "https://example.com",
-                                               "method": "DELETE"}))
+                                               "method": "PUT"}))
         self.assertIn("not allowed", out["error"])
         self.assertEqual(s.opener.sent, [])
 
@@ -211,6 +236,134 @@ class MethodTests(unittest.TestCase):
                                          if m["id"] != "read"]
         with self.assertRaises(ValueError):
             web_tools.methods_for("read", p)
+
+
+    # -- every method accounted for -------------------------------------------
+
+    def test_registry_fully_classified(self):
+        self.assertEqual(web_tools.KNOWN_METHODS, set(IANA) | {"PURGE"})
+        classes = (web_tools.READ_METHODS, web_tools.WRITE_METHODS,
+                   web_tools.NEVER_METHODS)
+        for m in web_tools.KNOWN_METHODS:
+            self.assertEqual(sum(m in c for c in classes), 1, m)
+        # read == the registry's safe methods, minus the two never sent
+        self.assertEqual(web_tools.READ_METHODS,
+                         {m for m, safe in IANA.items() if safe}
+                         - {"TRACE", "PRI"})
+
+    def test_every_method_in_every_setting(self):
+        """Walk all 42 known methods plus an unknown one through every
+        setting, with toggles all off, at default, and all on."""
+        for mode in ("off", "read", "readwrite"):
+            for tog in ({}, None, ALL_ON):
+                s = self.session(mode, toggles=tog)
+                for m in sorted(web_tools.KNOWN_METHODS) + ["BREW"]:
+                    allowed = m in s.methods
+                    if mode == "off" or m in web_tools.NEVER_METHODS \
+                            or m not in web_tools.KNOWN_METHODS:
+                        self.assertFalse(allowed, (mode, tog, m))
+                    if mode == "read" and m in web_tools.WRITE_METHODS:
+                        self.assertFalse(allowed, (mode, tog, m))
+                    if not allowed:
+                        with self.assertRaises(web_tools.WebBlocked,
+                                               msg=(mode, tog, m)):
+                            s._request(m, "https://example.com/")
+        self.assertEqual(self.session("read", toggles={}).opener.sent, [])
+
+    def test_never_and_unknown_cannot_be_listed(self):
+        for bad in (["PRI"], ["*"], ["TRACE"], ["CONNECT"], ["BREW"]):
+            with self.assertRaises(ValueError, msg=bad):
+                web_tools.methods_for("readwrite",
+                                      self._policy_with("readwrite", bad))
+        p = copy.deepcopy(self.cfg.policy)
+        p["internet_access"]["method_toggles"][0]["methods"].append("TRACE")
+        with self.assertRaises(ValueError):
+            web_tools.methods_for("read", p)
+
+    def test_untoggled_writes_need_the_policy_file(self):
+        s = self.session("readwrite", toggles=ALL_ON)
+        for m in ("LINK", "UNLINK", "PURGE"):
+            self.assertNotIn(m, s.methods)
+        p = self._policy_with("readwrite", ["GET", "PURGE"])
+        self.assertIn("PURGE", web_tools.methods_for("readwrite", p, {}))
+
+    # -- toggles ----------------------------------------------------------------
+
+    def test_delete_toggle(self):
+        on = self.session("readwrite")                       # default: on
+        off = self.session("readwrite", toggles={"delete": False})
+        self.assertIn("DELETE", on.methods)
+        self.assertNotIn("DELETE", off.methods)
+        out = json.loads(off.call("web_submit", {"url": "https://example.com/r",
+                                                 "method": "DELETE"}))
+        self.assertIn("not allowed", out["error"])
+        submit = off.tools()[-1]["function"]
+        self.assertNotIn("DELETE",
+                         submit["parameters"]["properties"]["method"]["enum"])
+        self.assertNotIn("DELETE", self.session(
+            "read", toggles={"delete": True}).methods)
+
+    def test_head_options_toggle(self):
+        off = self.session("read")                           # default: off
+        out = json.loads(off.call("web_fetch", {"url": "https://example.com",
+                                                "method": "HEAD"}))
+        self.assertIn("not allowed", out["error"])
+        self.assertNotIn("method", off.tools()[1]["function"]["parameters"]
+                         ["properties"])
+        on = self.session("read", toggles={"head_options": True})
+        for m in ("HEAD", "OPTIONS"):
+            out = json.loads(on.call("web_fetch", {"url": "https://example.com",
+                                                   "method": m}))
+            self.assertEqual(out["method"], m)
+            self.assertIn("headers", out)
+        self.assertEqual([x[0] for x in on.opener.sent], ["HEAD", "OPTIONS"])
+
+    def test_webdav_toggle_in_read_adds_reads_only(self):
+        s = self.session("read", toggles={"webdav": True})
+        self.assertTrue({"PROPFIND", "REPORT", "SEARCH"} <= s.methods)
+        self.assertFalse(s.methods & web_tools.WRITE_METHODS)
+        out = json.loads(s.call("web_query", {"url": "https://dav.example.com/",
+                                              "method": "PROPFIND",
+                                              "body": "<propfind/>",
+                                              "headers": {"Depth": "1"}}))
+        self.assertNotIn("error", out)
+        out = json.loads(s.call("web_submit", {"url": "https://dav.example.com/a",
+                                               "method": "MOVE"}))
+        self.assertIn("BLOCKED", out["error"])
+
+    def test_webdav_writes_in_readwrite(self):
+        s = self.session("readwrite", toggles={"webdav": True})
+        out = json.loads(s.call("web_submit", {
+            "url": "https://dav.example.com/a", "method": "MOVE",
+            "headers": {"Destination": "https://dav.example.com/b",
+                        "Overwrite": "F"}}))
+        self.assertNotIn("error", out)
+        self.assertEqual(s.opener.sent[-1][0], "MOVE")
+        out = json.loads(self.session("readwrite").call("web_submit", {
+            "url": "https://dav.example.com/a", "method": "MOVE"}))
+        self.assertIn("not allowed", out["error"])          # toggle off
+
+    # -- headers the model may set --------------------------------------------
+
+    def test_header_rules(self):
+        s = self.session("readwrite", toggles=ALL_ON)
+        cases = [
+            ({"Authorization": "Bearer x"}, "not settable"),
+            ({"Cookie": "a=b"}, "not settable"),
+            ({"Depth": "1\r\nX-Evil: 1"}, "line break"),
+            ({"Destination": "https://internal.corp/b"}, "private"),
+            ({"Destination": "https://example.com/alpha-ip"}, "protected"),
+        ]
+        for hdrs, why in cases:
+            out = json.loads(s.call("web_submit", {
+                "url": "https://dav.example.com/a", "method": "COPY",
+                "headers": hdrs}))
+            self.assertIn(why, out.get("error", ""), hdrs)
+        out = json.loads(s.call("web_query", {
+            "url": "https://dav.example.com/", "method": "PROPFIND",
+            "body": "<propfind/>", "headers": {"Depth": "infinity"}}))
+        self.assertIn("infinity", out["error"])
+        self.assertEqual(s.opener.sent, [])
 
 
 if __name__ == "__main__":

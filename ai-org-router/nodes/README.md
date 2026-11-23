@@ -15,15 +15,40 @@ Set in the dashboard, default from `internet_access` in router/policy.yaml.
 | Setting | What the model can do | Enforced by |
 |---|---|---|
 | no-external-network-io | Read files and write code on-prem. No web. | No web tools offered; worker thread sealed to loopback by `security/egress_guard.sealed_thread()` |
-| read-only (default) | Search and read public pages (GET); send HTTP QUERY to APIs that support it | `web_tools.py`: method allowlist from `policy.yaml`, no cookies, public addresses only, outbound text (including a QUERY body) through the keyword gate |
+| read-only (default) | Search and read public pages (GET); send HTTP QUERY to APIs that support it | `web_tools.py`: method allowlist from `policy.yaml`, no cookies, public addresses only, outbound text (including a query body) through the keyword gate |
 | read/write | Also write: POST, PUT, PATCH, DELETE; submit forms and sign in | As read-only, plus a per-task cookie jar and accounts bound to their domains |
 
-The HTTP methods each setting may send are `internet_access.modes[].methods`
-in router/policy.yaml, checked in `web_tools.py` before any connection opens.
-Code adds a floor under the YAML: TRACE and CONNECT are never sent, and
-read-only may only list safe methods (GET, HEAD, OPTIONS, QUERY). A policy
-that breaks the floor fails closed, so no web session starts. "Safe" is what
-the method promises, not something this client can verify: a server can still
+### HTTP methods
+
+Every method in the IANA HTTP Method Registry (41 entries), plus the
+unregistered PURGE, is classed in `web_tools.py`:
+
+| Class | Methods | Where it can apply |
+|---|---|---|
+| read (7) | GET, HEAD, OPTIONS, QUERY, PROPFIND, REPORT, SEARCH | read-only and read/write |
+| write (31) | POST, PUT, PATCH, DELETE; the WebDAV family (PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK, VERSION-CONTROL, CHECKOUT, CHECKIN, UNCHECKOUT, MKWORKSPACE, UPDATE, LABEL, MERGE, BASELINE-CONTROL, MKACTIVITY, ORDERPATCH, ACL, MKREDIRECTREF, UPDATEREDIRECTREF, MKCALENDAR, BIND, UNBIND, REBIND); LINK, UNLINK, PURGE | read/write only |
+| never (4) | TRACE, CONNECT, PRI, `*` | nowhere - policy.yaml cannot list them |
+
+Anything else is unknown and refused. What a setting actually sends is its
+`methods` in router/policy.yaml plus any enabled toggle:
+
+| Toggle | Methods | Default | In read-only |
+|---|---|---|---|
+| Header checks | HEAD, OPTIONS | off | applies |
+| WebDAV | PROPFIND, REPORT, SEARCH + the 24 WebDAV writes | off | reads only |
+| DELETE | DELETE | on | no effect |
+
+Turning on a toggle that adds writes needs confirmation, and every toggle
+change is written to the audit log. Toggles reset to their defaults on boot,
+and `internet_access.lock` holds them there. LINK, UNLINK and PURGE have no
+toggle; list one under read/write's `methods` if you need it. The model may
+set only the WebDAV request headers (Depth, Destination, Overwrite,
+Lock-Token, If, Timeout), one line each, through the keyword gate; a
+Destination must also be a public address.
+
+`_request()` checks the method before any connection opens. A policy that
+breaks these rules fails closed, so no web session starts. "Read" is what the
+method promises, not something this client can verify: a server can still
 change data on a GET or QUERY.
 
 Most restrictive wins. The sovereign posture forces no-external-network-io.

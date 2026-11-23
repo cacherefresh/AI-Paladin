@@ -11,8 +11,11 @@ The routing invariant, enforced before any socket opens:
 
 > **keyword match ⇒ on-prem. Always. Not overridable.**
 
-Three postures govern only the traffic that does *not* match: `slow`
-(prefer on-prem), `fast` (limit on-prem to Protected Alpha IP), and
-`superfast` (minimal payload, full disclosure of every byte that leaves).
+Four postures govern only the traffic that does *not* match: `sovereign`
+(nothing leaves this machine), `slow` (prefer on-prem), `fast` (limit on-prem
+to Protected Alpha IP), and `superfast` (minimal payload, full disclosure of
+every byte that leaves).
 
+Every setting - postures, internet access, HTTP method switches, limits,
+models, accounts - is listed in the [main README](../README.md#settings).
 See docs/ for architecture, schemas/ for the task & node contracts.

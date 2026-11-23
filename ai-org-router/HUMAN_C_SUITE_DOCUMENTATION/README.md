@@ -44,9 +44,9 @@ latency card and counters accumulate coherently across the sequence.
 | `13-session-ledger` | The ledger panel: IP protected and BIG-AI tokens consumed |
 | `14-posture-slow` | `slow` posture selected: no perimeter bar |
 | `15-posture-sovereign` | `sovereign` posture selected: perimeter sealed, guard verified at boot |
-| `16-internet-llm-isolated` | Internet access `no-external-network-io` — the model as a plain LLM (cropped to the control) |
-| `17-internet-rag-readonly` | Internet access read-only — RAG: GET and QUERY only (cropped) |
-| `18-internet-bot-readwrite` | Internet access read/write — bot: adds POST, PUT, PATCH, DELETE (cropped) |
+| `16-internet-llm-isolated` | v0.2 only. Internet access `no-external-network-io` — the model as a plain LLM: allowed none, blocked all 41 methods (cropped to the control) |
+| `17-internet-rag-readonly` | v0.2 only. Read-only — RAG: allowed GET, QUERY; blocked the other 39; method switches at defaults (cropped) |
+| `18-internet-bot-readwrite` | v0.2 only. Read/write — bot: allowed GET, QUERY, POST, PUT, PATCH, DELETE; blocked the other 35 (cropped) |
 
 ## The session ledger
 

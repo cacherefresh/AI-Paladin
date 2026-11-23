@@ -139,7 +139,7 @@ ul.sm{font-size:15px;line-height:1.55} ul.sm li{margin-bottom:5px}
 /* Captures differ in height (the read-only description is longest). Frame
    all three at the tallest one's aspect, filled with the app's own card
    colour, so the headings line up without altering any image. */
-.who3 .frame{aspect-ratio:700/415;background:#111823;border-radius:8px;
+.who3 .frame{aspect-ratio:700/488;background:#111823;border-radius:8px;
              border:1px solid var(--line);overflow:hidden;margin:0 0 12px}
 .who3 img{width:100%;display:block}
 .who3 .t{font-size:18px}
@@ -735,8 +735,6 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
 <section class="slide" id="s-web-modes">
   <div class="kicker">Proof &middot; 08</div>
   <h2>LLM, RAG, or bot.<br>The operator picks. The model cannot.</h2>
-  <p class="lead" style="max-width:none">One setting decides what the on-prem
-  model is on the web: the tools it is handed and the HTTP methods they may send.</p>
 
   <div class="who3">
     <div class="card">
@@ -746,8 +744,8 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
       it, and nothing on the web. Asked for live data, it says it does not
       have it.</p>
       <div class="mx"><b class="ok">ALLOWED</b>none</div>
-      <div class="mx"><b class="no">BLOCKED</b>every method &mdash; GET, QUERY,
-      POST, PUT, PATCH, DELETE. Sealed to loopback.</div>
+      <div class="mx"><b class="no">BLOCKED</b>all 41 methods. Sealed to
+      loopback; switches have no effect.</div>
     </div>
     <div class="card">
       <div class="frame"><img src="screenshots/17-internet-rag-readonly.png" alt="Internet access set to read-only"></div>
@@ -756,23 +754,28 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
       ground its answers. No cookies, no sign-in. It can read the web; it
       cannot write to it.</p>
       <div class="mx"><b class="ok">ALLOWED</b>GET, QUERY</div>
-      <div class="mx"><b class="no">BLOCKED</b>POST, PUT, PATCH, DELETE,
-      TRACE, CONNECT</div>
+      <div class="mx"><b class="no">BLOCKED</b>the other 39 &mdash; every
+      write, TRACE, CONNECT</div>
+      <div class="mx"><b style="color:var(--cyan)">SWITCHES</b>+ HEAD, OPTIONS;
+      + WebDAV reads. Never a write.</div>
     </div>
     <div class="card">
       <div class="frame"><img src="screenshots/18-internet-bot-readwrite.png" alt="Internet access set to read/write"></div>
       <div class="t"><span class="dot" style="background:var(--red)"></span>Bot &mdash; read/write</div>
       <p>A RAG that can also do its own thing on the web: submit forms, call
-      write APIs, sign in with accounts whose secrets it never sees. Turning it
-      on needs a confirmation; every write is logged as critical.</p>
+      write APIs, sign in with accounts it never sees the secrets of. Every
+      write is logged as critical.</p>
       <div class="mx"><b class="ok">ALLOWED</b>GET, QUERY, POST, PUT, PATCH,
       DELETE</div>
-      <div class="mx"><b class="no">BLOCKED</b>TRACE, CONNECT</div>
+      <div class="mx"><b class="no">BLOCKED</b>the other 35; TRACE, CONNECT
+      always</div>
+      <div class="mx"><b style="color:var(--cyan)">SWITCHES</b>+ HEAD, OPTIONS;
+      + WebDAV; DELETE off for create-only.</div>
     </div>
   </div>
   <p class="note" style="margin-top:10px;max-width:none">Live captures, cropped
-  to the internet-access control. A method not on a setting&rsquo;s list is
-  refused before a connection opens.</p>
+  to the control. 41 = every method in the IANA registry, plus PURGE, less
+  the reserved &ldquo;*&rdquo;.</p>
 </section>
 
 <!-- internet access: the verb is the gate -->
@@ -796,9 +799,10 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
         <li>Everything the model writes that would leave &mdash; a search, a
           URL, a form field &mdash; passes the same keyword gate as a prompt.</li>
       </ul>
-      <p class="sm"><strong>QUERY</strong> is the newest HTTP method: a read
-      like GET, with the question in the body like POST. It counts as a read;
-      its body passes the keyword gate and a size cap.</p>
+      <p class="sm"><strong>Every last method is accounted for.</strong> All
+      of the IANA registry is classed read, write or never, and anything else
+      is refused. Three switches &mdash; header checks, WebDAV, DELETE &mdash;
+      widen or narrow a setting; none can give read-only a write.</p>
     </div>
     <div>
       <h3>A floor the policy file cannot lower</h3>
@@ -810,8 +814,7 @@ nav a:hover{background:var(--bold);transform:scale(1.4)}
   internet access is 'read'; writes need readwrite
 <span class="c"># policy.yaml edited to give read-only POST</span>
 <span class="k">ValueError</span>: policy.yaml lists POST for 'read';
-  read may only list safe methods
-  ['GET', 'HEAD', 'OPTIONS', 'QUERY']</div>
+  read may only list read methods</div>
       <p class="note">Real output from <code>nodes/web_tools.py</code>, network stubbed.</p>
     </div>
   </div>

@@ -144,6 +144,18 @@
   .net.sel{color:#fff}
   .net[disabled]{opacity:.34;cursor:not-allowed}
   .netdesc{font-size:10.5px;color:var(--dim);margin-top:7px;line-height:1.45}
+  .togrow{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+  .tog{padding:3px 9px;border-radius:999px;border:1px solid var(--line);
+       background:transparent;font-size:10px;font-family:var(--mono);
+       color:var(--dim);font-weight:650}
+  .tog.on{color:var(--ink);border-color:#67e8f9;background:#67e8f91a}
+  .tog.on.w{border-color:#fca5a5;background:#fca5a51a}
+  /* No effect in this setting: never look "on", whatever the stored state. */
+  .tog[disabled],.tog.on[disabled],.tog.on.w[disabled]{opacity:.34;cursor:not-allowed;border-color:var(--line);
+                 background:transparent;color:var(--dim)}
+  .netmeth{font-family:var(--mono);font-size:10px;line-height:1.5;margin-top:7px;
+           color:var(--muted)}
+  .netmeth b{font-weight:700;letter-spacing:.5px}
   .netwhy{font-size:10.5px;color:var(--warn);margin-top:5px;font-family:var(--mono)}
   .lsub{font-size:10px;letter-spacing:1px;text-transform:uppercase;
         color:var(--dim);font-family:var(--mono);margin:12px 0 2px}
@@ -339,6 +351,8 @@
         <div class="mmeta" id="onpremMeta"></div>
         <div class="lsub">Internet access for the on-prem model</div>
         <div class="netrow" id="netRow"></div>
+        <div class="togrow" id="togRow"></div>
+        <div class="netmeth" id="netMeth"></div>
         <div class="netdesc" id="netDesc"></div>
         <div class="netwhy" id="netWhy"></div>
       </div>
@@ -671,6 +685,29 @@ function renderOnprem(st){
   }).join("");
   document.querySelectorAll(".net").forEach(b =>
     b.onclick = () => { if(!b.disabled) setInternet(b.dataset.n); });
+  // Method toggles. A toggle that adds nothing in the current setting (DELETE
+  // in read-only, anything when the model is isolated) is shown greyed, so
+  // the control never implies access the router will not grant.
+  const eff = st.internet_effective;
+  const readOnly = ["GET","HEAD","OPTIONS","QUERY","PROPFIND","REPORT","SEARCH"];
+  $("#togRow").innerHTML = (st.method_toggles||[]).map(t => {
+    const adds = eff === "readwrite" ? t.methods
+               : eff === "read" ? t.methods.filter(m => readOnly.includes(m)) : [];
+    const dis = pin || !adds.length;
+    const tip = (t.description||"").trim() + "\n\nAdds here: "
+      + (adds.length ? adds.join(", ") : "nothing in this setting");
+    return `<button class="tog ${t.on ? 'on' : ''} ${t.writes ? 'w' : ''}"
+      data-t="${esc(t.id)}" data-on="${t.on ? 1 : 0}" ${dis ? "disabled" : ""}
+      title="${esc(tip)}">${t.on ? "&#9679;" : "&#9675;"} ${esc(t.label||t.id)}</button>`;
+  }).join("");
+  document.querySelectorAll(".tog").forEach(b =>
+    b.onclick = () => { if(!b.disabled) setToggle(b.dataset.t, b.dataset.on !== "1"); });
+  const ms = st.methods || {allowed: [], blocked: []};
+  $("#netMeth").innerHTML =
+    `<b style="color:var(--onprem)">ALLOWED</b> ${esc(ms.allowed.join(", ") || "none")}<br>`
+    + `<b style="color:var(--crit)">BLOCKED</b> <span title="${esc(ms.blocked.join(", "))}"
+       style="text-decoration:underline dotted;cursor:help">${ms.allowed.length
+         ? "the other " + ms.blocked.length : "all " + ms.blocked.length} of ${ms.known} methods</span>`;
   const mode = (st.internet_modes||[]).find(m => m.id === st.internet) || {};
   $("#netDesc").textContent = (mode.label ? mode.label + ". " : "")
     + (mode.description||"").trim();
@@ -688,6 +725,23 @@ async function postOnprem(body){
     renderOnprem(st.onprem); return null;
   }
   renderOnprem(st); return st;
+}
+
+async function setToggle(id, on){
+  const t = ((CFG.onprem||{}).method_toggles||[]).find(x => x.id === id) || {};
+  const body = {toggles: {[id]: on}};
+  if(on && t.require_confirmation){
+    const ok = confirm(`Enable ${t.label}?\n\nAdds: ${t.methods.join(", ")}\n\n`
+      + (t.description||"").trim() + "\n\nThe change is written to the audit log.");
+    if(!ok) return;
+    body.confirm = true;
+  }
+  const st = await postOnprem(body);
+  if(st){
+    add("system", `<div class="route ${on && t.writes ? 'egress' : 'local'}"><span class="ri">&#127760;</span><div>
+      <b>Method toggle ${esc(t.label||id)}: ${on ? "ON" : "off"}</b>
+      <div class="rr">Allowed now: ${esc((st.methods||{}).allowed.join(", ") || "none")}</div></div></div>`);
+  }
 }
 
 async function setInternet(id){
