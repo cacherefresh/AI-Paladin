@@ -30,7 +30,7 @@ labels:
     note: >
       Vision and tool calling, the two things operating a computer needs. This
       describes the model's aptitude; AI-Paladin's on-prem worker drives the
-      web only, through nodes/web_tools.py. It does not drive a desktop.
+      web only, through ai_paladin/nodes/web_tools.py. It does not drive a desktop.
   research-planning:
     text: research / planning
     color: "#a855f7"

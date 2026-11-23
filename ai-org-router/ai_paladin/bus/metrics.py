@@ -16,7 +16,7 @@ import os
 import threading
 from datetime import datetime, timezone
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 SINK = os.path.join(BASE, "logs", "metrics.jsonl")
 
 _lock = threading.Lock()

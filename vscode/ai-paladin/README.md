@@ -1,4 +1,4 @@
-# paladin-vscode
+# ai-paladin for VS Code
 
 Shows the AI-Paladin router's egress posture in the VS Code status bar, and
 opens its console in a panel.
@@ -34,7 +34,7 @@ in your editor's status bar:
 
 | | Inside the egress guard? |
 |---|---|
-| The router process (`python3 -m server.app`) | **Yes.** This is the guarded process, and it is the only one that talks to a model. |
+| The router process (`python3 -m ai_paladin.server.app`) | **Yes.** This is the guarded process, and it is the only one that talks to a model. |
 | This extension's webview panel | **No.** It is a renderer in VS Code's process tree. It speaks only to loopback, but the router's guard has no visibility into it. |
 | VS Code itself | **No.** Telemetry, settings sync, the extension gallery, `git push`. |
 | The Ollama daemon | **No.** A separate process that can pull models from the internet. |
@@ -42,11 +42,11 @@ in your editor's status bar:
 A green shield in the status bar means *the router cannot reach anything but
 this machine.* It does not mean the machine is sealed. For that you want a host
 firewall or a network namespace with no default route — see
-[`docs/ROADMAP.md` §5](../docs/ROADMAP.md).
+[`docs/ROADMAP.md` §5](../../ai-org-router/docs/ROADMAP.md).
 
 If you are running a demo where "nothing left the machine" is the claim, harden
 VS Code as well — the table in
-[`docs/DEMO_SOVEREIGN_MIXXX.md`](../docs/DEMO_SOVEREIGN_MIXXX.md) lists the
+[`docs/DEMO_SOVEREIGN_MIXXX.md`](../../ai-org-router/docs/DEMO_SOVEREIGN_MIXXX.md) lists the
 settings.
 
 ## Install
@@ -85,8 +85,8 @@ status bar keeps working either way.
 
 ## Future, well past MVP
 
-Splitting into `paladin-core` / `paladin-client` / `paladin-standalone` /
-`paladin-vscode` packages is the right eventual shape for shipping, and is
-deliberately deferred — it adds a build step and changes nothing about where
-the perimeter sits. See [`docs/ROADMAP.md` §5](../docs/ROADMAP.md), *Client
-shape*.
+Splitting into `ai-paladin-core` / `ai-paladin-client` /
+`ai-paladin-standalone` / `ai-paladin-vscode` packages is the right eventual
+shape for shipping, and is deliberately deferred — it adds a build step and
+changes nothing about where the perimeter sits. See
+[`docs/ROADMAP.md` §5](../../ai-org-router/docs/ROADMAP.md), *Client shape*.

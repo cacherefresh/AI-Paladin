@@ -38,7 +38,7 @@ Measured on this machine, CPU only:
 
 Gemma 4 is the only allowlisted pick with both vision and tool calling, which
 is what computer use needs. AI-Paladin itself drives the web only, through
-`nodes/web_tools.py`; it does not drive a desktop.
+`ai_paladin/nodes/web_tools.py`; it does not drive a desktop.
 
 gpt-oss 120B takes most of the RAM. Switching models in the dashboard unloads
 the previous one first.

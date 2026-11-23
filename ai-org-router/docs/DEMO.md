@@ -25,7 +25,7 @@ cold load of the 15 GB model is ~35 s of dead air in front of an audience.
 > **keyword match ⇒ on-prem. Always. Not overridable.**
 
 Defined in [`router/policy.yaml`](../router/policy.yaml) as `invariant`,
-enforced in [`router/dispatch.py`](../router/dispatch.py) *before* the mode is
+enforced in [`ai_paladin/router/dispatch.py`](../ai_paladin/router/dispatch.py) *before* the mode is
 consulted. The four modes only govern what happens to traffic that does
 **not** match.
 
@@ -38,7 +38,7 @@ consulted. The four modes only govern what happens to traffic that does
 
 `sovereign` is the odd one out on purpose: the other three are routing
 decisions, and it is a perimeter. It arms
-[`security/egress_guard.py`](../security/egress_guard.py), which refuses every
+[`ai_paladin/security/egress_guard.py`](../ai_paladin/security/egress_guard.py), which refuses every
 non-loopback destination at the socket. Set `defaults.lock_mode: sovereign` in
 `router/policy.yaml` to pin the node to it — the mode bar greys out and
 `/api/classify` returns 409 for any other mode, so a hand-rolled `curl` cannot
@@ -165,7 +165,7 @@ block; the sovereign posture and its socket-level egress guard, including the
 boot self-test that proves it blocks.
 
 **Not real:** the BIG-AI response. This node has no `ANTHROPIC_API_KEY`, so
-[`bigai/simulated.py`](../bigai/simulated.py) streams a stub at a *modelled*
+[`ai_paladin/bigai/simulated.py`](../ai_paladin/bigai/simulated.py) streams a stub at a *modelled*
 80 tok/s and is badged `SIMULATED` in the UI, with its latency labelled
 "(modelled)". What it echoes back — the payload receipt — is genuine: those
 are the exact bytes the router staged. Nothing is transmitted anywhere.
@@ -180,7 +180,7 @@ does not care which adapter answers.
   proprietary code (pricing engine, scoring kernel), `demo/public-utils/` holds
   clean shareable code. Each file has one real planted bug.
 - **This AI-Paladin working tree** — switch the Corpus dropdown to scan the
-  live repo. Expect real locks: `server/app.py` genuinely contains the strings
+  live repo. Expect real locks: `ai_paladin/server/app.py` genuinely contains the strings
   `ANTHROPIC_API_KEY` and `.env`, so the credentials rule fires correctly.
   The rules files themselves are excluded via `scan_exclude`, because a gate
   must not trip on its own definition of the gate.
@@ -192,7 +192,7 @@ The boolean + fuzzy rules engine — `must_contain` / `cannot_contain` /
 misspelling (`nightjr`, `pricng engine`) still trips the gate. The schema is
 sketched in `keywords.yaml` under `rules_engine_roadmap` and displayed in the
 UI as roadmap. A reference Levenshtein implementation sits unused in
-`router/rules.py:fuzzy_score()` so wiring it up is plumbing, not research.
+`ai_paladin/router/rules.py:fuzzy_score()` so wiring it up is plumbing, not research.
 
 Also deliberately mocked: the notification bus is in-process fan-out plus a
 JSONL sink. Swapping it for NATS/Kafka is an adapter change.
@@ -200,15 +200,15 @@ JSONL sink. Swapping it for NATS/Kafka is an adapter change.
 ## Files
 
 ```
-router/keywords.yaml    the gate: protected terms, paths, exclusions
-router/policy.yaml      the invariant + the four postures + lock_mode
-security/egress_guard.py  socket-level egress enforcement for `sovereign`
-router/rules.py         matching (MVP exact; fuzzy stubbed for post-MVP)
-router/classifier.py    corpus index, IDF ranking, payload slicing
-router/dispatch.py      the routing decision
-nodes/ollama_worker.py  on-prem execution + real agent-state events
-bigai/simulated.py      the escalation leg (simulated; seam for the real one)
-bus/notifications.py    topics, fan-out, JSONL audit
-server/app.py           stdlib HTTP server
-ui/demo/index.html      the whole UI, one file
+router/keywords.yaml                 the gate: protected terms, paths, exclusions
+router/policy.yaml                   the invariant + the four postures + lock_mode
+ai_paladin/security/egress_guard.py  socket-level egress enforcement for `sovereign`
+ai_paladin/router/rules.py           matching (MVP exact; fuzzy stubbed for post-MVP)
+ai_paladin/router/classifier.py      corpus index, IDF ranking, payload slicing
+ai_paladin/router/dispatch.py        the routing decision
+ai_paladin/nodes/ollama_worker.py    on-prem execution + real agent-state events
+ai_paladin/bigai/simulated.py        the escalation leg (simulated; seam for the real one)
+ai_paladin/bus/notifications.py      topics, fan-out, JSONL audit
+ai_paladin/server/app.py             stdlib HTTP server
+ui/demo/index.html                   the whole UI, one file
 ```

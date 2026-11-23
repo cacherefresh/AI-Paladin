@@ -24,9 +24,9 @@ import time
 import urllib.error
 import urllib.request
 
-from bus import metrics
-from bus import notifications as bus
-from nodes import web_tools
+from ai_paladin.bus import metrics
+from ai_paladin.bus import notifications as bus
+from ai_paladin.nodes import web_tools
 
 PHASE_RE = re.compile(r"\[\[PHASE:\s*([a-z_]+)\s*\]\]", re.I)
 # Any tail that could still grow into a full marker; held back, not emitted.
@@ -262,7 +262,7 @@ def run(prompt: str, cfg, task_id: str, staged_files=None, corpus_id="alpha-ip",
     # --- real file reads --------------------------------------------------
     context_blocks = []
     if staged_files:
-        from router.classifier import read_corpus_file
+        from ai_paladin.router.classifier import read_corpus_file
         for rel in staged_files[:4]:
             content = read_corpus_file(corpus_id, rel)
             if not content:

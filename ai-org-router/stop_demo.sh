@@ -28,7 +28,9 @@ done
 # where the process is alive but no longer holding the socket.
 router_pids() {
   { ss -lptnH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' || true
-    pgrep -f "python.* -m server\.app" || true
+    # Old name (server.app) still matched, so a router started before the
+    # move to ai_paladin/ can be stopped too.
+    pgrep -f "python.* -m (ai_paladin\.)?server\.app" || true
   } | sort -u
 }
 
@@ -89,8 +91,9 @@ if command -v ollama >/dev/null 2>&1; then
 fi
 
 # --- leftovers --------------------------------------------------------------
-# logs/*.jsonl and logs/server.log are demo evidence and are tracked in git;
-# they are deliberately kept. Only stray nohup spill is removed.
+# logs/*.jsonl and logs/server.log are this machine's audit trail and are
+# deliberately kept (they are gitignored; a sample lives in logs.example/).
+# Only stray nohup spill is removed.
 [ -f nohup.out ] && { rm -f nohup.out; echo "cleanup: removed nohup.out"; }
 
 echo "demo down."

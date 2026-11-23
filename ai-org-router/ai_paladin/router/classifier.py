@@ -14,10 +14,10 @@ from typing import Dict, List
 
 import yaml
 
-from router import rules
-from router.rules import Match
+from ai_paladin.router import rules
+from ai_paladin.router.rules import Match
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 
 # Files we will read from a corpus when staging a payload.
 TEXT_EXT = {".py", ".js", ".ts", ".go", ".java", ".rs", ".rb", ".c", ".h",
@@ -329,7 +329,7 @@ def _org():
     global _ORG
     if _ORG is None:
         try:
-            from nodes.subagents import Org
+            from ai_paladin.nodes.subagents import Org
             _ORG = Org()
         except Exception:
             _ORG = False

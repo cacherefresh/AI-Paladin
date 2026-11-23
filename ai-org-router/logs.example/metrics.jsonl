@@ -32,3 +32,4 @@
 {"ts": "2026-11-20T02:05:42.589334+00:00", "kind": "usage", "source": "onprem", "tokens_in": 765, "tokens_out": 49, "seconds": 11.820955753326416, "estimated": false}
 {"ts": "2026-11-20T02:05:44.053212+00:00", "kind": "decision", "task_id": "task-bde956bc06", "target": "onprem", "locked": true, "sealed": false, "posture": "maximum-protection", "withheld_bytes": 44}
 {"ts": "2026-11-20T02:05:58.575166+00:00", "kind": "usage", "source": "onprem", "tokens_in": 244, "tokens_out": 168, "seconds": 14.51343321800232, "estimated": false}
+{"kind": "sample-end", "marker": "--sample-logfile--ends-here----", "note": "Everything above is sample data from logs.example/, not activity on this machine. Keep it, delete the lines above, or delete the file to start clean."}

@@ -24,7 +24,7 @@ The posture is the argument.
 State these before anyone asks. The demo is stronger for it, and the alternative
 is being corrected in the room.
 
-- **It is not an air gap.** `security/egress_guard.py` is a process-level guard.
+- **It is not an air gap.** `ai_paladin/security/egress_guard.py` is a process-level guard.
   It seals the AI-Paladin router process — which is where 100% of model traffic
   goes — and nothing else on the machine.
 - **VS Code is not inside the perimeter.** Nor is the Ollama daemon, nor your
@@ -62,14 +62,14 @@ AI-Paladin in — close that one).
 |---|---|---|---|
 | 1 | VS Code, mixxx fork | `code` | **No.** Separate process. Harden it — see below. |
 | 2 | AI-Paladin console | your browser | **No** — but it only ever speaks to `127.0.0.1:8722`. It is a dumb HTTP client; nothing is decided in it. |
-| 3 | Router terminal | `python3 -m server.app` | **Yes. This is the guarded process**, and it is the only one that talks to a model. |
+| 3 | Router terminal | `python3 -m ai_paladin.server.app` | **Yes. This is the guarded process**, and it is the only one that talks to a model. |
 | 4 | Ollama | `ollama serve` | **No.** A separate daemon that can pull models from the internet. Do not run `ollama pull` mid-demo. |
 | 5 | VS Code, AI-Paladin repo | `code` | No. **Close it before you start** — two VS Code windows on stage is the single easiest way to confuse an audience. |
 
-> **Optional:** the `paladin-vscode/` extension puts the posture in VS Code's
+> **Optional:** the `vscode/ai-paladin/` extension puts the posture in VS Code's
 > status bar, so the sealed state is visible in window 1 without switching to
 > window 2. It is read-only — it cannot change the posture — and the webview it
-> opens is *not* inside the egress guard. See `paladin-vscode/README.md`.
+> opens is *not* inside the egress guard. See `vscode/ai-paladin/README.md`.
 
 **The console is one window, not two.** The prompt box and the monitoring live
 on the same page: composer at the bottom, node LEDs and session ledger on the
@@ -185,7 +185,7 @@ not a timer.
 
 > **Length knob.** On-prem output is capped at 420 tokens (~85 s at 5 tok/s), a
 > deliberate pacing choice. A thorough code review wants more room: raise
-> `max_tokens` in `nodes/ollama_worker.py:run()` to ~900 and budget ~3 minutes
+> `max_tokens` in `ai_paladin/nodes/ollama_worker.py:run()` to ~900 and budget ~3 minutes
 > of silence instead. Decide which you want *before* you are in front of people.
 
 ### 5. Prove nothing left — 2 min
@@ -234,7 +234,7 @@ local knowledge only — visibly stale, which is the honest cost of the perimete
 ## Notes and gotchas
 
 - **The diff goes in the prompt, not a corpus.** AI-Paladin's corpora
-  (`router/classifier.py:CORPORA`) point at the seeded demo tree and the
+  (`ai_paladin/router/classifier.py:CORPORA`) point at the seeded demo tree and the
   AI-Paladin working tree. The mixxx checkout is not indexed, which is fine for
   a diff review: the diff *is* the context. Adding the fork as a third corpus is
   a small change to `CORPORA` if you later want the IDF ranker pulling real

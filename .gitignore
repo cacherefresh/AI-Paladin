@@ -38,7 +38,7 @@ ai-org-router/config/web_accounts.yaml
 *.gguf
 *.safetensors
 
-# VS Code extension packaging (paladin-vscode)
+# VS Code extension packaging (vscode/ai-paladin)
 node_modules/
 *.vsix
 
@@ -49,5 +49,7 @@ node_modules/
 *~
 .claude/settings.local.json
 
-# NOT ignored on purpose: ai-org-router/logs/*.jsonl and logs/server.log are
-# tracked as demo evidence (see stop_demo.sh). Do not add logs/ here.
+# Runtime logs. They record what people type into the router, so they never go
+# into git history. A reviewed sample session is tracked in
+# ai-org-router/logs.example/ for anyone who has not run the demo.
+ai-org-router/logs/

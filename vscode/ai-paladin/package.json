@@ -1,6 +1,6 @@
 {
   "name": "ai-paladin",
-  "displayName": "AI-Paladin",
+  "displayName": "ℂacheℝefresh's AI-Paladin",
   "description": "Shows the AI-Paladin router's egress posture in the status bar, and opens its console. Read-only: this extension never changes the posture.",
   "version": "0.1.0",
   "publisher": "cacherefresh",
@@ -13,6 +13,7 @@
   ],
   "keywords": [
     "ai-paladin",
+    "cacherefresh",
     "on-prem",
     "egress",
     "security"
