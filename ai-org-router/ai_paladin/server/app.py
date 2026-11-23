@@ -30,17 +30,17 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from bigai import simulated as bigai
-from bus import metrics
-from bus import notifications as bus
-from nodes import ollama_worker
-from nodes import web_tools
-from router import dispatch
-from nodes.subagents import Org
-from security import egress_guard
-from router.classifier import CORPORA, Config, list_corpus_files
+from ai_paladin.bigai import simulated as bigai
+from ai_paladin.bus import metrics
+from ai_paladin.bus import notifications as bus
+from ai_paladin.nodes import ollama_worker
+from ai_paladin.nodes import web_tools
+from ai_paladin.router import dispatch
+from ai_paladin.nodes.subagents import Org
+from ai_paladin.security import egress_guard
+from ai_paladin.router.classifier import CORPORA, Config, list_corpus_files
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 UI_DIR = os.path.join(BASE, "ui", "demo")
 PORT = int(os.environ.get("PALADIN_PORT", "8722"))
 
@@ -451,7 +451,7 @@ def execute(decision: dict, prompt: str, corpus_id: str):
             if decision["target"] == "onprem":
                 staged = [f["path"] for f in decision.get("staged", {}).get("files", [])]
                 if not staged:
-                    from router.classifier import rank_relevant_files
+                    from ai_paladin.router.classifier import rank_relevant_files
                     staged = [c["path"] for c in rank_relevant_files(prompt, corpus_id)[:3]]
                 bus.notify("routing.local", "Handled on-prem",
                            decision["reason"], severity="info", task_id=task_id)

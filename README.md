@@ -10,6 +10,7 @@ see it in action here:
 ```bash
 cd ai-org-router
 ./run_demo.sh            # start (also: stop, restart) -> http://localhost:8722
+./run_demo.sh --with-sample-logs   # ...and seed an empty logs/ from logs.example/
 ./stop_demo.sh           # stop router, unload models, stop ollama
 ./stop_demo.sh --keep-ollama   # ...but leave ollama running
 ./stop_demo.sh --router-only   # stop the router only
@@ -86,7 +87,7 @@ form field, a header) passes the same keyword gate as a prompt.
 ### HTTP method switches (dashboard: chips under the internet buttons)
 
 Every method in the IANA HTTP Method Registry, plus PURGE, is classed in
-`nodes/web_tools.py`. Anything else is refused.
+`ai_paladin/nodes/web_tools.py`. Anything else is refused.
 
 | Class | Methods |
 |---|---|
@@ -109,7 +110,7 @@ defaults on restart, and `internet_access.lock` holds them there. LINK,
 UNLINK and PURGE have no switch: list one under read/write's `methods` in
 `router/policy.yaml` if you need it. The dashboard shows exactly what is
 allowed; hover "BLOCKED" for the full list. Detail:
-[ai-org-router/nodes/README.md](ai-org-router/nodes/README.md).
+[ai-org-router/ai_paladin/nodes/README.md](ai-org-router/ai_paladin/nodes/README.md).
 
 ### Web limits (`internet_access.limits`)
 
@@ -142,7 +143,7 @@ and an account is only ever sent to a host on its own `domains` list.
 
 `backend: simulated` today - the escalation leg streams a stub, badged
 `SIMULATED` on screen, with latency labelled *(modelled)*. The real Claude
-adapter is not built yet: `bigai/simulated.py:call_claude` is the seam, and
+adapter is not built yet: `ai_paladin/bigai/simulated.py:call_claude` is the seam, and
 it will need `ANTHROPIC_API_KEY`.
 
 ### Token pricing (`pricing` in `router/policy.yaml`)

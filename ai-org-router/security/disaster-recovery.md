@@ -22,7 +22,7 @@ correlated failure that takes both out is a national event, not an outage.
 | Asset | Why it must survive |
 |---|---|
 | `brain/` — codebase memory & vault | The accumulated context that makes the local tier better than a hosted model. Most expensive thing to rebuild. |
-| Audit sinks — `logs/*.jsonl` | The evidence trail. A containment guarantee you cannot *prove* after an incident is worth very little. |
+| Audit sinks — `logs/*.jsonl` | The evidence trail. A containment guarantee you cannot *prove* after an incident is worth very little. They live on the node and are replicated from there; they are deliberately kept out of git, which is neither append-only nor private. |
 | `router/keywords.yaml`, `policy.yaml` | The gate itself. Restoring compute without restoring the rules restores an *ungated* system. |
 | Model artifacts & versions | So a restored node runs the same model that produced the logged decisions. |
 

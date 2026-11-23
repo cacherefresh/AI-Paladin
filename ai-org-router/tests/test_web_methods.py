@@ -16,8 +16,8 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from nodes import web_tools                       # noqa: E402
-from router.classifier import Config              # noqa: E402
+from ai_paladin.nodes import web_tools                       # noqa: E402
+from ai_paladin.router.classifier import Config              # noqa: E402
 
 
 class _Resp:

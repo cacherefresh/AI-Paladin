@@ -40,8 +40,8 @@ import socket
 import threading
 from datetime import datetime, timezone
 
-from bus import metrics
-from bus import notifications as bus
+from ai_paladin.bus import metrics
+from ai_paladin.bus import notifications as bus
 
 
 class EgressBlocked(OSError):

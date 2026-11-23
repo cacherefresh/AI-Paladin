@@ -66,7 +66,8 @@ Dollar figures appear only if you set your own contracted rates under
 price list — a stale one is worse than none — so with rates unset the ledger
 reports tokens and says so rather than guessing.
 
-Raw records append to `logs/metrics.jsonl`.
+Raw records append to `logs/metrics.jsonl` on the machine running the router. A
+reviewed sample session is in `logs.example/`.
 
 ## The hardware-scaling slide
 

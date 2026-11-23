@@ -281,7 +281,7 @@ a control.
 ## 5. The perimeter widens to the LAN — never to the internet
 
 **Partly built.** The `sovereign` posture ships today and is enforced by
-`security/egress_guard.py`. What is roadmap is the *shape* of the ring, not
+`ai_paladin/security/egress_guard.py`. What is roadmap is the *shape* of the ring, not
 the existence of it.
 
 ### What ships
@@ -324,7 +324,7 @@ one we can enforce and prove today; the target widens the ring to declared
 on-prem destinations and nothing else.
 
 That is a change to one function — `_permitted()` in
-`security/egress_guard.py` — plus the policy surface to declare peers:
+`ai_paladin/security/egress_guard.py` — plus the policy surface to declare peers:
 
 - **Declared destinations only.** A CIDR list, not "the LAN". `10.0.0.0/8` is
   not a security boundary; `10.20.4.7:11434, the GPU pool` is. Anything not
@@ -348,7 +348,7 @@ That is a change to one function — `_permitted()` in
 ### Client shape — one guarded process, many dumb clients
 
 **Future feature, well past MVP.** The router is already headless: all logic and
-the guard live in `server/app.py`, and `ui/demo/index.html` is a pure HTTP
+the guard live in `ai_paladin/server/app.py`, and `ui/demo/index.html` is a pure HTTP
 client with no privileges. A VS Code extension is therefore a *second client of
 the same API*, not a second implementation.
 
@@ -360,8 +360,8 @@ client over a reimplemented native UI, and it is why the near-term extension is
 display-only: it reads `GET /api/posture` and shows the seal in the editor's
 status bar. It does not decide anything.
 
-Splitting into `paladin-core` / `paladin-client` / `paladin-standalone` /
-`paladin-vscode` packages is the right eventual structure for shipping, but it
+Splitting into `ai-paladin-core` / `ai-paladin-client` / `ai-paladin-standalone` /
+`ai-paladin-vscode` packages is the right eventual structure for shipping, but it
 is **explicitly deferred**: it introduces a build step, and it changes nothing
 about where the perimeter sits. Note also that a webview is a renderer in VS
 Code's process tree — it speaks only to loopback, but the Python guard has no
@@ -610,7 +610,7 @@ how much of the machine each one would take.
   fit on a 16 GB card. Weight quantization (Q4/Q5/Q8) is what decides whether
   a model fits, and the picker is built around that first.
 
-### Phase 1 — hardware probe (`server/hwprobe.py`)
+### Phase 1 — hardware probe (`ai_paladin/server/hwprobe.py`)
 
 Standard library only, like the rest of the server.
 
@@ -623,7 +623,7 @@ Standard library only, like the rest of the server.
 - Tests from saved tool output: NVIDIA, AMD, CPU only, two GPUs, and
   `nvidia-smi` present with the driver broken.
 
-### Phase 2 — fit calculation (`router/fit.py`)
+### Phase 2 — fit calculation (`ai_paladin/router/fit.py`)
 
 `needed = weights + KV cache at the chosen context + ~1 GB overhead`, placed
 into one tier per machine:
@@ -696,7 +696,7 @@ training data, so "fully open" is reserved for models that do.
 ### Phase 6 — TurboQuant (experimental, deferred)
 
 - A `backend:` choice per roster node: the existing Ollama worker, or a new
-  `nodes/llamacpp_worker.py` talking to `llama-server`'s OpenAI-compatible
+  `ai_paladin/nodes/llamacpp_worker.py` talking to `llama-server`'s OpenAI-compatible
   `/v1/chat/completions`.
 - A pinned commit of a llama.cpp build with TurboQuant, built from source and
   documented. Ollama does not expose it; llama.cpp mainline support is unclear

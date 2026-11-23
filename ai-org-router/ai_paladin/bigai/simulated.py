@@ -20,9 +20,9 @@ not care which adapter answers.
 
 import time
 
-from bus import metrics
-from bus import notifications as bus
-from security import egress_guard
+from ai_paladin.bus import metrics
+from ai_paladin.bus import notifications as bus
+from ai_paladin.security import egress_guard
 
 # Modelled BIG-AI characteristics: a hosted frontier model on datacentre
 # accelerators. Fast first token, ~80 tok/s sustained.

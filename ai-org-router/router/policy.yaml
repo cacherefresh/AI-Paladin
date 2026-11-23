@@ -50,10 +50,10 @@ modes:
     allow_escalation_offer: false     # nothing to offer
     require_confirmation_on_egress: false
     egress_payload: none
-    seal_egress: true                 # <- arms security/egress_guard.py
+    seal_egress: true                 # <- arms ai_paladin/security/egress_guard.py
     description: >
       Every other mode routes around the risk; this one removes the
-      capability. While it is armed, security/egress_guard.py refuses any
+      capability. While it is armed, ai_paladin/security/egress_guard.py refuses any
       connection to a destination that is not this machine - before the
       connect() syscall, and including DNS, because resolving a name is
       itself a packet leaving. BIG-AI is not declined, it is unreachable.
@@ -117,7 +117,7 @@ modes:
 # =============================================================================
 # Separate from the modes above. The modes decide whether a TASK may leave for
 # BIG-AI; this decides whether the on-prem model may reach the web WHILE it
-# works. Enforced in nodes/web_tools.py (method, destination, content gate)
+# works. Enforced in ai_paladin/nodes/web_tools.py (method, destination, content gate)
 # and, for 'off', by security/egress_guard.sealed_thread() on the worker
 # thread. Both are process-level - see those files for the limits.
 #
@@ -127,7 +127,7 @@ modes:
 #   lock (below)             -> the API refuses any other setting, and the
 #                               method toggles stay at their defaults
 #
-# HTTP methods. nodes/web_tools.py classes every method in the IANA registry
+# HTTP methods. ai_paladin/nodes/web_tools.py classes every method in the IANA registry
 # (plus PURGE) as read, write or never, and refuses anything else. A mode's
 # `methods` are always on; `method_toggles` add more, and 'read' only ever
 # takes the read methods from a toggle. TRACE, CONNECT and PRI cannot be

@@ -55,7 +55,7 @@ Per AI agent process (identified by cgroup, PID tree, or code signature):
 3. Enforce internet access: off = no external network; read = HTTP read
    methods only; readwrite = read and write methods. TRACE, CONNECT and
    PRI are never allowed. Use the method classes in
-   ai-org-router/nodes/web_tools.py.
+   ai-org-router/ai_paladin/nodes/web_tools.py.
 4. Log every allow and deny to an append-only audit log.
 
 HTTPS hides methods and content from a packet filter. Steps 1 and 3 need

@@ -16,7 +16,7 @@ import uuid
 from collections import deque
 from datetime import datetime, timezone
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 SINK = os.path.join(BASE, "logs", "notifications.jsonl")
 EVENT_SINK = os.path.join(BASE, "logs", "events.jsonl")
 

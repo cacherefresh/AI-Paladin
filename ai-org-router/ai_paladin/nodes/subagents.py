@@ -25,10 +25,10 @@ import urllib.request
 
 import yaml
 
-from bus import notifications as bus
-from router.rules import Match
+from ai_paladin.bus import notifications as bus
+from ai_paladin.router.rules import Match
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 ROSTER_PATH = os.path.join(BASE, "agents", "roster.yaml")
 ENDPOINT = "http://localhost:11434"
 

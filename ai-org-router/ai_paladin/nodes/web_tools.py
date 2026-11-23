@@ -87,11 +87,11 @@ from http.cookiejar import CookieJar
 
 import yaml
 
-from bus import metrics
-from bus import notifications as bus
-from security import egress_guard
+from ai_paladin.bus import metrics
+from ai_paladin.bus import notifications as bus
+from ai_paladin.security import egress_guard
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from ai_paladin.paths import BASE
 ACCOUNTS_PATH = os.path.join(BASE, "config", "web_accounts.yaml")
 
 MODES = ("off", "read", "readwrite")
@@ -537,7 +537,7 @@ class WebSession:
         """The protected-IP keyword gate, applied to what would leave."""
         if not text:
             return
-        from router.classifier import classify
+        from ai_paladin.router.classifier import classify
         cls = classify(text, self.cfg, staged_files=[], task_id=self.task_id)
         if cls.matched:
             terms = sorted({m.term for m in cls.matches})[:4]

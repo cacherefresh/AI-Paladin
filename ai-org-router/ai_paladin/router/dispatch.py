@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from router.classifier import (Classification, Config, minimal_slice,
+from ai_paladin.router.classifier import (Classification, Config, minimal_slice,
                                rank_relevant_files)
 
 
@@ -64,7 +64,7 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
     candidate_paths = [c["path"] for c in candidates]
 
     # --- Step 2: classify prompt + staged content --------------------------
-    from router.classifier import classify
+    from ai_paladin.router.classifier import classify
     cls = classify(prompt, cfg, corpus_id, staged_files=candidate_paths)
 
     # --- Step 3: THE INVARIANT ---------------------------------------------
@@ -154,7 +154,7 @@ def decide(prompt: str, mode_id: str, cfg: Config, corpus_id: str = "alpha-ip",
                     sl["bytes"], sl["full_bytes"], sl["path"],
                     100.0 * (1 - sl["bytes"] / max(1, sl["full_bytes"]))))
     elif payload_kind == "full":
-        from router.classifier import read_corpus_file
+        from ai_paladin.router.classifier import read_corpus_file
         for c in candidates[:4]:
             content = read_corpus_file(corpus_id, c["path"])
             staged["files"].append({
