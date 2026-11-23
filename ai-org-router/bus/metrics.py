@@ -40,6 +40,9 @@ _M = {
     # claims, and folding the second into the first would flatter the first.
     "bytes_withheld_by_posture": 0,
     "bytes_egressed": 0,        # actually left the network
+    "web_requests": 0,          # on-prem model's own internet requests
+    "web_writes": 0,            # of which POST (readwrite mode only)
+    "web_bytes_out": 0,         # request bytes those sent - also in bytes_egressed
 
     # ---- BIG-AI consumption -------------------------------------------
     "bigai_calls": 0,
@@ -111,6 +114,23 @@ def record_egress(staged: dict, approved: bool, task_id: str = ""):
     _append({"ts": datetime.now(timezone.utc).isoformat(), "kind": "egress",
              "task_id": task_id, "approved": approved, "bytes": total,
              "minimised_away": saved})
+
+
+def record_web(method: str, bytes_out: int, task_id: str = "", host: str = ""):
+    """
+    One request the on-prem model made to the internet (nodes/web_tools.py).
+    Its outbound bytes - URL, headers we set, body - are egress and are
+    counted as such. Downloaded bytes are not: inbound is not disclosure.
+    """
+    with _lock:
+        _M["web_requests"] += 1
+        if method != "GET":
+            _M["web_writes"] += 1
+        _M["web_bytes_out"] += int(bytes_out)
+        _M["bytes_egressed"] += int(bytes_out)
+    _append({"ts": datetime.now(timezone.utc).isoformat(), "kind": "web",
+             "task_id": task_id, "method": method, "host": host,
+             "bytes": int(bytes_out)})
 
 
 def record_block():

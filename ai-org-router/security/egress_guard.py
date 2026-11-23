@@ -185,15 +185,24 @@ class sealed_thread:
     Belt and braces next to the process-wide flag: a task that was *decided*
     under the sovereign posture executes under it too, even if someone flips
     the mode mid-flight.
+
+    Also used for the on-prem model's internet setting 'off' (no-external-network-io): the
+    worker thread is sealed for the task, so the label says why.
     """
+
+    def __init__(self, label: str = "Sovereign posture is armed."):
+        self.label = label
 
     def __enter__(self):
         self._prev = getattr(_tls, "armed", False)
+        self._prev_label = getattr(_tls, "label", None)
         _tls.armed = True
+        _tls.label = self.label
         return self
 
     def __exit__(self, *exc):
         _tls.armed = self._prev
+        _tls.label = self._prev_label
         return False
 
 
@@ -218,11 +227,17 @@ def _refuse(where: str, dest: str, why: str):
              self_test=probe,
              detail="%s -> %s refused: %s" % (where, dest, why))
     if not probe:
+        label = ("Sovereign posture is armed." if _state["armed"] else
+                 getattr(_tls, "label", None) or "Sovereign posture is armed.")
         bus.notify("egress.blocked", "Outbound connection refused at the socket",
-                   "Sovereign posture is armed. %s to %s was refused before the "
-                   "syscall: %s" % (where, dest, why), severity="critical")
+                   "%s %s to %s was refused before the syscall: %s"
+                   % (label, where, dest, why), severity="critical")
+    scope = ("sovereign posture" if _state["armed"] or
+             not getattr(_tls, "label", None) or
+             getattr(_tls, "label", "").startswith("Sovereign")
+             else "no-external-network-io")
     raise EgressBlocked(
-        "sovereign posture: %s to %s refused (%s)" % (where, dest, why))
+        "%s: %s to %s refused (%s)" % (scope, where, dest, why))
 
 
 def _check(family, address, where: str):

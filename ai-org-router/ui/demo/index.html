@@ -127,6 +127,29 @@
        font-size:11px;color:var(--muted)}
   .try:hover{border-color:var(--accent);color:var(--accent)}
 
+  /* ---------- on-prem model + internet access ---------- */
+  .msel{width:100%;font-size:12.5px;padding:7px 9px;color:var(--ink);
+        background:var(--panel2);border-radius:8px}
+  .mlabels{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0 3px}
+  .mlab{padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:600;
+        border:1px solid currentColor;background:transparent}
+  .mmeta{font-size:10.5px;color:var(--dim);line-height:1.45;margin-top:5px}
+  .mmeta code{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .netrow{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
+  .net{padding:7px 4px;border-radius:8px;border:1px solid var(--line);
+       background:var(--panel2);font-size:10.5px;font-weight:650;
+       font-family:var(--mono);color:var(--muted);line-height:1.25;
+       overflow-wrap:anywhere}
+  .net:hover{border-color:#2d3f54;color:var(--ink)}
+  .net.sel{color:#fff}
+  .net[disabled]{opacity:.34;cursor:not-allowed}
+  .netdesc{font-size:10.5px;color:var(--dim);margin-top:7px;line-height:1.45}
+  .netwhy{font-size:10.5px;color:var(--warn);margin-top:5px;font-family:var(--mono)}
+  .lsub{font-size:10px;letter-spacing:1px;text-transform:uppercase;
+        color:var(--dim);font-family:var(--mono);margin:12px 0 2px}
+  .webl{font-family:var(--mono);font-size:10.5px;color:#67e8f9;margin:0 0 4px}
+  .webl.w{color:#fca5a5}
+
   /* ---------- rail ---------- */
   .rail{overflow-y:auto;background:var(--panel2);padding:14px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
@@ -308,15 +331,27 @@
     </div>
 
     <div class="rail">
+      <div class="card" id="onpremCard">
+        <div class="ct"><span>On-prem model</span>
+          <span id="onpremTag" style="color:var(--dim)"></span></div>
+        <select class="msel" id="onpremModel"></select>
+        <div class="mlabels" id="onpremLabels"></div>
+        <div class="mmeta" id="onpremMeta"></div>
+        <div class="lsub">Internet access for the on-prem model</div>
+        <div class="netrow" id="netRow"></div>
+        <div class="netdesc" id="netDesc"></div>
+        <div class="netwhy" id="netWhy"></div>
+      </div>
+
       <div class="card">
         <div class="ct"><span>Nodes</span><span id="healthTag" style="color:var(--dim)"></span></div>
         <div class="node">
           <div class="led" id="ledOn" style="background:#64748b;color:#64748b">
             <div class="core"></div></div>
           <div style="min-width:0">
-            <div class="nname">on-prem &middot; dev-mistral-2</div>
+            <div class="nname">on-prem &middot; <span id="onpremName">dev-mistral-2</span></div>
             <div class="nstate" id="stOn" style="color:#64748b">Idle</div>
-            <div class="ndetail" id="dtOn">24 CPU cores, no GPU</div>
+            <div class="ndetail" id="dtOn">24 CPU cores, iGPU unused</div>
           </div>
         </div>
         <div class="node" style="margin-bottom:0">
@@ -466,8 +501,8 @@ async function boot(){
   MODE = (CFG.posture||{}).lock_mode || (CFG.defaults||{}).mode
          || (CFG.modes[0]||{}).id || "slow";
   renderModes(); renderLegend(); renderCorpora(); renderRules(); renderHealth();
-  renderSeal(CFG.posture||{});
-  poll(); pollNtf(); pollMetrics(); loadOrg(); pollPosture();
+  renderSeal(CFG.posture||{}); renderOnprem(CFG.onprem||{});
+  poll(); pollNtf(); pollMetrics(); loadOrg(); pollPosture(); pollOnprem();
   greet();
 
   /* Deep link: /?mode=sovereign opens straight into a posture. Same code path
@@ -592,6 +627,101 @@ function renderRules(){
       <div class="roadmap"><b>Boolean + fuzzy matching</b>${esc(rm.note||"")}</div></div>`;
 }
 
+/* ---------- on-prem model + internet access ---------- */
+/* Both live on the server, not in this page: a change is audited, the model
+   choice persists per machine, and every task snapshots what it ran with. */
+function renderOnprem(st){
+  if(!st || !st.models) return;
+  CFG.onprem = st;
+  const labels = st.labels || {};
+  const sel = $("#onpremModel");
+  if(document.activeElement !== sel){
+    sel.innerHTML = st.models.map(m => {
+      const tags = (m.labels||[]).map(l => (labels[l]||{}).text || l).join(" · ");
+      const tail = m.selectable ? "" : "  — " + m.why;
+      return `<option value="${esc(m.id)}" ${m.selectable ? "" : "disabled"}
+        ${m.id === st.model ? "selected" : ""}>${esc(m.name)} (${esc(m.vendor)}) · ${esc(tags)}${esc(tail)}</option>`;
+    }).join("");
+    sel.value = st.model;
+  }
+  const cur = st.models.find(m => m.id === st.model) || {};
+  $("#onpremName").textContent = st.model_name || st.model;
+  $("#onpremLabels").innerHTML = (cur.labels||[]).map(l => {
+    const L = labels[l] || {};
+    return `<span class="mlab" style="color:${L.color||'#8b9bb0'}"
+      title="${esc((L.note||'').trim())}">${esc(L.text||l)}</span>`;
+  }).join("");
+  const missing = st.models.filter(m => m.license_ok && !m.installed);
+  $("#onpremMeta").innerHTML = `${esc(cur.params||"")} &middot;
+    ${cur.weights_gb ? cur.weights_gb + " GB" : ""} &middot; ${esc(cur.license||"")}
+    &middot; ${esc(cur.origin||"")}`
+    + (missing.length ? `<br>Not downloaded: ${missing.map(m =>
+        `<code title="${esc(m.pull_hf ? 'or from Hugging Face: ' + m.pull_hf : '')}">${esc(m.pull)}</code>`).join(", ")}` : "");
+  $("#onpremTag").textContent = st.models.filter(m => m.selectable).length
+    + " ready";
+
+  const pin = st.internet_lock;
+  $("#netRow").innerHTML = (st.internet_modes||[]).map(m => {
+    const on = m.id === st.internet;
+    return `<button class="net ${on ? 'sel' : ''}" data-n="${esc(m.id)}"
+      ${pin && m.id !== pin ? "disabled" : ""}
+      title="${esc((m.description||'').trim())}"
+      style="${on ? 'border-color:'+m.color+';background:'+m.color+'22' : ''}">
+      ${esc(m.short||m.id)}</button>`;
+  }).join("");
+  document.querySelectorAll(".net").forEach(b =>
+    b.onclick = () => { if(!b.disabled) setInternet(b.dataset.n); });
+  const mode = (st.internet_modes||[]).find(m => m.id === st.internet) || {};
+  $("#netDesc").textContent = (mode.label ? mode.label + ". " : "")
+    + (mode.description||"").trim();
+  $("#netWhy").textContent = st.internet_effective !== st.internet
+    ? "In effect now: " + st.internet_effective + " — " + st.internet_why : "";
+}
+
+async function postOnprem(body){
+  const r = await fetch("/api/onprem", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const st = await r.json();
+  if(!r.ok){
+    add("system", `<div class="route boot"><span class="ri">&#128274;</span><div>
+      <b>On-prem change refused</b><div class="rr">${esc(st.error||"refused")}</div></div></div>`);
+    renderOnprem(st.onprem); return null;
+  }
+  renderOnprem(st); return st;
+}
+
+async function setInternet(id){
+  const body = {internet: id};
+  if(id === "readwrite"){
+    const ok = confirm("Allow the on-prem model to WRITE to the internet?\n\n"
+      + "It will be able to submit forms and sign in using accounts from "
+      + "config/web_accounts.yaml. Every write is logged at critical severity. "
+      + "Protected-IP tasks are still limited to read-only.");
+    if(!ok) return;
+    body.confirm = true;
+  }
+  const st = await postOnprem(body);
+  if(st){
+    const m = (st.internet_modes||[]).find(x => x.id === id) || {};
+    add("system", `<div class="route ${id === 'readwrite' ? 'egress' : 'local'}"><span class="ri">&#127760;</span><div>
+      <b>On-prem internet access: ${esc(m.short||id)}</b>
+      <div class="rr">${esc((m.description||"").trim())}</div></div></div>`);
+  }
+}
+
+$("#onpremModel").onchange = async e => {
+  const st = await postOnprem({model: e.target.value});
+  if(st) add("system", `<div class="route local"><span class="ri">&#129302;</span><div>
+    <b>On-prem model: ${esc(st.model_name)}</b>
+    <div class="rr">Loading into memory now. The previous model is unloaded
+    first to free RAM. Saved to config/local_models.yaml for this machine.</div></div></div>`);
+};
+
+async function pollOnprem(){
+  try{ renderOnprem(await (await fetch("/api/onprem")).json()); }catch(err){}
+  setTimeout(pollOnprem, 5000);
+}
+
 /* ---------- agent state LEDs ---------- */
 /* A real phase can last 250ms (a small file read). That is a blink on screen
    and the states are the point of the product, so each one is held for a
@@ -656,7 +786,8 @@ function routeCard(d){
              : d.target === "onprem" ? "Routed to on-prem"
              : "Routed to BIG-AI &mdash; leaving your network";
   return `<div class="route ${cls}"><span class="ri">${icon}</span><div>
-    <b>${head}</b><div class="rr">${esc(d.reason)}</div>
+    <b>${head}</b><div class="rr">${esc(d.reason)}${d.internet && d.internet.why
+      ? "<br>Internet: " + esc(d.internet.mode) + " &mdash; " + esc(d.internet.why) : ""}</div>
     ${terms ? `<div class="chips">${terms}</div>` : ""}</div></div>`;
 }
 
@@ -664,7 +795,8 @@ function startStream(d){
   activeTask = d.task_id;
   const isLocal = d.target === "onprem";
   const el = add("agent", routeCard(d) + `<div class="who">
-      ${isLocal ? "on-prem &middot; dev-mistral-2" : "BIG-AI"}
+      ${isLocal ? "on-prem &middot; " + esc((CFG.onprem||{}).model_name || d.onprem_model || "")
+                  + (d.internet ? " &middot; internet: " + esc(d.internet.mode) : "") : "BIG-AI"}
       ${isLocal ? "" : '<span class="simbadge">SIMULATED</span>'}
     </div><div class="bub"></div>`);
   streamEl = el.querySelector(".bub");
@@ -706,6 +838,12 @@ function handle(e){
     add("agent", `<div class="route egress"><span class="ri">&#128683;</span><div>
       <b>Outbound request blocked</b>
       <div class="rr">${esc(e.gate)} &mdash; ${esc(e.detail)}</div></div></div>`);
+  }
+  else if(e.kind === "web" && streamEl && e.task_id === activeTask){
+    const line = document.createElement("div");
+    line.className = "webl" + (e.method !== "GET" ? " w" : "");
+    line.textContent = `${e.method} ${e.url}  (${e.bytes_out} B out, ${e.mode})`;
+    streamEl.parentNode.insertBefore(line, streamEl);
   }
   else if(e.kind === "timing" && e.metric === "first_token_s"){
     $("#mTtft").textContent = e.value + " s" + (e.simulated ? " (modelled)" : "");

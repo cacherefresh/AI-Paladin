@@ -3,10 +3,16 @@ Security Focused, Alpha protector and token reducer by using a distributed mesh 
 
 ## Dedication
 
-Dedicated to **Jensen Huang** of NVIDIA, who stood by gamers when the cards
-were scarce. The full dedication and the CacheRefresh statement of principles
-are at the top of [LICENSE](LICENSE). AI-Paladin is not affiliated with or
-endorsed by NVIDIA.
+I, ℝobert l ℂoffman aka DJ YuVi (UV) UltraViolet aka ℂacheℝefresh am dedicating this to **Jensen Huang** of NVIDIA, who remember's his rooots as do I, stood by (We The People)gamers and the free and open source society FOSS such as when the cards
+were scarce, ensuring gamers got some when crypto bankers wanted them. I'm TEAM AMD / ATI for life, but you connected me with my fellow gamer/hackers The full dedication and the ℂacheℝefresh statement of principles. Know that I am broke losing my house as AI took my job among other things. But SECURITY should never be gate kept for those with money. I do accept job offers and donations tho haha.
+
+You bought hugging face and supported open weight models. it's like the digital version of the SECOND AMENDMENT in case of a tyrannical Big Tech. 
+I'll join you. From the bottom and the underground... See you at the top.
+
+more at the top of [LICENSE](LICENSE). AI-Paladin is not affiliated with or
+endorsed by NVIDIA. (╯°□°)╯︵ ┻━┻ ..............┬─┬ノ( º _ ºノ) 
+
+We are ℂomplex people but have all ℝeal lives... Peace On Earth 🕊🐦‍⬛ 
 
 ## License
 

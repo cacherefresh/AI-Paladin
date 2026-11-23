@@ -16,10 +16,13 @@ Endpoints
     GET  /api/org               subagent roster + availability
     GET  /api/posture           sealed-posture state + guard self-test result
     POST /api/posture           change posture (refused when lock_mode is set)
+    GET  /api/onprem            model catalog, selected model, internet access
+    POST /api/onprem            select a model and/or set internet access
 """
 
 import contextlib
 import json
+import yaml
 import os
 import threading
 import time
@@ -31,6 +34,7 @@ from bigai import simulated as bigai
 from bus import metrics
 from bus import notifications as bus
 from nodes import ollama_worker
+from nodes import web_tools
 from router import dispatch
 from nodes.subagents import Org
 from security import egress_guard
@@ -42,6 +46,9 @@ PORT = int(os.environ.get("PALADIN_PORT", "8722"))
 
 CFG = Config()
 ORG = Org()
+
+CATALOG_PATH = os.path.join(BASE, "models", "catalog.yaml")
+LOCAL_MODELS_PATH = os.path.join(BASE, "config", "local_models.yaml")
 
 # Agent state palette. Chosen so the mapping is intuitive without a legend:
 # red stops, green produces, amber deliberates, blue absorbs, purple directs.
@@ -125,18 +132,249 @@ def posture_state() -> dict:
     }
 
 
-def onprem_health() -> dict:
+def _installed_models():
     node = CFG.nodes.get("onprem", {})
     url = node.get("endpoint", "http://localhost:11434") + "/api/tags"
+    with urllib.request.urlopen(url, timeout=3) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    return [m["name"] for m in data.get("models", [])]
+
+
+def _same_tag(a: str, b: str) -> bool:
+    """'flint' and 'flint:latest' name the same model."""
+    norm = lambda t: t if ":" in t.rsplit("/", 1)[-1] else t + ":latest"
+    return norm(a) == norm(b)
+
+
+def onprem_health() -> dict:
+    want = selected_model()["id"]
     try:
-        with urllib.request.urlopen(url, timeout=3) as r:
-            data = json.loads(r.read().decode("utf-8"))
-        names = [m["name"] for m in data.get("models", [])]
-        want = node.get("ollama_model")
-        return {"online": True, "models": names, "model_present": want in names,
+        names = _installed_models()
+        return {"online": True, "models": names,
+                "model_present": any(_same_tag(want, n) for n in names),
                 "model": want}
     except (urllib.error.URLError, OSError, ValueError, KeyError) as exc:
-        return {"online": False, "error": str(exc), "model": node.get("ollama_model")}
+        return {"online": False, "error": str(exc), "model": want}
+
+
+# ---------------------------------------------------------------------------
+# On-prem model selection and internet access
+# ---------------------------------------------------------------------------
+# The model is a per-machine preference, persisted to config/local_models.yaml
+# (gitignored; docs/ROADMAP.md section 8). Internet access is NOT persisted:
+# every boot starts at policy.yaml's internet_access.default, so a read/write
+# setting cannot quietly survive a restart.
+
+_onprem_lock = threading.Lock()
+_onprem = {"model": None, "internet": None}
+
+
+def load_catalog() -> dict:
+    try:
+        with open(CATALOG_PATH, "r", encoding="utf-8") as fh:
+            cat = yaml.safe_load(fh) or {}
+    except OSError:
+        cat = {}
+    allow = set(cat.get("license_allowlist") or [])
+    for m in cat.get("models", []):
+        m["license_ok"] = m.get("license") in allow
+    return cat
+
+
+def _catalog_entry(tag: str):
+    for m in load_catalog().get("models", []):
+        if _same_tag(m["id"], tag):
+            return m
+    return None
+
+
+def _fallback_entry() -> dict:
+    node = CFG.nodes.get("onprem", {})
+    return {"id": node.get("ollama_model", "devstral-small-2:latest"),
+            "name": node.get("model", "dev-mistral-2"),
+            "capabilities": ["tools"], "max_tokens": 420, "labels": [],
+            "license_ok": True}
+
+
+def selected_model() -> dict:
+    with _onprem_lock:
+        tag = _onprem["model"]
+    return (_catalog_entry(tag) if tag else None) or _fallback_entry()
+
+
+def _ia() -> dict:
+    return CFG.policy.get("internet_access", {}) or {}
+
+
+def internet_modes() -> dict:
+    return {m["id"]: m for m in _ia().get("modes", [])}
+
+
+def internet_lock():
+    lk = _ia().get("lock")
+    return lk if lk in internet_modes() else None
+
+
+def effective_internet(protected: bool = False, sealed: bool = False) -> dict:
+    """
+    The setting a task actually runs with. Most restrictive wins, and the
+    reason is returned so the UI and the audit log can say why.
+    """
+    with _onprem_lock:
+        chosen = _onprem["internet"] or "off"
+    if sealed or egress_guard.is_armed():
+        return {"mode": "off", "chosen": chosen,
+                "why": "sovereign posture is armed - no external network"}
+    if protected and chosen == "readwrite":
+        return {"mode": "read", "chosen": chosen,
+                "why": "protected-IP task - read/write lowered to read-only"}
+    return {"mode": chosen, "chosen": chosen, "why": ""}
+
+
+def _boot_onprem():
+    cat = load_catalog()
+    saved = {}
+    try:
+        with open(LOCAL_MODELS_PATH, "r", encoding="utf-8") as fh:
+            saved = (yaml.safe_load(fh) or {}).get("onprem", {}) or {}
+    except OSError:
+        pass
+    model = saved.get("model") or cat.get("default")
+    try:
+        names = _installed_models()
+    except (urllib.error.URLError, OSError, ValueError, KeyError):
+        names = []
+    entry = _catalog_entry(model) if model else None
+    if not entry or not entry.get("license_ok") or (
+            names and not any(_same_tag(entry["id"], n) for n in names)):
+        model = cat.get("fallback") or _fallback_entry()["id"]
+    default = internet_lock() or _ia().get("default", "read")
+    with _onprem_lock:
+        _onprem["model"] = model
+        _onprem["internet"] = default if default in internet_modes() else "off"
+
+
+def _persist_model(tag: str):
+    os.makedirs(os.path.dirname(LOCAL_MODELS_PATH), exist_ok=True)
+    with open(LOCAL_MODELS_PATH, "w", encoding="utf-8") as fh:
+        fh.write("# Per-machine model selection, written by the dashboard. "
+                 "Gitignored.\n")
+        yaml.safe_dump({"onprem": {"model": tag}}, fh, sort_keys=False)
+
+
+def onprem_state() -> dict:
+    cat = load_catalog()
+    try:
+        names = _installed_models()
+        online = True
+    except (urllib.error.URLError, OSError, ValueError, KeyError):
+        names, online = [], False
+    sel = selected_model()
+    models = []
+    for m in cat.get("models", []):
+        installed = any(_same_tag(m["id"], n) for n in names)
+        why = ""
+        if not m.get("license_ok"):
+            why = ("licence %s is not on the allowlist (%s)"
+                   % (m.get("license"), ", ".join(cat.get("license_allowlist") or [])))
+        elif not installed:
+            why = "not downloaded"
+        models.append(dict(m, installed=installed, selectable=not why,
+                           why=why, pull="ollama pull %s" % m["id"],
+                           pull_hf=("ollama pull %s" % m["huggingface"])
+                           if m.get("huggingface") else ""))
+    eff = effective_internet()
+    return {
+        "model": sel["id"],
+        "model_name": sel.get("name", sel["id"]),
+        "ollama_online": online,
+        "models": models,
+        "labels": cat.get("labels", {}),
+        "internet": eff["chosen"],
+        "internet_effective": eff["mode"],
+        "internet_why": eff["why"],
+        "internet_lock": internet_lock(),
+        "internet_modes": _ia().get("modes", []),
+        "accounts": len(web_tools.account_names()),
+    }
+
+
+def _swap_model(old: str, new: str):
+    """Free the old model's RAM, then load the new one. 96 GB is not infinite."""
+    node = CFG.nodes.get("onprem", {})
+    url = node.get("endpoint", "http://localhost:11434") + "/api/generate"
+    def post(model, keep):
+        body = json.dumps({"model": model, "prompt": "hi", "stream": False,
+                           "keep_alive": keep,
+                           "options": {"num_predict": 1}}).encode()
+        try:
+            urllib.request.urlopen(urllib.request.Request(
+                url, data=body, headers={"Content-Type": "application/json"}),
+                timeout=300).read()
+        except (urllib.error.URLError, OSError):
+            pass
+    if old and not _same_tag(old, new):
+        post(old, 0)
+    bus.emit("phase", phase="thinking", node="onprem-01",
+             detail="Loading %s into memory" % new)
+    post(new, node.get("keep_alive", "60m"))
+    bus.emit("phase", phase="idle", node="onprem-01",
+             detail="%s loaded" % new)
+
+
+def set_onprem(data: dict, actor: str) -> dict:
+    """Apply a dashboard change. Raises ValueError with a reason to refuse."""
+    want_model = data.get("model")
+    want_net = data.get("internet")
+    if want_model:
+        entry = _catalog_entry(want_model)
+        if not entry:
+            raise ValueError("model %r is not in models/catalog.yaml" % want_model)
+        if not entry.get("license_ok"):
+            raise ValueError("model %r has licence %s, which is not on the "
+                             "catalog's allowlist" % (want_model, entry.get("license")))
+        try:
+            names = _installed_models()
+        except (urllib.error.URLError, OSError, ValueError, KeyError):
+            raise ValueError("ollama is not reachable")
+        if not any(_same_tag(entry["id"], n) for n in names):
+            raise ValueError("model %r is not downloaded. Run: ollama pull %s"
+                             % (want_model, entry["id"]))
+    if want_net:
+        if want_net not in internet_modes():
+            raise ValueError("unknown internet access %r" % want_net)
+        lk = internet_lock()
+        if lk and want_net != lk:
+            raise PermissionError("internet access is pinned to '%s' by "
+                                  "internet_access.lock in router/policy.yaml" % lk)
+        if (internet_modes()[want_net].get("require_confirmation")
+                and not data.get("confirm")):
+            raise PermissionError("read/write needs explicit confirmation")
+
+    with _onprem_lock:
+        old_model, old_net = _onprem["model"], _onprem["internet"]
+        if want_model:
+            _onprem["model"] = entry["id"]
+        if want_net:
+            _onprem["internet"] = want_net
+
+    if want_model and not _same_tag(old_model or "", entry["id"]):
+        _persist_model(entry["id"])
+        bus.notify("onprem.changed", "On-prem model changed",
+                   "%s -> %s (%s). Changed by %s."
+                   % (old_model, entry["id"], entry.get("vendor", ""), actor),
+                   severity="info", actor=actor, model=entry["id"])
+        threading.Thread(target=_swap_model, args=(old_model, entry["id"]),
+                         daemon=True).start()
+    if want_net and want_net != old_net:
+        m = internet_modes()[want_net]
+        sev = {"readwrite": "critical", "read": "warning"}.get(want_net, "info")
+        bus.notify("onprem.changed",
+                   "On-prem internet access: %s" % m.get("short", want_net),
+                   "%s -> %s by %s. %s" % (old_net, want_net, actor,
+                                           " ".join(m.get("description", "").split())),
+                   severity=sev, actor=actor, internet=want_net)
+    return onprem_state()
 
 
 # ---------------------------------------------------------------------------
@@ -159,8 +397,18 @@ def execute(decision: dict, prompt: str, corpus_id: str):
                     staged = [c["path"] for c in rank_relevant_files(prompt, corpus_id)[:3]]
                 bus.notify("routing.local", "Handled on-prem",
                            decision["reason"], severity="info", task_id=task_id)
-                ollama_worker.run(prompt, CFG, task_id, staged_files=staged,
-                                  corpus_id=corpus_id)
+                model = (_catalog_entry(decision.get("onprem_model") or "")
+                         or selected_model())
+                net = (decision.get("internet") or {}).get("mode", "off")
+                # no-external-network-io is enforced at the socket for this
+                # worker thread, not only by withholding the web tools.
+                no_net = (egress_guard.sealed_thread(
+                              "Internet access is no-external-network-io.")
+                          if net == "off" else contextlib.nullcontext())
+                with no_net:
+                    ollama_worker.run(prompt, CFG, task_id, staged_files=staged,
+                                      corpus_id=corpus_id, model=model,
+                                      internet=net)
             else:
                 staged = decision.get("staged", {})
                 # Order matters: ask the guard before writing the receipt. An
@@ -274,6 +522,7 @@ class Handler(BaseHTTPRequestHandler):
                 "defaults": CFG.policy.get("defaults", {}),
                 "posture": posture_state(),
                 "onprem_health": health,
+                "onprem": onprem_state(),
                 "seq": bus.current_seq(),
             })
 
@@ -287,13 +536,25 @@ class Handler(BaseHTTPRequestHandler):
                                     "unread": len(bus.notifications(True))})
 
         if p == "/api/org":
-            return self._send(200, ORG.status())
+            # The roster names the default engineer; the dashboard's picker
+            # overrides it per machine, and the chart shows what really runs.
+            org = ORG.status()
+            sel = selected_model()
+            for a in org.get("agents", []):
+                if a.get("id") == "engineer":
+                    a["model"] = sel["id"]
+                    if sel.get("weights_gb"):
+                        a["size_mb"] = int(sel["weights_gb"] * 1000)
+            return self._send(200, org)
 
         if p == "/api/metrics":
             return self._send(200, metrics.snapshot(CFG.policy.get("pricing", {})))
 
         if p == "/api/posture":
             return self._send(200, posture_state())
+
+        if p == "/api/onprem":
+            return self._send(200, onprem_state())
 
         if p == "/api/health":
             return self._send(200, onprem_health())
@@ -332,6 +593,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(503, {"error": str(exc),
                                         "posture": posture_state()})
 
+        # --- on-prem model + internet access ----------------------------
+        if p == "/api/onprem":
+            try:
+                return self._send(200, set_onprem(data, self._actor()))
+            except PermissionError as exc:
+                return self._send(409, {"error": str(exc),
+                                        "onprem": onprem_state()})
+            except ValueError as exc:
+                return self._send(400, {"error": str(exc),
+                                        "onprem": onprem_state()})
+
         # --- dry run. No model touched, no socket opened. ----------------
         if p == "/api/classify":
             prompt = (data.get("prompt") or "").strip()
@@ -353,6 +625,14 @@ class Handler(BaseHTTPRequestHandler):
                 corpus_id=data.get("corpus", "alpha-ip"),
                 user_requested_escalation=bool(data.get("escalate")))
             d = decision.to_dict()
+
+            # Snapshot the on-prem model and internet access the task will run
+            # with, after precedence, so the receipt says what actually applied.
+            if d["target"] == "onprem":
+                d["onprem_model"] = selected_model()["id"]
+                d["internet"] = effective_internet(
+                    protected=bool(d["classification"]["matched"]),
+                    sealed=bool(d.get("sealed")))
 
             # Tier-1 triage: a 0.6B model labels the task so per-type policy
             # can apply without waking the 24B. ~370ms, against a 60s task.
@@ -445,12 +725,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def prewarm():
-    """Keep dev-mistral-2 resident. A cold 15GB load is ~35s of dead air."""
+    """Keep the selected model resident. A cold load is 30s+ of dead air."""
     node = CFG.nodes.get("onprem", {})
-    body = json.dumps({"model": node.get("ollama_model"), "prompt": "hi",
-                       "stream": False, "keep_alive": node.get("keep_alive", "60m"),
-                       "options": {"num_predict": 1}}).encode()
     while True:
+        body = json.dumps({"model": selected_model()["id"], "prompt": "hi",
+                           "stream": False,
+                           "keep_alive": node.get("keep_alive", "60m"),
+                           "options": {"num_predict": 1}}).encode()
         try:
             req = urllib.request.Request(
                 node.get("endpoint", "http://localhost:11434") + "/api/generate",
@@ -482,15 +763,20 @@ def boot_guard() -> dict:
 
 
 def main():
+    _boot_onprem()
     health = onprem_health()
     guard = boot_guard()
     pinned = locked_mode()
 
     print("\n  AI-Paladin router demo")
     print("  " + "-" * 52)
-    print("  on-prem   dev-mistral-2 (%s)" % CFG.nodes["onprem"]["ollama_model"])
+    sel = selected_model()
+    net = effective_internet()
+    print("  on-prem   %s (%s)" % (sel.get("name", sel["id"]), sel["id"]))
     print("            %s" % ("ONLINE" if health["online"] else
                               "OFFLINE - start ollama"))
+    print("  internet  %s%s" % (net["mode"],
+                                "  (%s)" % net["why"] if net["why"] else ""))
     print("  BIG-AI    SIMULATED (no ANTHROPIC_API_KEY on this node)")
     print("  rules     %d protected terms, %d protected paths"
           % (CFG.term_count(), len(CFG.protected_paths)))

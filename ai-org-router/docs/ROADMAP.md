@@ -585,7 +585,13 @@ is precisely the thing we do not do anywhere else.
 
 ## 8. Hardware-aware model picker — then TurboQuant
 
-**Not built. Linux only to start. Open-source licences only.**
+**Partly built (2026-11-19). Linux only to start. Open-source licences only.**
+
+Built: the phase 3 catalog (`models/catalog.yaml`, licence allowlist
+enforced at the API) and a picker for the engineer role only, with role
+labels, persisted to `config/local_models.yaml`. See `docs/MODELS.md`.
+Not built: the hardware probe, fit colouring, pickers for the other roles,
+digest verification, and TurboQuant.
 
 Today the roster names three fixed models and assumes the machine can hold
 them. To let anyone download AI-Paladin and run it, the UI needs to see the
