@@ -1,8 +1,9 @@
 
   AI-Paladin router demo
   ----------------------------------------------------
-  on-prem   dev-mistral-2 (devstral-small-2:latest)
+  on-prem   gpt-oss 20B (gpt-oss:20b)
             ONLINE
+  internet  read
   BIG-AI    SIMULATED (no ANTHROPIC_API_KEY on this node)
   rules     37 protected terms, 5 protected paths
   guard     egress self-test PASSED  (probe 192.0.2.1:443 (RFC 5737 TEST-NET-1, unroutable))

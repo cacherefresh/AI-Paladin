@@ -5,13 +5,24 @@ real run of the working prototype — no mockups, no illustrations.
 
 ## Contents
 
-| File | What it is |
+The pitch deck is versioned. Each version folder is self-contained - the HTML
+and the screenshots it references sit together, so an older deck still renders
+exactly as it was presented, even after screenshots are re-captured for a
+newer one.
+
+| Path | What it is |
 |---|---|
-| `PITCH_DECK.html` | 21-slide deck, light business theme. Open in any browser. Arrow keys or space to navigate; the dots at the bottom jump to a slide. |
-| `PITCH_DECK.pdf` | The same deck, A4 landscape, for emailing or printing. Regenerate after editing the HTML. |
-| `screenshots/` | 13 captures of the live demo, 3120×1880 (retina). Application window only — no desktop, no browser chrome. |
+| `PITCH_DECK/v0.1/` | The deck before the multi-model / internet-access branch. 32 slides. Frozen - do not edit. |
+| `PITCH_DECK/v0.1/PITCH_DECK.pdf` | The last exported PDF. **Older than v0.1's HTML** (29 pages, exported 2026-08-12), so it is missing the slides added after that date. |
+| `PITCH_DECK/v0.2/` | The current deck. 34 slides, light business theme. Adds the internet-access slides (LLM / RAG / bot, and HTTP method enforcement) and print CSS so each slide is one A4 page. Open `PITCH_DECK.html` in any browser; arrow keys or space to navigate, dots at the bottom jump to a slide. **No PDF yet** - export one (see Regenerating). |
+| `PITCH_DECK/<version>/screenshots/` | Captures of the live demo used by that version. 01-15 are the whole application window at 3120x1880 (retina) - no desktop, no browser chrome. v0.2's 16-18 are cropped from captures taken the same way, to the internet-access control only. |
+
+To start a new version, copy the latest folder to the next number and edit the
+copy. Leave released versions as they are.
 
 ## The screenshots
+
+Paths below are relative to a version's `screenshots/` folder.
 
 Captured in one continuous session against the running prototype, so the
 latency card and counters accumulate coherently across the sequence.
@@ -31,6 +42,11 @@ latency card and counters accumulate coherently across the sequence.
 | `11-notifications` | The audit topics — full lifecycle of one egress decision |
 | `12-rules-engine` | Live keyword set, the locked invariant, and the roadmap |
 | `13-session-ledger` | The ledger panel: IP protected and BIG-AI tokens consumed |
+| `14-posture-slow` | `slow` posture selected: no perimeter bar |
+| `15-posture-sovereign` | `sovereign` posture selected: perimeter sealed, guard verified at boot |
+| `16-internet-llm-isolated` | v0.2 only. Internet access `no-external-network-io` — the model as a plain LLM: allowed none, blocked all 41 methods (cropped to the control) |
+| `17-internet-rag-readonly` | v0.2 only. Read-only — RAG: allowed GET, QUERY; blocked the other 39; method switches at defaults (cropped) |
+| `18-internet-bot-readwrite` | v0.2 only. Read/write — bot: allowed GET, QUERY, POST, PUT, PATCH, DELETE; blocked the other 35 (cropped) |
 
 ## The session ledger
 
@@ -71,7 +87,7 @@ The cliff is at full VRAM residency, which needs 16 GB minimum.
 
 ## Honesty note — read this before presenting
 
-Slide 13 states which parts are live and which are simulated, and the UI badges
+The "honest inventory" slide states which parts are live and which are simulated, and the UI badges
 the simulated leg on screen. **Leave both in.** The BIG-AI response is stubbed
 because this node has no API key; its latency is labelled *(modelled)* rather
 than presented as measured. Everything constituting the product — the routing
@@ -85,5 +101,6 @@ everything else in the room. One who is told up front will credit the rest.
 
 Screenshots and PDF are produced by driving the live prototype in a headless
 browser. Start the demo first (`./run_demo.sh` in `ai-org-router/`), then
-re-run the capture. After editing `PITCH_DECK.html`, re-export the PDF via
+re-run the capture into the version folder you are editing. After editing that
+version's `PITCH_DECK.html`, re-export its PDF into the same folder via
 your browser's Print → Save as PDF (A4, landscape, background graphics on).
