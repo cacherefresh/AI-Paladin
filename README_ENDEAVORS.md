@@ -38,7 +38,14 @@ Paste this to an AI coding agent to start the work:
 ```text
 Build an AI firewall that enforces the AI-Paladin policy
 (ai-org-router/router/policy.yaml and router/keywords.yaml) below the
-application layer.
+application layer. along with all AI-Paladin's intended features and settings.
+make it easy for the user to use, understand based on this code base.
+we want it as efficient and robust as possible without compromising anything.
+ask questions when in doubt, such as programming language to be used, and what
+(if any) third party libraries are used. 
+and whether 3rd party libraries can be used at all.
+if there are components already built that handles a subsection of this program. ask if we should use it, and give your recommendation
+as this way we know your thought process while building it. we want to document your decisions, my decisions and at the end we want a report of what we learned should we redo this. that way we can grow.  
 
 Per AI agent process (identified by cgroup, PID tree, or code signature):
 1. Pin protected IP on-prem: refuse any connection that would carry a
