@@ -67,7 +67,7 @@ rules:
     desc: "an agent trying to switch off or edit the guard that restrains it"
     severity: critical
     action: block_and_flag
-    enforced: "hook: file-writing tools are refused on Claude Code's settings.json / settings.local.json and on AI-Paladin's config and log folders; Bash commands naming those, or running ai-paladin-hook --release / --install / --uninstall, or pip uninstall ai-paladin, are refused. Only a person turns the guard off. Matching a shell command is a tripwire, not a sandbox."
+    enforced: "hook: file-writing tools are refused on Claude Code's settings.json / settings.local.json and on AI-Paladin's config and log folders; Bash commands naming those, or running ai-paladin-hook --release / --install / --uninstall, ai-paladin uninstall, or pip uninstall ai-paladin, are refused. Only a person turns the guard off. Matching a shell command is a tripwire, not a sandbox."
 
 triage:
   # NOT ENFORCED in v0.1.0 - there is no scheduled anomaly summary yet.

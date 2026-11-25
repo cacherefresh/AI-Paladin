@@ -26,7 +26,7 @@ the agent cannot talk its way past it.
 | credential-path-access | `behavioral_rules.yaml` | Read / Grep / Glob / Write / Edit on `.ssh`, `.aws`, `.env`, `.env.*`, and Bash commands naming them, refused |
 | mass-file-touch | `behavioral_rules.yaml` | More than 200 file-tool writes in 60 s: further writes refused |
 | fence-probing | `behavioral_rules.yaml` | More than 3 refusals in one session: **every** tool call refused until a person releases it |
-| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders, `ai-paladin-hook --release/--install/--uninstall`, `pip uninstall ai-paladin` |
+| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders, `ai-paladin-hook --release/--install/--uninstall`, `ai-paladin uninstall`, `pip uninstall ai-paladin` |
 
 Every decision, allowed or refused, is appended to `hooks.jsonl` in the log
 folder (`~/.local/state/ai-paladin/logs/` by default). The hook **fails
@@ -44,8 +44,9 @@ the `.claude/` folder of the current directory.
 ```bash
 ai-paladin-hook --install            # this project only (.claude/settings.local.json)
 ai-paladin-hook --install --user     # every project (~/.claude/settings.json)
-ai-paladin-hook --status             # where it is installed; paused sessions
+ai-paladin-hook --status             # every place it is installed; paused sessions
 ai-paladin-hook --uninstall          # remove it (add --user for the global one)
+ai-paladin-hook --uninstall --all    # remove it from every place it was installed
 ```
 
 Without `pip install -e .`, use the file by its full path, still from your
@@ -63,20 +64,27 @@ AI-Paladin entry rather than adding a second one, and saves the previous
 file as `settings*.json.bak`. It refuses to touch a settings file it cannot
 read. Claude Code picks the change up in new sessions.
 
-**Uninstall the hook before you uninstall AI-Paladin.** The entry it writes
-ends in `|| exit 2`:
-
-```
-/usr/bin/python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py || exit 2
-```
+**Remove AI-Paladin with `ai-paladin uninstall`, not a plain `pip
+uninstall`.** `--install` records every settings file it writes to; `ai-paladin
+uninstall` removes the hook from all of them, then the package, and ends with
+a banner confirming both. pip cannot run anything at uninstall time, so it
+cannot do this for you.
 
 Claude Code blocks a call only when a hook exits with code 2; any other
-failure is shown as a warning and **the call goes ahead**. `|| exit 2` turns
-every failure - `python3` missing, the folder moved, AI-Paladin removed -
-into a refusal, so a broken install never silently lets everything through.
+failure is shown as a warning and **the call goes ahead**. So the line
+`--install` writes is built to refuse whenever the hook cannot run - python3
+missing, the folder moved, AI-Paladin removed - rather than silently letting
+everything through:
+
+| Hook result | Claude Code |
+|---|---|
+| allowed (exit 0) | runs the call |
+| refused (exit 2) | refuses it, with the rule and reason |
+| could not run at all | refuses it, **and says how to recover**: which settings file to edit, or the `--uninstall` command to run |
+
 The cost: if AI-Paladin is removed while the entry is still there, Claude
-Code refuses every tool call until you run `--uninstall` or delete the entry
-by hand.
+Code refuses every tool call until the entry is removed - but it tells you
+so, and where, instead of failing silently.
 
 The hook reads the same settings folder as the router, so a `commands.yaml`,
 `packages.yaml` or `behavioral_rules.yaml` in `~/.config/ai-paladin/`

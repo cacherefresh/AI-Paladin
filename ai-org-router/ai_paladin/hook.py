@@ -8,6 +8,7 @@ stderr is shown to the agent. Install: hooks/README.md.
 
     ai-paladin-hook                    the hook itself (reads stdin)
     ai-paladin-hook --install [--user] add it to Claude Code's settings
+    ai-paladin-hook --uninstall --all  remove it from every recorded place
     ai-paladin-hook --uninstall [--user]   remove it (do this before
                                        pip uninstall, or Claude Code refuses
                                        every tool call - see below)
@@ -59,7 +60,9 @@ _TAMPER_IN_SHELL = re.compile(
     r"|ai_paladin\.hook\s+--(release|uninstall|install)"
     r"|\.claude/settings(\.local)?\.json"
     r"|\.config/ai-paladin|hook-state"
-    r"|pip3?\s+uninstall\s+(-y\s+)?ai[-_]paladin")
+    r"|pip3?\s+uninstall\s+(-y\s+)?ai[-_]paladin"
+    r"|ai-paladin\s+uninstall|ai_paladin\s+uninstall"
+    r"|hook_installs\.json")
 
 
 class Refused(Exception):
@@ -385,13 +388,34 @@ def settings_file(user: bool) -> str:
     return os.path.join(root, ".claude", "settings.local.json")
 
 
-def hook_command() -> str:
-    """The command Claude Code runs. `|| exit 2` makes any failure to start
-    - python3 missing, folder moved - a refusal, not a pass."""
+def hook_command(settings_path: str) -> str:
+    """
+    The shell line Claude Code runs for every tool call.
+
+      exit 0  the hook allowed the call          -> allowed
+      exit 2  the hook refused it, with a reason -> refused
+      other   the hook could not run at all      -> refused, AND an
+              explanation: most likely AI-Paladin was removed without
+              `--uninstall` first, so the message says how to recover.
+
+    Claude Code only blocks on exit 2; any other failure would let the call
+    through, so a hook that cannot start must still exit 2.
+    """
     from ai_paladin import paths as ap
     wrapper = os.path.join(ap.BASE, "hooks", "pre_tool_use.py")
-    return "%s %s || exit 2" % (shlex.quote(sys.executable),
-                                shlex.quote(wrapper))
+    help_msg = ("AI-Paladin's Claude Code hook could not run - was AI-Paladin "
+                "removed without 'ai-paladin-hook --uninstall' first? Every "
+                "tool call is refused until this is fixed. In an ordinary "
+                "terminal, delete the pre_tool_use.py entry under "
+                "hooks.PreToolUse in %s (or run: python3 %s --uninstall)."
+                % (settings_path, wrapper))
+    # The file test comes first: python itself exits 2 when the script is
+    # missing, which would otherwise look like a deliberate refusal.
+    q_py, q_wrap, q_msg = (shlex.quote(sys.executable), shlex.quote(wrapper),
+                           shlex.quote(help_msg))
+    return ("[ -f %s ] || { echo %s >&2; exit 2; }; %s %s; r=$?; "
+            "[ $r = 0 ] && exit 0; [ $r = 2 ] || echo %s >&2; exit 2"
+            % (q_wrap, q_msg, q_py, q_wrap, q_msg))
 
 
 def _is_ours(entry: dict) -> bool:
@@ -423,6 +447,61 @@ def _write_settings(path: str, data: dict):
     os.replace(tmp, path)
 
 
+# Every settings file --install has written to, so that uninstalling can find
+# all of them - not just this project and ~/.claude. Lives in the config
+# folder, which the hook-tamper rule keeps agents out of.
+REGISTRY = "hook_installs.json"
+
+
+def _registry_path() -> str:
+    from ai_paladin import paths as ap
+    return os.path.join(ap.CONFIG_DIR, REGISTRY)
+
+
+def registered() -> list:
+    try:
+        with open(_registry_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return [str(p) for p in data.get("settings_files", [])]
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def _set_registry(files: list):
+    p = _registry_path()
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"settings_files": sorted(set(files))}, fh, indent=2)
+        fh.write("\n")
+    os.replace(tmp, p)
+
+
+def _has_ours(path: str) -> bool:
+    pre = (_read_settings(path).get("hooks") or {}).get("PreToolUse") or []
+    return any(isinstance(e, dict) and _is_ours(e) for e in pre)
+
+
+def _remove_from(path: str) -> bool:
+    """Remove our entry from one settings file. True if one was removed.
+    Raises OSError/ValueError if the file cannot be read."""
+    data = _read_settings(path)
+    pre = (data.get("hooks") or {}).get("PreToolUse") or []
+    kept = [e for e in pre if not (isinstance(e, dict) and _is_ours(e))]
+    if len(kept) == len(pre):
+        return False
+    if kept:
+        data["hooks"]["PreToolUse"] = kept
+    else:
+        del data["hooks"]["PreToolUse"]
+        if not data["hooks"]:
+            del data["hooks"]
+    _write_settings(path, data)
+    _log({"ts": datetime.now(timezone.utc).isoformat(), "kind": "hook",
+          "decision": "uninstalled", "detail": path})
+    return True
+
+
 def install(user: bool) -> int:
     path = settings_file(user)
     try:
@@ -433,57 +512,82 @@ def install(user: bool) -> int:
     pre = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
     pre[:] = [e for e in pre if not (isinstance(e, dict) and _is_ours(e))]
     pre.append({"matcher": MATCHER,
-                "hooks": [{"type": "command", "command": hook_command()}]})
+                "hooks": [{"type": "command", "command": hook_command(path)}]})
     _write_settings(path, data)
+    _set_registry(registered() + [path])
     _log({"ts": datetime.now(timezone.utc).isoformat(), "kind": "hook",
           "decision": "installed", "detail": path})
-    print("installed in %s\n  %s\nClaude Code picks it up in new sessions. "
-          "Remove it with: ai-paladin-hook --uninstall%s"
-          % (path, hook_command(), " --user" if user else ""))
+    print("installed in %s\nClaude Code picks it up in new sessions.\n\n"
+          "To turn it off:  ai-paladin-hook --uninstall%s\n"
+          "To remove AI-Paladin entirely:  ai-paladin uninstall  (removes the "
+          "hook everywhere first)\n"
+          "Do not use a plain pip uninstall while the hook is installed, or "
+          "Claude Code will refuse every tool call until the entry is removed."
+          % (path, " --user" if user else ""))
     return 0
 
 
 def uninstall(user: bool) -> int:
     path = settings_file(user)
     try:
-        data = _read_settings(path)
+        removed = _remove_from(path)
     except (OSError, ValueError) as exc:
         print("not changed - cannot read %s: %s" % (path, exc), file=sys.stderr)
         return 1
-    pre = (data.get("hooks") or {}).get("PreToolUse") or []
-    kept = [e for e in pre if not (isinstance(e, dict) and _is_ours(e))]
-    if len(kept) == len(pre):
-        print("not installed in %s" % path)
-        return 0
-    if kept:
-        data["hooks"]["PreToolUse"] = kept
-    else:
-        del data["hooks"]["PreToolUse"]
-        if not data["hooks"]:
-            del data["hooks"]
-    _write_settings(path, data)
-    _log({"ts": datetime.now(timezone.utc).isoformat(), "kind": "hook",
-          "decision": "uninstalled", "detail": path})
-    print("removed from %s" % path)
+    _set_registry([p for p in registered() if p != path])
+    print(("removed from %s" if removed else "not installed in %s") % path)
     return 0
+
+
+def candidates() -> list:
+    """Every settings file the hook could be in: recorded installs, this
+    project, and ~/.claude."""
+    seen, out = set(), []
+    for p in registered() + [settings_file(False), settings_file(True)]:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def uninstall_all() -> tuple:
+    """Remove the hook from every candidate. Returns (removed, failed), where
+    failed is [(path, error)] for files that exist but cannot be read."""
+    removed, failed = [], []
+    for p in candidates():
+        if not os.path.exists(p):
+            continue
+        try:
+            if _remove_from(p):
+                removed.append(p)
+        except (OSError, ValueError) as exc:
+            failed.append((p, str(exc)))
+    _set_registry([p for p, _ in failed])
+    return removed, failed
 
 
 def where_installed() -> list:
     out = []
-    for user in (False, True):
-        p = settings_file(user)
+    for p in candidates():
         try:
-            pre = ((_read_settings(p).get("hooks") or {})
-                   .get("PreToolUse") or [])
+            if os.path.exists(p) and _has_ours(p):
+                out.append(p)
         except (OSError, ValueError):
             continue
-        if any(isinstance(e, dict) and _is_ours(e) for e in pre):
-            out.append(p)
     return out
 
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:2] == ["--uninstall", "--all"] and len(argv) == 2:
+        removed, failed = uninstall_all()
+        for p in removed:
+            print("removed from %s" % p)
+        for p, err in failed:
+            print("NOT removed - cannot read %s: %s" % (p, err), file=sys.stderr)
+        if not removed and not failed:
+            print("not installed anywhere AI-Paladin knows of")
+        return 1 if failed else 0
     if argv and argv[0] in ("--install", "--uninstall") and \
             set(argv[1:]) <= {"--user"}:
         user = "--user" in argv[1:]
@@ -503,8 +607,8 @@ def main(argv=None) -> int:
         from ai_paladin import paths
         places = where_installed()
         print("installed in   %s" % ("\n               ".join(places)
-                                     if places else "nowhere (this project "
-                                     "or ~/.claude) - run --install"))
+                                     if places else "nowhere AI-Paladin "
+                                     "knows of - run --install"))
         d = os.path.join(paths.LOG_DIR, "hook-state")
         for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
             try:
@@ -516,7 +620,8 @@ def main(argv=None) -> int:
         return 0
     if argv:
         print("usage: ai-paladin-hook [--install [--user] | --uninstall "
-              "[--user] | --release SESSION | --status]", file=sys.stderr)
+              "[--user | --all] | --release SESSION | --status]",
+              file=sys.stderr)
         return 1
 
     try:
