@@ -263,7 +263,21 @@ def run(prompt: str, cfg, task_id: str, staged_files=None, corpus_id="alpha-ip",
     context_blocks = []
     if staged_files:
         from ai_paladin.router.classifier import read_corpus_file
+        from ai_paladin.security import monitors
+        cred_globs = monitors.credential_globs()
         for rel in staged_files[:4]:
+            if monitors.is_credential_path(rel, cred_globs):
+                # behavioral rule credential-path-access: secrets are never
+                # handed to a model, even the on-prem one.
+                bus.emit("policy", task_id=task_id,
+                         gate="behavioral_rules#credential-path-access",
+                         outcome="blocked", detail="withheld %s" % rel)
+                metrics.record_block()
+                bus.notify("agent.error", "Credential file withheld",
+                           "%s matches a credential path. It was not given to "
+                           "the on-prem model." % rel,
+                           severity="critical", task_id=task_id, path=rel)
+                continue
             content = read_corpus_file(corpus_id, rel)
             if not content:
                 continue

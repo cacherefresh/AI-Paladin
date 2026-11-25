@@ -82,15 +82,17 @@ These are blockers for PyPI and Ubuntu alike. They are tracked in the checklist.
    install and run `ai-paladin`; only Python imports use the underscore,
    because Python import names cannot contain a hyphen. The gate files stayed
    where they were (`router/`, `security/policies/`, `security/monitors/`).
-2. **Writable state inside the code folder.** Logs are written to
-   `ai-org-router/logs/`. An installed package cannot write next to its own
-   code, so state moves to a per-user or system state directory
-   (for example `~/.local/state/ai-paladin/`).
-3. **Shipped config files** (`router/policy.yaml`, `router/keywords.yaml`,
-   `security/policies/`, `models/catalog.yaml`) must be packaged as defaults
-   that a user can override without editing the installed copy. They are
-   enforcement, so how an override is read is a design decision, not a
-   packaging detail.
+2. ~~**Writable state inside the code folder.**~~ **Done 2026-11-24.** Logs
+   go to `~/.local/state/ai-paladin/logs/` and settings to
+   `~/.config/ai-paladin/`; the demo keeps both inside the repo.
+3. ~~**How users override the shipped config.**~~ **Done 2026-11-24.**
+   `keywords.yaml` is an overlay (add or remove by name; removals reported as
+   WEAKENED); `policy.yaml`, `roster.yaml` and `catalog.yaml` are replaced
+   whole by a user copy. See the root README, "Where settings live".
+4. **Still open: the shipped defaults sit beside the code, not inside the
+   package.** An editable install works; a wheel would not carry them. The
+   `ai-paladin` command refuses to start without them. Part of the PyPI
+   work.
 
 ## Ubuntu
 

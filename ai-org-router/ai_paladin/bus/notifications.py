@@ -16,9 +16,9 @@ import uuid
 from collections import deque
 from datetime import datetime, timezone
 
-from ai_paladin.paths import BASE
-SINK = os.path.join(BASE, "logs", "notifications.jsonl")
-EVENT_SINK = os.path.join(BASE, "logs", "events.jsonl")
+from ai_paladin.paths import log_file
+SINK = log_file("notifications.jsonl")
+EVENT_SINK = log_file("events.jsonl")
 
 _lock = threading.Lock()
 _seq = 0

@@ -75,7 +75,6 @@ HONEST LIMITS
 import html
 import ipaddress
 import json
-import os
 import re
 import socket
 import time
@@ -90,9 +89,10 @@ import yaml
 from ai_paladin.bus import metrics
 from ai_paladin.bus import notifications as bus
 from ai_paladin.security import egress_guard
+from ai_paladin.security import monitors
 
-from ai_paladin.paths import BASE
-ACCOUNTS_PATH = os.path.join(BASE, "config", "web_accounts.yaml")
+from ai_paladin.paths import user_config
+ACCOUNTS_PATH = user_config("web_accounts.yaml")
 
 MODES = ("off", "read", "readwrite")
 
@@ -430,6 +430,15 @@ class WebSession:
         self.search_cfg = search_cfg or {}
         self.calls = 0
         self.sources = []           # (title, url) actually read, for the UI
+        ia = (getattr(cfg, "policy", None) or {}).get("internet_access") or {}
+        # Empty allowlist = any public host (the default). Non-empty = only
+        # these hosts and their subdomains (behavioral rule unknown-egress).
+        self.allow_domains = [str(d).lower().strip(".")
+                              for d in (ia.get("allow_domains") or [])]
+        # behavioral rule fence-probing: too many refusals stop the web tools
+        self.blocked = 0
+        self.max_blocked = monitors.max_blocked()
+        self.stopped = False
         self.jar = CookieJar() if mode == "readwrite" else None
         handlers = [_NoPrivateRedirect(self)]
         if self.jar is not None:
@@ -449,6 +458,18 @@ class WebSession:
                    "%s was refused. %s" % (what, why),
                    severity="warning", task_id=self.task_id, gate=gate)
         metrics.record_block()
+        self.blocked += 1
+        if self.blocked > self.max_blocked and not self.stopped:
+            self.stopped = True
+            bus.notify("internet.blocked",
+                       "Web tools stopped: repeated blocked requests",
+                       "%d web requests in this task were refused - more than "
+                       "the %d allowed (behavioral rule fence-probing). The "
+                       "rest of this task runs without the web. A person "
+                       "should review what it was trying to reach."
+                       % (self.blocked, self.max_blocked),
+                       severity="critical", task_id=self.task_id,
+                       gate="behavioral_rules#fence-probing")
         raise WebBlocked("%s refused: %s" % (what, why))
 
     def _check_mode(self, tool: str):
@@ -513,6 +534,10 @@ class WebSession:
             self._block(what, "scheme %r is not http(s)" % u.scheme,
                         "web_tools#destination")
         host = u.hostname or ""
+        if self.allow_domains and not _host_on(host, self.allow_domains):
+            self._block(what, "%s is not on internet_access.allow_domains "
+                        "(%s)" % (host, ", ".join(self.allow_domains)),
+                        "policy.yaml#allow_domains")
         try:
             port = u.port or (443 if u.scheme == "https" else 80)
         except ValueError:
@@ -763,6 +788,10 @@ class WebSession:
 
     def call(self, name: str, args: dict) -> str:
         """Dispatch a model tool call. Always returns text for the model."""
+        if self.stopped:
+            return json.dumps({"error": "WEB TOOLS STOPPED: %d requests in "
+                               "this task were blocked. Answer without the "
+                               "web; a person will review." % self.blocked})
         try:
             if name == "web_search":
                 out = self.search(args.get("query", ""))

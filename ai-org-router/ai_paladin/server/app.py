@@ -40,15 +40,15 @@ from ai_paladin.nodes.subagents import Org
 from ai_paladin.security import egress_guard
 from ai_paladin.router.classifier import CORPORA, Config, list_corpus_files
 
-from ai_paladin.paths import BASE
-UI_DIR = os.path.join(BASE, "ui", "demo")
+from ai_paladin import config_layers
+from ai_paladin.paths import CONFIG_DIR, LOG_DIR, shipped, user_config
+UI_DIR = shipped("ui", "demo")
 PORT = int(os.environ.get("PALADIN_PORT", "8722"))
 
 CFG = Config()
 ORG = Org()
 
-CATALOG_PATH = os.path.join(BASE, "models", "catalog.yaml")
-LOCAL_MODELS_PATH = os.path.join(BASE, "config", "local_models.yaml")
+LOCAL_MODELS_PATH = user_config("local_models.yaml")
 
 # Agent state palette. Chosen so the mapping is intuitive without a legend:
 # red stops, green produces, amber deliberates, blue absorbs, purple directs.
@@ -171,8 +171,7 @@ _onprem = {"model": None, "internet": None, "toggles": {}}
 
 def load_catalog() -> dict:
     try:
-        with open(CATALOG_PATH, "r", encoding="utf-8") as fh:
-            cat = yaml.safe_load(fh) or {}
+        cat = config_layers.load_whole("catalog.yaml")[0]
     except OSError:
         cat = {}
     allow = set(cat.get("license_allowlist") or [])
@@ -580,6 +579,7 @@ class Handler(BaseHTTPRequestHandler):
                 "roadmap": CFG.keywords.get("rules_engine_roadmap", {}),
                 "defaults": CFG.policy.get("defaults", {}),
                 "posture": posture_state(),
+                "config": config_state(),
                 "onprem_health": health,
                 "onprem": onprem_state(),
                 "seq": bus.current_seq(),
@@ -773,7 +773,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True})
 
         if p == "/api/reload":
-            CFG.reload()
+            try:
+                CFG.reload()
+            except (config_layers.OverlayError, yaml.YAMLError, OSError) as exc:
+                bus.notify("agent.error", "Rules NOT reloaded",
+                           "%s. The previous rules are still in force." % exc,
+                           severity="critical")
+                return self._send(400, {"ok": False, "error": str(exc)})
             bus.notify("routing.local", "Rules reloaded",
                        "keywords.yaml and policy.yaml re-read from disk. "
                        "%d protected terms active." % CFG.term_count(),
@@ -821,6 +827,28 @@ def boot_guard() -> dict:
     return egress_guard.self_test()
 
 
+def config_state() -> dict:
+    """Which files are in force, from where, and what the user weakened."""
+    kw = CFG.report["keywords"]
+    files = list(kw["sources"]) + [CFG.report["policy"]]
+    for name in config_layers.REPLACED_WHOLE:
+        if name == "policy.yaml":
+            continue                # already listed, from CFG.report
+        path, source = config_layers.resolve(name)
+        try:
+            files.append({"file": name, "path": path, "source": source,
+                          "sha256": config_layers.sha256_short(path)})
+        except OSError:
+            files.append({"file": name, "path": path, "source": "missing",
+                          "sha256": ""})
+    accounts = user_config("web_accounts.yaml")
+    exposed = (os.path.isfile(accounts)
+               and os.stat(accounts).st_mode & 0o077 != 0)
+    return {"config_dir": CONFIG_DIR, "log_dir": LOG_DIR, "files": files,
+            "weakened": kw["weakened"], "strengthened": kw["strengthened"],
+            "notes": kw["notes"], "web_accounts_exposed": bool(exposed)}
+
+
 def main():
     _boot_onprem()
     health = onprem_health()
@@ -839,6 +867,22 @@ def main():
     print("  BIG-AI    SIMULATED (no ANTHROPIC_API_KEY on this node)")
     print("  rules     %d protected terms, %d protected paths"
           % (CFG.term_count(), len(CFG.protected_paths)))
+    conf = config_state()
+    for f in conf["files"]:
+        print("            %-21s %-12s %s  %s"
+              % (f["file"], f["source"], f["sha256"], f["path"]))
+    for w in conf["weakened"]:
+        print("            WEAKENED  %s (user overlay)" % w)
+    if conf["strengthened"]:
+        print("            %d additions from the user overlay"
+              % len(conf["strengthened"]))
+    for n in conf["notes"]:
+        print("            note      %s" % n)
+    if conf["web_accounts_exposed"]:
+        print("            WARNING   web_accounts.yaml is readable by other "
+              "users - chmod 600 it")
+    print("  config    %s" % conf["config_dir"])
+    print("  logs      %s" % conf["log_dir"])
     print("  guard     egress self-test %s  (probe %s)"
           % ("PASSED" if guard["passed"] else "FAILED", guard["probe"]))
     for c in guard["checks"]:
@@ -850,6 +894,12 @@ def main():
                               if pinned else "selectable, every change audited"))
     print("  " + "-" * 52)
     print("  http://localhost:%d\n" % PORT)
+
+    if conf["weakened"]:
+        bus.notify("rules.weakened", "Protection removed by user config",
+                   "The keywords overlay removes shipped protection: %s."
+                   % "; ".join(conf["weakened"]), severity="warning",
+                   files=conf["files"])
 
     threading.Thread(target=prewarm, daemon=True).start()
     bus.notify("routing.local", "AI-Paladin router online",

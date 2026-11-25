@@ -34,7 +34,7 @@ in your editor's status bar:
 
 | | Inside the egress guard? |
 |---|---|
-| The router process (`python3 -m ai_paladin.server.app`) | **Yes.** This is the guarded process, and it is the only one that talks to a model. |
+| The router process (`ai-paladin`, or `python3 -m ai_paladin`) | **Yes.** This is the guarded process, and it is the only one that talks to a model. |
 | This extension's webview panel | **No.** It is a renderer in VS Code's process tree. It speaks only to loopback, but the router's guard has no visibility into it. |
 | VS Code itself | **No.** Telemetry, settings sync, the extension gallery, `git push`. |
 | The Ollama daemon | **No.** A separate process that can pull models from the internet. |

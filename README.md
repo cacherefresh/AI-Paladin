@@ -20,11 +20,53 @@ Needs Python 3 with PyYAML and [Ollama](https://ollama.com) serving on
 `localhost:11434`. The server binds to `127.0.0.1` only and has **no
 authentication** - it is a single-user demo, not a shared service.
 
+The demo keeps everything in the repo: settings in `ai-org-router/config/`
+(including the demo's keyword overlay), logs in `ai-org-router/logs/`.
+
+### The `ai-paladin` command
+
+```bash
+pip install -e .            # from the repo root: puts `ai-paladin` on your PATH
+ai-paladin                  # start, with your own settings and logs (below)
+ai-paladin --demo           # start the way run_demo.sh does
+ai-paladin --where          # show which files are in force, and exit
+python3 -m ai_paladin       # the same, without installing (from ai-org-router/)
+```
+
+Only an editable install (`pip install -e`) works today; a packaged release
+is planned in [DISTRIBUTION/](DISTRIBUTION/).
+
 ## Settings
 
+The full configuration manual, with every default and how to change it, is
+[USER_CONFIG/USER_MANUAL/USER_CONFIG_DECK.pdf](USER_CONFIG/USER_MANUAL/USER_CONFIG_DECK.pdf).
+
 Every setting below is a file or a dashboard control. Files under `router/`
-and `security/policies/` are **enforcement, not documentation** - edit them to
-change policy, never to make a test pass or a demo read better.
+are **enforcement, not documentation** - edit them to change policy, never to
+make a test pass or a demo read better.
+
+### Where settings live
+
+| | Default | Demo (`run_demo.sh`, `--demo`) | Override |
+|---|---|---|---|
+| Shipped defaults (read-only) | `ai-org-router/router/`, `agents/`, `models/` | same | - |
+| Your settings | `~/.config/ai-paladin/` | `ai-org-router/config/` | `AI_PALADIN_CONFIG_DIR` |
+| Audit logs | `~/.local/state/ai-paladin/logs/` | `ai-org-router/logs/` | `AI_PALADIN_LOG_DIR` |
+
+Never edit the shipped files to configure your own install - put your
+version in your settings folder:
+
+| File in your settings folder | How it combines with the shipped default |
+|---|---|
+| `keywords.yaml` | **Overlay.** Lists changes: `groups`, `add_terms`, `remove_terms`, `remove_groups`, `add_paths`, `remove_paths`. Leaving a term out removes nothing; only naming it under `remove_*` does. Updated defaults still reach you. |
+| `policy.yaml`, `roster.yaml`, `catalog.yaml` | **Replaces** the shipped file whole, if present. |
+| `local_models.yaml` | Written by the dashboard's model picker. |
+| `web_accounts.yaml` | Sign-in secrets. Yours to write; keep it `chmod 600`. |
+
+Every boot prints each file in force, where it came from and its checksum.
+Every protection a user overlay removes is printed as **WEAKENED** and
+written to the audit log. A malformed overlay stops the router from starting
+rather than running with rules you did not intend.
 
 ### Environment
 
@@ -36,10 +78,17 @@ change policy, never to make a test pass or a demo read better.
 
 ### The invariant - not a setting
 
-`router/keywords.yaml` lists protected terms and protected paths. A prompt, or
-a file it would carry, that matches one runs **on-prem, in every posture,
-before any socket opens**. No dashboard control, mode or model can override
-it. Edit the file to change *what* is protected, not *whether*.
+`router/keywords.yaml` lists protected terms and protected paths, and your
+`keywords.yaml` overlay adds to or removes from them. A prompt, or a file it
+would carry, that matches one runs **on-prem, in every posture, before any
+socket opens**. No dashboard control, mode or model can override it. The
+files change *what* is protected, not *whether*.
+
+The shipped defaults are deliberately small and generic: government
+classification markings (classified, top secret, noforn, controlled
+unclassified), credentials, customer data / PII, and internal
+infrastructure. The demo's own terms (nightjar, pricing engine, unreleased
+earnings, ...) live in the demo overlay, `ai-org-router/config/keywords.yaml`.
 
 ### Routing posture (dashboard: the four mode cards)
 
@@ -64,7 +113,7 @@ the machine. It is not a host firewall and not an air gap.
 | Where | Setting |
 |---|---|
 | `models/catalog.yaml` | The models offered, `default`, `fallback`, and `license_allowlist` (Apache-2.0, MIT). A model whose licence is not on the list is shown but cannot be selected. |
-| `config/local_models.yaml` | This machine's selection, written by the dashboard. Gitignored. |
+| `local_models.yaml` in your settings folder | This machine's selection, written by the dashboard. |
 
 The server never downloads a model - pulling is egress. A missing model is
 shown with the `ollama pull` command for a person to run.
@@ -127,7 +176,24 @@ allowed; hover "BLOCKED" for the full list. Detail:
 default). Web tools reach public addresses on ports 80 and 443 only - never
 loopback, the LAN or link-local.
 
-### Web sign-in accounts (`config/web_accounts.yaml`, gitignored)
+### Domain allowlist (`internet_access.allow_domains`)
+
+| `allow_domains` | Which websites the on-prem model may reach |
+|---|---|
+| **empty `[]` - the default** | **Any public website** (ports 80/443). Nothing is restricted by domain. |
+| a list, e.g. `[python.org, lite.duckduckgo.com]` | **Only** those domains and their subdomains (`python.org` also allows `docs.python.org`). Anything else is refused and logged as `unknown-egress`. |
+
+If you set a list, include your search engine's host
+(`lite.duckduckgo.com` by default), or web search stops working. Every other
+web rule - the internet-access setting, HTTP methods, public addresses only,
+the protected-term check, the per-task budget - applies either way.
+
+Repeated refusals are also caught: when more than 3 web requests in one task
+are refused (`fence-probing`), that task's web tools stop and a critical
+notification asks a person to look. The model still finishes its answer,
+without the web.
+
+### Web sign-in accounts (`web_accounts.yaml` in your settings folder)
 
 ```yaml
 accounts:
@@ -138,6 +204,33 @@ accounts:
 
 Read/write only. The model names an account; it never sees the field values,
 and an account is only ever sent to a host on its own `domains` list.
+
+### Security policies (`security/policies/`, `security/monitors/`)
+
+These rules are for a **coding agent** such as Claude Code: shell commands,
+file writes, package installs. The router's own on-prem model cannot run
+commands or write files, so most of them are enforced by the Claude Code
+PreToolUse hook - **only once you install it**
+([ai-org-router/hooks/README.md](ai-org-router/hooks/README.md)).
+
+| File | Enforced by | What |
+|---|---|---|
+| `commands.yaml` | hook | Blocked shell commands; where file-writing tools may write |
+| `packages.yaml` | hook | Package installs: allowlist, pinned versions, nothing from URLs or files. Checksums and the approval queue: **not yet** |
+| `behavioral_rules.yaml` | hook and router | credential-path-access (router: credential files are never given to the on-prem model; hook: refused), fence-probing (both), unknown-egress (router, with an allowlist), mass-file-touch, out-of-scope-path and backup-tamper (hook). extension-rewrite-spread: **not yet** |
+
+**Turning the hook on and off** is a person's job, and it does not depend on
+the router running: `ai-paladin-hook --install` adds it to this project's
+Claude Code settings (`--user` for every project), `--uninstall` removes it,
+`--status` shows where it is. Stopping the router does **not** switch the
+hook off - otherwise stopping the router would be the way past every rule.
+Run `--uninstall` before you uninstall AI-Paladin, or Claude Code will refuse
+every tool call until you do.
+
+Each rule in `behavioral_rules.yaml` says, on its own `enforced:` line,
+exactly where and how it is enforced - or that it is not. The hook is a
+tripwire, not a sandbox: it reads tool calls, not what a command does once
+it runs.
 
 ### BIG-AI (`nodes.bigai` in `router/policy.yaml`)
 

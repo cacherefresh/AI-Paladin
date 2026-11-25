@@ -1,0 +1,47 @@
+# Minimal packaging: declares the `ai-paladin` command.
+#
+# Supported today: an EDITABLE install from this checkout,
+#     pip install -e .
+# which puts `ai-paladin` on your PATH and runs the code in place.
+#
+# NOT yet supported: building a wheel for PyPI. The shipped defaults
+# (router/*.yaml, agents/, models/, ui/, demo/) sit beside the ai_paladin
+# package rather than inside it, so a wheel would not carry them; the
+# command detects that and refuses to start. Packaging them is
+# DISTRIBUTION/CHECKLIST.md section 3.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-paladin"
+dynamic = ["version"]
+description = "Keeps protected work on-prem: a router whose gates are enforced in code, not asked of a model."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Apache-2.0"}
+authors = [{name = "ℂacheℝefresh (CacheRefresh)"}]
+dependencies = ["PyYAML>=6"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Source = "https://github.com/cacherefresh/AI-Paladin"
+
+[project.scripts]
+ai-paladin = "ai_paladin.cli:main"
+ai-paladin-hook = "ai_paladin.hook:main"
+
+[tool.setuptools]
+license-files = ["LICENSE", "NOTICE"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ai_paladin.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["ai-org-router"]
+include = ["ai_paladin*"]

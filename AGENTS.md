@@ -32,10 +32,21 @@ from the scratch file rather than leaving both.
 
 ## The gates are data, not prose
 
-`router/keywords.yaml`, `router/policy.yaml` and `security/policies/` are
-enforcement, not documentation. Do not edit them to make a test pass or a demo
-read better, and never add a rule that a model is asked to honour rather than a
-router is made to enforce. A gate a model can talk its way past is not a gate.
+`router/keywords.yaml`, `router/policy.yaml`, the demo overlay
+`config/keywords.yaml`, `security/policies/` and `security/monitors/` are
+enforcement, not documentation. Do not edit them to make a test pass or a
+demo read better, and never add a rule that a model is asked to honour rather
+than a router is made to enforce. A gate a model can talk its way past is not
+a gate.
+
+The shipped `router/keywords.yaml` is deliberately small and generic;
+demo-only terms belong in the demo overlay, never in the defaults.
+
+`security/policies/` and most of `security/monitors/` are enforced by the
+Claude Code hook (`ai_paladin/hook.py`), and only when it is installed. Every
+rule in `behavioral_rules.yaml` states on its `enforced:` line where it is
+enforced, or that it is not. Keep those lines true when you change either
+side.
 
 ## Do not overstate enforcement
 

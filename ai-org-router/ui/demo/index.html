@@ -750,7 +750,7 @@ async function setInternet(id){
     const ok = confirm("Allow the on-prem model to WRITE to the internet?\n\n"
       + "It will be able to send POST, PUT, PATCH and DELETE requests, and "
       + "sign in using accounts from "
-      + "config/web_accounts.yaml. Every write is logged at critical severity. "
+      + "web_accounts.yaml in your settings folder. Every write is logged at critical severity. "
       + "Protected-IP tasks are still limited to read-only.");
     if(!ok) return;
     body.confirm = true;
@@ -769,7 +769,7 @@ $("#onpremModel").onchange = async e => {
   if(st) add("system", `<div class="route local"><span class="ri">&#129302;</span><div>
     <b>On-prem model: ${esc(st.model_name)}</b>
     <div class="rr">Loading into memory now. The previous model is unloaded
-    first to free RAM. Saved to config/local_models.yaml for this machine.</div></div></div>`);
+    first to free RAM. Saved to local_models.yaml in your settings folder.</div></div></div>`);
 };
 
 async function pollOnprem(){
