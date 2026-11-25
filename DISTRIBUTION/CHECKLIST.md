@@ -19,9 +19,13 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 
 - [x] Move `router`, `server`, `security`, `bus`, `nodes`, `bigai` under one `ai_paladin/` package; gate YAML stays in place (2026-11-22)
 - [x] Move the VS Code extension to `vscode/ai-paladin/` (2026-11-22)
-- [ ] Move logs and other writable state out of the code folder (for example `~/.local/state/ai-paladin/`)
-- [ ] Decide how a user overrides the shipped `policy.yaml`, `keywords.yaml`, `security/policies/` and `models/catalog.yaml` without editing the installed copy
-- [ ] Add an `ai-paladin` command that starts the router, replacing `python3 -m server.app`
+- [x] Move logs and writable settings out of the code folder: `~/.local/state/ai-paladin/logs/` and `~/.config/ai-paladin/`; the demo keeps them in the repo (2026-11-24)
+- [x] User overrides: `keywords.yaml` overlay (add, or remove by name, reported as WEAKENED); `policy.yaml` / `roster.yaml` / `catalog.yaml` replaced whole (2026-11-24)
+- [x] Shipped keyword defaults cut to a small generic set; demo terms moved to the demo overlay `config/keywords.yaml` (2026-11-24)
+- [x] `ai-paladin` command (`--demo`, `--where`, `--port`), also `python3 -m ai_paladin`; works from an editable install (2026-11-24)
+- [x] Tests: 36 pass, including 13 for the overlay rules (2026-11-24)
+- [x] `security/policies/` and `security/monitors/` enforced: router (allowlist, credential files, fence-probing) and Claude Code hook `ai-paladin-hook` with `--install` / `--uninstall` (2026-11-24)
+- [ ] Every package's uninstall path tells the user to run `ai-paladin-hook --uninstall` first - a leftover hook entry makes Claude Code refuse every tool call
 - [x] Tests pass after the move (23/23), and the router boots, passes its egress self-test and pins protected prompts on-prem (2026-11-22)
 - [ ] **(Rob)** Full `./run_demo.sh` with Ollama, to confirm the demo end to end
 
@@ -40,7 +44,8 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 
 ## 3. PyPI
 
-- [ ] Write `pyproject.toml`: name `ai-paladin`, licence, PyYAML as the only dependency, the `ai-paladin` command
+- [x] Minimal `pyproject.toml` at the repo root: name, licence, PyYAML, the `ai-paladin` command; editable install tested (2026-11-24)
+- [ ] Ship the defaults inside the package (router/*.yaml, agents/, models/, ui/, demo/) so a wheel works, not just an editable install
 - [ ] Build locally (`python3 -m build`) and install the wheel into a clean virtual environment to test it
 - [ ] Add a GitHub Actions release workflow using Trusted Publishing - no stored upload key
 - [ ] **(Rob)** Create a PyPI account with two-factor authentication

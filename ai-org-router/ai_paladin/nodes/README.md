@@ -63,8 +63,9 @@ matches no term is not caught.
 
 ### Sign-in accounts
 
-Read/write sign-in uses `config/web_accounts.yaml`, which is gitignored and
-written by a person:
+Read/write sign-in uses `web_accounts.yaml` in the settings folder
+(`~/.config/ai-paladin/`, or `config/` for the demo; gitignored there), written
+by a person and kept `chmod 600`:
 
 ```yaml
 accounts:

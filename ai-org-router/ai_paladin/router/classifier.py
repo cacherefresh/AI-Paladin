@@ -17,7 +17,8 @@ import yaml
 from ai_paladin.router import rules
 from ai_paladin.router.rules import Match
 
-from ai_paladin.paths import BASE
+from ai_paladin import config_layers
+from ai_paladin.paths import BASE, shipped
 
 # Files we will read from a corpus when staging a payload.
 TEXT_EXT = {".py", ".js", ".ts", ".go", ".java", ".rs", ".rb", ".c", ".h",
@@ -48,16 +49,25 @@ def load_yaml(path: str) -> dict:
 
 
 class Config:
-    """Hot-reloadable view of keywords.yaml + policy.yaml."""
+    """
+    Hot-reloadable view of keywords.yaml + policy.yaml, with the user's
+    settings applied (ai_paladin/config_layers.py): the keywords overlay is
+    merged onto the shipped terms, and a user policy.yaml replaces the
+    shipped one whole.
+    """
 
     def __init__(self):
-        self.keywords_path = os.path.join(BASE, "router", "keywords.yaml")
-        self.policy_path = os.path.join(BASE, "router", "policy.yaml")
+        self.keywords_path = shipped("router", "keywords.yaml")
         self.reload()
 
     def reload(self):
-        self.keywords = load_yaml(self.keywords_path)
-        self.policy = load_yaml(self.policy_path)
+        # Build everything first, assign after: a bad overlay raises here and
+        # leaves the previous, working rules in force.
+        keywords, kw_report = config_layers.load_keywords()
+        policy, policy_src = config_layers.load_whole("policy.yaml")
+        self.keywords, self.policy = keywords, policy
+        self.policy_path = policy_src["path"]
+        self.report = {"keywords": kw_report, "policy": policy_src}
         self.groups = self.keywords.get("protected_terms", [])
         self.protected_paths = self.keywords.get("protected_paths", [])
         self.modes = {m["id"]: m for m in self.policy.get("modes", [])}
@@ -95,7 +105,7 @@ def _scan_exclude() -> List[str]:
     global _EXCLUDE_CACHE
     if _EXCLUDE_CACHE is None:
         try:
-            kw = load_yaml(os.path.join(BASE, "router", "keywords.yaml"))
+            kw = load_yaml(shipped("router", "keywords.yaml"))
             _EXCLUDE_CACHE = kw.get("scan_exclude", []) or []
         except OSError:
             _EXCLUDE_CACHE = []

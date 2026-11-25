@@ -589,7 +589,7 @@ is precisely the thing we do not do anywhere else.
 
 Built: the phase 3 catalog (`models/catalog.yaml`, licence allowlist
 enforced at the API) and a picker for the engineer role only, with role
-labels, persisted to `config/local_models.yaml`. See `docs/MODELS.md`.
+labels, persisted to `local_models.yaml` in the settings folder. See `docs/MODELS.md`.
 Not built: the hardware probe, fit colouring, pickers for the other roles,
 digest verification, and TurboQuant.
 
@@ -677,7 +677,7 @@ training data, so "fully open" is reserved for models that do.
 - Header strip: GPU, VRAM (free), RAM, disk.
 - One picker per roster role, grouped by colour tier, sorted by best fit,
   showing size, estimated tok/s, licence, and installed / not installed.
-- A selection writes `config/local_models.yaml` — gitignored, per machine —
+- A selection writes `local_models.yaml` in the user's settings folder — per machine —
   which the roster reads as an override. `router/policy.yaml` and the
   committed roster do not change.
 - Not installed: show the pull command with a copy button and an egress

@@ -1,5 +1,5 @@
 # =============================================================================
-# PROTECTED ALPHA INTELLECTUAL PROPERTY - KEYWORD GATE
+# PROTECTED TERMS - KEYWORD GATE (shipped defaults)
 # =============================================================================
 # This file is the MVP rules engine. If a prompt (or any file the prompt would
 # carry with it) matches ANY term below, the task is pinned to on-prem.
@@ -11,36 +11,36 @@
 # Gates are data, not prompt instructions: a manipulated agent can ignore
 # "please keep this internal"; it cannot ignore a router that never opens
 # the socket.
+#
+# THESE ARE THE SHIPPED DEFAULTS - deliberately small and generic. Do not edit
+# this file to configure your own install: put your changes in
+# ~/.config/ai-paladin/keywords.yaml, an overlay that adds terms and groups,
+# and can remove a shipped term only by naming it (remove_terms /
+# remove_groups). Every removal is reported at boot as WEAKENED and written to
+# the audit log. Because the overlay holds only your changes, updates to these
+# defaults reach you on upgrade. See ai_paladin/config_layers.py.
+#
+# The demo's own terms (nightjar, pricing engine, unreleased earnings, ...)
+# are not defaults. They live in the demo overlay, config/keywords.yaml,
+# which ./run_demo.sh loads.
 # =============================================================================
 
-version: 1
-updated: 2026-08-11
+version: 2
+updated: 2026-11-24
 
 # Terms are matched case-insensitively against the prompt and against the
-# content of any file staged for egress.
+# content of any file staged for egress. Single-word terms match whole words
+# only ("pii" does not fire inside "happiness").
 protected_terms:
 
-  - group: alpha-ip
-    label: Protected Alpha IP
+  - group: classification-markings
+    label: Government classification markings
     severity: critical
     terms:
-      - alpha-ip
-      - alpha ip
-      - protected alpha
-      - project-nightjar
-      - nightjar
-
-  - group: core-algorithms
-    label: Core Proprietary Algorithms
-    severity: critical
-    terms:
-      - ranking algorithm
-      - scoring kernel
-      - margin model
-      - pricing engine
-      - yield curve model
-      - propensity model
-      - secret sauce
+      - classified
+      - top secret
+      - noforn
+      - controlled unclassified
 
   - group: credentials
     label: Secrets & Credentials
@@ -67,17 +67,6 @@ protected_terms:
       - patient record
       - cardholder
 
-  - group: legal-financial
-    label: Legal & Financial
-    severity: high
-    terms:
-      - acquisition
-      - term sheet
-      - cap table
-      - due diligence
-      - unreleased earnings
-      - merger
-
   - group: infrastructure
     label: Internal Infrastructure
     severity: medium
@@ -94,18 +83,20 @@ protected_terms:
 scan_exclude:
   - "*/router/keywords.yaml"
   - "*/router/policy.yaml"
+  - "*/config/keywords.yaml"
   - "*/security/policies/*.yaml"
   - "*/security/monitors/*.yaml"
   - "router/keywords.yaml"
   - "router/policy.yaml"
+  - "config/keywords.yaml"
   - "ai-org-router/router/keywords.yaml"
   - "ai-org-router/router/policy.yaml"
+  - "ai-org-router/config/keywords.yaml"
   - "ai-org-router/security/policies/*.yaml"
   - "ai-org-router/security/monitors/*.yaml"
 
 # Paths whose CONTENTS are protected regardless of the words inside them.
 protected_paths:
-  - "**/alpha-ip/**"
   - "**/.env"
   - "**/secrets/**"
   - "**/*.pem"

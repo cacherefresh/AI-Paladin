@@ -1,19 +1,45 @@
-# Command gate, enforced by PreToolUse hook on every Bash call.
+# =============================================================================
+# COMMAND GATE - for a coding agent (Claude Code), not for the router's model
+# =============================================================================
+# ENFORCED BY: the Claude Code PreToolUse hook, ai_paladin/hook.py
+# (`ai-paladin-hook`, or `python3 -m ai_paladin.hook`), when it is installed
+# in Claude Code's settings - see hooks/README.md. Without the hook installed,
+# nothing in this file is enforced. The router's own on-prem model cannot run
+# commands or write files at all, so it needs no command gate.
+#
+# The hook blocks a tool call by exiting 2 before the tool runs; Claude Code
+# then refuses the call and shows the reason to the agent.
+#
+# LIMIT: matching a shell command against patterns is a tripwire, not a
+# sandbox. Variables, aliases, encodings and scripts can hide a command from
+# any pattern. It stops careless and manipulated agents taking the obvious
+# route; it does not contain a determined one. For containment, run the agent
+# in a sandbox as well (security/sandbox.md).
+#
+# A copy of this file in your settings folder replaces it whole.
+# =============================================================================
+
+# Bash commands matching any pattern (a Python regular expression, searched
+# anywhere in the command) are refused.
 block:
-  - pattern: "rm -rf /"
-  - pattern: "rm -rf ~"
+  - pattern: "rm\\s+-[a-zA-Z]*\\s+/(\\s|\\*|$)"      # rm -rf / (the root, not /tmp/x)
+  - pattern: "rm\\s+-[a-zA-Z]*\\s+~/?(\\s|\\*|$)"    # rm -rf ~ (the home folder itself)
   - pattern: "chmod .* /etc"
   - pattern: "(openssl enc|gpg -c|cryptsetup)"   # encryption utils = ransomware primitive
   - pattern: "curl .*\\| *(ba)?sh"                # remote code execution
   - pattern: "wget .*\\| *(ba)?sh"
   - pattern: "nc -l"                              # reverse shells
   - pattern: "history -c"                         # anti-forensics
+
+# Where the agent's Write / Edit / MultiEdit / NotebookEdit tools may write.
+# deny wins over allow. ${TASK_WORKSPACE} is the project folder Claude Code
+# is working in; ${TASK_ID} is the Claude Code session id.
+# LIMIT: applies to the file-writing tools only. A Bash command that writes a
+# file (echo > x, cp, mv) is not checked against this scope.
 write_scope:
-  # writes allowed ONLY inside the claimed task's workspace
   allow: ["${TASK_WORKSPACE}", "/tmp/agent-${TASK_ID}"]
   deny:  ["/etc", "/usr", "~/.ssh", "~/.aws", "**/backup/**", "**/.git/objects/**"]
-network:
-  default: deny
-  allow_domains:
-    - api.anthropic.com
-    - registry.internal.local
+
+# Network: not set here. The on-prem model's web access - including an
+# optional domain allowlist - is internet_access in router/policy.yaml, which
+# the router enforces. The hook does not gate Claude Code's own network use.

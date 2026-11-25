@@ -17,25 +17,22 @@ degrades to "deterministic gate alone", which is stricter, never looser.
 
 import json
 import math
-import os
 import re
 import time
 import urllib.error
 import urllib.request
 
-import yaml
 
 from ai_paladin.bus import notifications as bus
 from ai_paladin.router.rules import Match
 
-from ai_paladin.paths import BASE
-ROSTER_PATH = os.path.join(BASE, "agents", "roster.yaml")
+from ai_paladin import config_layers
 ENDPOINT = "http://localhost:11434"
 
 
 def load_roster() -> dict:
-    with open(ROSTER_PATH, "r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
+    """agents/roster.yaml, or the user's replacement roster.yaml."""
+    return config_layers.load_whole("roster.yaml")[0]
 
 
 def _post(path: str, body: dict, timeout: float):

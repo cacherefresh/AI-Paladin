@@ -62,7 +62,7 @@ AI-Paladin in — close that one).
 |---|---|---|---|
 | 1 | VS Code, mixxx fork | `code` | **No.** Separate process. Harden it — see below. |
 | 2 | AI-Paladin console | your browser | **No** — but it only ever speaks to `127.0.0.1:8722`. It is a dumb HTTP client; nothing is decided in it. |
-| 3 | Router terminal | `python3 -m ai_paladin.server.app` | **Yes. This is the guarded process**, and it is the only one that talks to a model. |
+| 3 | Router terminal | `python3 -m ai_paladin --demo` | **Yes. This is the guarded process**, and it is the only one that talks to a model. |
 | 4 | Ollama | `ollama serve` | **No.** A separate daemon that can pull models from the internet. Do not run `ollama pull` mid-demo. |
 | 5 | VS Code, AI-Paladin repo | `code` | No. **Close it before you start** — two VS Code windows on stage is the single easiest way to confuse an audience. |
 
@@ -202,7 +202,7 @@ been counting since the first prompt.
 because it does not come from AI-Paladin at all:
 
 ```bash
-PID=$(pgrep -f "server.app" | head -1)
+PID=$(pgrep -f "python.* -m ai_paladin" | head -1)
 ss -tnp state established | grep "pid=$PID" | grep -v '127\.0\.0\.1\|\[::1\]'
 #   (no output — every connection this process holds is loopback)
 ```

@@ -16,8 +16,8 @@ import os
 import threading
 from datetime import datetime, timezone
 
-from ai_paladin.paths import BASE
-SINK = os.path.join(BASE, "logs", "metrics.jsonl")
+from ai_paladin.paths import log_file
+SINK = log_file("metrics.jsonl")
 
 _lock = threading.Lock()
 

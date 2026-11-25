@@ -14,10 +14,21 @@ import sys
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
 
-from ai_paladin.nodes import web_tools                       # noqa: E402
+# These tests exercise the demo's protected terms ("alpha-ip", "pricing
+# engine"), which live in the demo overlay, not the shipped defaults. Point
+# the config folder at it explicitly, and send any log writes to a throwaway
+# folder - before ai_paladin is imported, because paths are read at import.
+import tempfile                                               # noqa: E402
+DEMO_CONFIG = os.path.join(_ROOT, "config")
+os.environ["AI_PALADIN_CONFIG_DIR"] = DEMO_CONFIG
+os.environ["AI_PALADIN_LOG_DIR"] = tempfile.mkdtemp(prefix="ai-paladin-test-")
+
+from ai_paladin.nodes import web_tools                      # noqa: E402
 from ai_paladin.router.classifier import Config              # noqa: E402
+from ai_paladin import paths                                 # noqa: E402
 
 
 class _Resp:
@@ -74,7 +85,10 @@ ALL_ON = {"head_options": True, "webdav": True, "delete": True}
 class MethodTests(unittest.TestCase):
 
     def setUp(self):
-        self.cfg = Config()
+        # Pinned here as well as in the environment above: if another test
+        # module imported ai_paladin first, the environment was read already.
+        with mock.patch.object(paths, "CONFIG_DIR", DEMO_CONFIG):
+            self.cfg = Config()
         self.patches = [
             mock.patch.object(web_tools.bus, "notify"),
             mock.patch.object(web_tools.bus, "emit"),
@@ -346,7 +360,9 @@ class MethodTests(unittest.TestCase):
     # -- headers the model may set --------------------------------------------
 
     def test_header_rules(self):
-        s = self.session("readwrite", toggles=ALL_ON)
+        # A fresh session per case: one session refusing this many requests
+        # would trip fence-probing and stop its web tools (tested in
+        # test_enforcement), masking the header rule each case checks.
         cases = [
             ({"Authorization": "Bearer x"}, "not settable"),
             ({"Cookie": "a=b"}, "not settable"),
@@ -354,16 +370,21 @@ class MethodTests(unittest.TestCase):
             ({"Destination": "https://internal.corp/b"}, "private"),
             ({"Destination": "https://example.com/alpha-ip"}, "protected"),
         ]
+        sent = []
         for hdrs, why in cases:
+            s = self.session("readwrite", toggles=ALL_ON)
+            sent += s.opener.sent
             out = json.loads(s.call("web_submit", {
                 "url": "https://dav.example.com/a", "method": "COPY",
                 "headers": hdrs}))
             self.assertIn(why, out.get("error", ""), hdrs)
+            sent += s.opener.sent
+        s = self.session("readwrite", toggles=ALL_ON)
         out = json.loads(s.call("web_query", {
             "url": "https://dav.example.com/", "method": "PROPFIND",
             "body": "<propfind/>", "headers": {"Depth": "infinity"}}))
         self.assertIn("infinity", out["error"])
-        self.assertEqual(s.opener.sent, [])
+        self.assertEqual(sent + s.opener.sent, [])
 
 
 if __name__ == "__main__":

@@ -63,7 +63,8 @@ case "$CMD" in
       || { echo "ollama is not responding on :11434 - run 'ollama serve'"; exit 1; }
     mkdir -p logs
     [ "$SEED" = 1 ] && seed_sample_logs
-    nohup "$PY" -u -m ai_paladin.server.app > logs/server.log 2>&1 &
+    # --demo: config from ./config (the demo keywords overlay), logs to ./logs
+    nohup "$PY" -u -m ai_paladin --demo > logs/server.log 2>&1 &
     sleep 2
     curl -sf -m 3 "http://localhost:$PORT/api/health" >/dev/null \
       && echo "AI-Paladin up -> http://localhost:$PORT  ($PY)" \

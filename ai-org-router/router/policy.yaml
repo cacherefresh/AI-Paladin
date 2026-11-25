@@ -202,8 +202,8 @@ internet_access:
       description: >
         Adds writes (POST, PUT, PATCH; DELETE unless switched off) and a
         per-task cookie jar, so the model can submit forms, call write APIs,
-        and sign in using accounts from config/web_accounts.yaml
-        (gitignored). The model names an account; it never sees the secret.
+        and sign in using accounts from web_accounts.yaml in your
+        settings folder. The model names an account; it never sees the secret.
         Every write is a critical notification.
   limits:
     max_calls_per_task: 6
@@ -214,6 +214,16 @@ internet_access:
     timeout_s: 15
   search:
     endpoint: https://lite.duckduckgo.com/lite/
+  # Optional domain allowlist for the on-prem model's web tools.
+  #   EMPTY (the default): ANY public host on ports 80/443 may be reached -
+  #     read-only research works out of the box.
+  #   NOT EMPTY: ONLY these hosts (and their subdomains) may be reached; any
+  #     other is refused and logged as unknown-egress. Include the search
+  #     endpoint's host, or web search stops working.
+  # The other web gates (mode, methods, public addresses only, ports 80/443,
+  # the protected-term gate, the per-task budget) apply either way.
+  allow_domains: []
+  #   example:  [lite.duckduckgo.com, docs.python.org, pypi.org]
 
 # Token accounting. Rates are DELIBERATELY unset: AI-Paladin does not ship a
 # vendor price list, because a stale one is worse than none. Set your own
@@ -261,6 +271,9 @@ notifications:
     - id: agent.error
       label: Agent error
       severity: critical
+    - id: rules.weakened
+      label: Protection removed by user config
+      severity: warning
     - id: internet.read
       label: On-prem read the web
       severity: info

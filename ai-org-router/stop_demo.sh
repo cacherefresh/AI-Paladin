@@ -28,9 +28,10 @@ done
 # where the process is alive but no longer holding the socket.
 router_pids() {
   { ss -lptnH "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' || true
-    # Old name (server.app) still matched, so a router started before the
-    # move to ai_paladin/ can be stopped too.
-    pgrep -f "python.* -m (ai_paladin\.)?server\.app" || true
+    # Matches `-m ai_paladin` (run_demo.sh today) and the older
+    # `-m ai_paladin.server.app` / `-m server.app`, so a router started by an
+    # earlier version can be stopped too.
+    pgrep -f "python.* -m (ai_paladin( |$)|(ai_paladin\.)?server\.app)" || true
   } | sort -u
 }
 
