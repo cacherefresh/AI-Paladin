@@ -25,7 +25,10 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [x] `ai-paladin` command (`--demo`, `--where`, `--port`), also `python3 -m ai_paladin`; works from an editable install (2026-11-24)
 - [x] Tests: 36 pass, including 13 for the overlay rules (2026-11-24)
 - [x] `security/policies/` and `security/monitors/` enforced: router (allowlist, credential files, fence-probing) and Claude Code hook `ai-paladin-hook` with `--install` / `--uninstall` (2026-11-24)
-- [ ] Every package's uninstall path tells the user to run `ai-paladin-hook --uninstall` first - a leftover hook entry makes Claude Code refuse every tool call
+- [x] Uninstall order is told everywhere a user can meet it (2026-11-24):
+      root README "Uninstalling" (also the PyPI page), the VS Code extension's README, `ai-paladin-hook --install` output, hooks/README.md, and the user manual (page 15)
+- [x] A leftover hook entry explains itself: if AI-Paladin was removed first, Claude Code's refusal names the settings file to fix and the `--uninstall` command (2026-11-24)
+- [x] `ai-paladin uninstall`: removes the hook from every recorded install (registry kept by `--install`), stops if any cannot be removed, then runs pip (or pipx) uninstall and ends with an all-caps banner. pip itself cannot run code at uninstall time (2026-11-24)
 - [x] Tests pass after the move (23/23), and the router boots, passes its egress self-test and pins protected prompts on-prem (2026-11-22)
 - [ ] **(Rob)** Full `./run_demo.sh` with Ollama, to confirm the demo end to end
 
@@ -99,6 +102,7 @@ Needs section 1 (code changes) and section 3's `pyproject.toml` done first.
 - [ ] `ai-paladin.service` user unit, installed to `/usr/lib/systemd/user/` and not enabled by default. Two users on one machine would otherwise both start a router on port 8722
 - [ ] Shipped default config under `/usr/share/ai-paladin/`; each user's overrides in `~/.config/ai-paladin/`; logs in `~/.local/state/ai-paladin/`
 - [ ] After install, print the Ollama install link and the `systemctl --user enable --now ai-paladin` line
+- [ ] `prerm` prints: "run `ai-paladin-hook --uninstall --all` as each user who installed the hook first". It runs as root, so it must only warn - never edit users' Claude Code settings
 - [ ] Build the source package (`debuild -S`) and test-build it for noble in a clean environment (`sbuild`)
 - [ ] `lintian` reports no errors
 - [ ] Install the built package in a fresh Ubuntu 24.04 container or VM, enable the service, and open the console

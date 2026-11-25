@@ -61,6 +61,14 @@ code --install-extension ai-paladin-0.1.0.vsix
 Or press <kbd>F5</kbd> in this folder to launch an Extension Development Host
 for iteration.
 
+## Uninstalling
+
+Removing this extension removes only the status-bar item. It does **not**
+touch the Claude Code hook, which is a separate thing a person installs. To
+remove AI-Paladin and the hook together, run `ai-paladin uninstall` - not a
+plain `pip uninstall`, which would leave the hook behind and make Claude
+Code refuse every tool call. See the main README, "Uninstalling".
+
 ## Settings
 
 | Setting | Default | What it does |

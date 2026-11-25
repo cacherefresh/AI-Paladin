@@ -510,11 +510,10 @@ protected      23 terms in 4 groups, 4 paths
 <span class="k">$ ai-paladin-hook --install --user</span>   <span class="c"># every project</span>
 <span class="k">$ ai-paladin-hook --status</span>
 <span class="k">$ ai-paladin-hook --release SESSION_ID</span>
-<span class="k">$ ai-paladin-hook --uninstall</span>        <span class="c"># before pip uninstall</span></pre>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># removes it all</span></pre>
       <p class="note" style="margin-top:8px"><strong>Independent of the router</strong>: stopping the router does
-      not switch it off &mdash; otherwise that would be the way past every rule. Fails closed: the installed
-      entry ends in <code>|| exit 2</code>, so if AI-Paladin is removed first, Claude Code refuses every call
-      until you <code>--uninstall</code>. Every
+      not switch it off &mdash; otherwise that would be the way past every rule. Fails closed: if the hook cannot
+      run at all, the call is refused and Claude Code shows how to recover (next slide). Every
       decision is written to <code>hooks.jsonl</code> in your log folder. Each rule's <code>enforced:</code> line
       in <code>behavioral_rules.yaml</code> says exactly what it covers. Full guide:
       <code>ai-org-router/hooks/README.md</code>.</p>
@@ -545,12 +544,13 @@ protected      23 terms in 4 groups, 4 paths
 <span class="c"># 2. check</span>
 <span class="k">$ ai-paladin-hook --status</span>
 
-<span class="c"># 3. off - same scope you installed with</span>
+<span class="c"># 3. off, keep AI-Paladin - one project, or everywhere</span>
 <span class="k">$ ai-paladin-hook --uninstall</span>
-<span class="k">$ ai-paladin-hook --uninstall --user</span>
+<span class="k">$ ai-paladin-hook --uninstall --all</span>
 
-<span class="c"># 4. only then remove AI-Paladin</span>
-<span class="k">$ pip uninstall ai-paladin</span></pre>
+<span class="c"># 4. remove AI-Paladin - hook everywhere first, then</span>
+<span class="c">#    the package. NOT a plain pip uninstall.</span>
+<span class="k">$ ai-paladin uninstall</span></pre>
       <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
       your project: <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --install</code></p>
     </div>
@@ -561,9 +561,12 @@ protected      23 terms in 4 groups, 4 paths
         saved as <code>.bak</code>, installing twice never adds a second entry, and an unreadable settings file
         is left untouched.</p></div>
       <div class="card warn" style="margin-bottom:9px"><span class="tag lim">order matters</span>
-        <h3>Uninstall the hook before pip uninstall</h3><p>The entry ends in <code>|| exit 2</code>, so a hook
-        that cannot start <strong>refuses</strong> the call instead of letting it through. If AI-Paladin is removed
-        first, Claude Code refuses <strong>every</strong> tool call until the entry is gone.</p></div>
+        <h3>Why not a plain pip uninstall?</h3><p>pip runs nothing while removing a package, so it cannot take
+        the hook out or warn you. A hook that cannot start <strong>refuses</strong> the call, so a leftover entry
+        makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
+        <code>ai-paladin uninstall</code> finds every recorded install, removes the hook from each, stops if any
+        cannot be removed, then uninstalls (via pipx if that is how it was installed) and ends with an
+        all-caps confirmation.</p></div>
       <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
         Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
         <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --uninstall</code> (add
