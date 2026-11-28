@@ -68,11 +68,9 @@ class KnownHookBypasses(unittest.TestCase):
     # -- package installs ---------------------------------------------------
     # `pip install evilpkg==1.0` is refused; wrapping it in a shell is not.
 
-    @unittest.expectedFailure
     def test_pip_install_inside_sh_c(self):
         self.assertRefused(bash("sh -c 'pip install evilpkg==1.0'"))
 
-    @unittest.expectedFailure
     def test_pip_install_inside_bash_c(self):
         self.assertRefused(bash('bash -c "pip install evilpkg==1.0"'))
 
