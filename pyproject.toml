@@ -1,14 +1,13 @@
-# Minimal packaging: declares the `ai-paladin` command.
+# Packaging: declares the `ai-paladin` and `ai-paladin-hook` commands.
 #
-# Supported today: an EDITABLE install from this checkout,
-#     pip install -e .
-# which puts `ai-paladin` on your PATH and runs the code in place.
-#
-# NOT yet supported: building a wheel for PyPI. The shipped defaults
-# (router/*.yaml, agents/, models/, ui/, demo/) sit beside the ai_paladin
-# package rather than inside it, so a wheel would not carry them; the
-# command detects that and refuses to start. Packaging them is
-# DISTRIBUTION/CHECKLIST.md section 3.
+# Supported: an editable install from this checkout (pip install -e .), and
+# a wheel (python3 -m build, or pip wheel .). The wheel carries the shipped
+# defaults - router/*.yaml, agents/, models/, security/policies/,
+# security/monitors/, ui/, demo/, hooks/ - as package data under
+# ai_paladin/_shipped/, mapped from ai-org-router/ below, so the gate files
+# stay where they are in the repository. ai_paladin.paths finds them in
+# either layout. tests/wheel_smoke.py builds the wheel, installs it into a
+# clean virtual environment and boots the router from it.
 
 [build-system]
 requires = ["setuptools>=64"]
@@ -36,12 +35,43 @@ Source = "https://github.com/cacherefresh/AI-Paladin"
 ai-paladin = "ai_paladin.cli:main"
 ai-paladin-hook = "ai_paladin.hook:main"
 
-[tool.setuptools]
-license-files = ["LICENSE", "NOTICE"]
 
 [tool.setuptools.dynamic]
 version = {attr = "ai_paladin.__version__"}
 
-[tool.setuptools.packages.find]
-where = ["ai-org-router"]
-include = ["ai_paladin*"]
+# Listed rather than discovered, because ai_paladin._shipped is not a code
+# package: it is ai-org-router/ itself, mapped in so its data files can be
+# named as package data. Add a new code subpackage here when you create one
+# (tests/wheel_smoke.py fails if one is missing from the wheel).
+[tool.setuptools.package-dir]
+"" = "ai-org-router"
+"ai_paladin._shipped" = "ai-org-router"
+
+[tool.setuptools]
+license-files = ["LICENSE", "NOTICE"]
+# Only the package-data globs below, never whatever happens to sit in the
+# folder (build metadata, local config, logs).
+include-package-data = false
+packages = [
+    "ai_paladin",
+    "ai_paladin.bigai",
+    "ai_paladin.bus",
+    "ai_paladin.nodes",
+    "ai_paladin.router",
+    "ai_paladin.security",
+    "ai_paladin.server",
+    "ai_paladin._shipped",
+]
+
+[tool.setuptools.package-data]
+"ai_paladin._shipped" = [
+    "router/*.yaml",
+    "agents/*.yaml",
+    "models/*.yaml",
+    "security/policies/*.yaml",
+    "security/monitors/*.yaml",
+    "ui/demo/*.html",
+    "demo/**/*.py",
+    "hooks/pre_tool_use.py",
+    "schemas/*.json",
+]
