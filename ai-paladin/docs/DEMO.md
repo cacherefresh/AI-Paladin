@@ -8,7 +8,7 @@ of exactly which bytes would leave.
 ## Run it
 
 ```bash
-cd ai-org-router
+cd ai-paladin
 ./run_demo.sh              # start   (also: stop | restart)
 # -> http://localhost:8722
 ```

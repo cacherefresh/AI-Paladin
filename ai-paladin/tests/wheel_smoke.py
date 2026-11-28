@@ -3,7 +3,7 @@
 Wheel smoke test: build the wheel, install it into a clean virtual
 environment, and run AI-Paladin from the installed copy only.
 
-    python3 ai-org-router/tests/wheel_smoke.py          (from the repo root)
+    python3 ai-paladin/tests/wheel_smoke.py          (from the repo root)
 
 It proves what an editable install cannot: that the wheel carries the
 shipped defaults (gate YAML, UI, demo corpus, hook wrapper) and every code

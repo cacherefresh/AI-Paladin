@@ -1,7 +1,7 @@
 """
 HTTP method allowlist for the on-prem model's web tools.
 
-Run from ai-org-router/:  python3 -m unittest tests.test_web_methods -v
+Run from ai-paladin/:  python3 -m unittest tests.test_web_methods -v
 
 No network: the destination check and the opener are stubbed, and the
 notification bus is patched so the tracked logs/ files are not written.

@@ -1,10 +1,14 @@
-# AI-Paladin
-Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:prompt is a suggestion; a hook is a wall. A manipulated or misbehaving agent can ignore "please don't delete files";it cannot ignore PreToolUse script exit 2. security-focused repo
+# AI-Paladin - An AI-Org-Router
+
+> The project folder was formerly `ai-org-router/`; it is now `ai-paladin/`. Older
+> links, notes and clones that mention `ai-org-router/` mean the same code.
+
+Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:a prompt is a suggestion; a hook is a guardrail. A manipulated or misbehaving agent can ignore "please don't delete files"; it cannot ignore a PreToolUse script exit 2 - but the hook is advisory today, a tripwire that catches careless and manipulated agents, not a security boundary a determined agent cannot route around ([known bypasses](ai-paladin/hooks/README.md#limits); making it a real boundary is a [roadmap goal](ai-paladin/docs/ROADMAP.md)). security-focused repo
 
 ## Run it
 
 ```bash
-cd ai-org-router
+cd ai-paladin
 ./run_demo.sh            # start (also: stop, restart) -> http://localhost:8722
 ./run_demo.sh --with-sample-logs   # ...and seed an empty logs/ from logs.example/
 ./stop_demo.sh           # stop router, unload models, stop ollama
@@ -16,8 +20,8 @@ Needs Python 3 with PyYAML and [Ollama](https://ollama.com) serving on
 `localhost:11434`. The server binds to `127.0.0.1` only and has **no
 authentication** - it is a single-user demo, not a shared service.
 
-The demo keeps everything in the repo: settings in `ai-org-router/config/`
-(including the demo's keyword overlay), logs in `ai-org-router/logs/`.
+The demo keeps everything in the repo: settings in `ai-paladin/config/`
+(including the demo's keyword overlay), logs in `ai-paladin/logs/`.
 
 ### The `ai-paladin` command
 
@@ -26,7 +30,7 @@ pip install -e .            # from the repo root: puts `ai-paladin` on your PATH
 ai-paladin                  # start, with your own settings and logs (below)
 ai-paladin --demo           # start the way run_demo.sh does
 ai-paladin --where          # show which files are in force, and exit
-python3 -m ai_paladin       # the same, without installing (from ai-org-router/)
+python3 -m ai_paladin       # the same, without installing (from ai-paladin/)
 ```
 
 Only an editable install (`pip install -e`) works today; a packaged release
@@ -45,9 +49,9 @@ make a test pass or a demo read better.
 
 | | Default | Demo (`run_demo.sh`, `--demo`) | Override |
 |---|---|---|---|
-| Shipped defaults (read-only) | `ai-org-router/router/`, `agents/`, `models/` | same | - |
-| Your settings | `~/.config/ai-paladin/` | `ai-org-router/config/` | `AI_PALADIN_CONFIG_DIR` |
-| Audit logs | `~/.local/state/ai-paladin/logs/` | `ai-org-router/logs/` | `AI_PALADIN_LOG_DIR` |
+| Shipped defaults (read-only) | `ai-paladin/router/`, `agents/`, `models/` | same | - |
+| Your settings | `~/.config/ai-paladin/` | `ai-paladin/config/` | `AI_PALADIN_CONFIG_DIR` |
+| Audit logs | `~/.local/state/ai-paladin/logs/` | `ai-paladin/logs/` | `AI_PALADIN_LOG_DIR` |
 
 Never edit the shipped files to configure your own install - put your
 version in your settings folder:
@@ -84,7 +88,7 @@ The shipped defaults are deliberately small and generic: government
 classification markings (classified, top secret, noforn, controlled
 unclassified), credentials, customer data / PII, and internal
 infrastructure. The demo's own terms (nightjar, pricing engine, unreleased
-earnings, ...) live in the demo overlay, `ai-org-router/config/keywords.yaml`.
+earnings, ...) live in the demo overlay, `ai-paladin/config/keywords.yaml`.
 
 ### Routing posture (dashboard: the four mode cards)
 
@@ -155,7 +159,7 @@ defaults on restart, and `internet_access.lock` holds them there. LINK,
 UNLINK and PURGE have no switch: list one under read/write's `methods` in
 `router/policy.yaml` if you need it. The dashboard shows exactly what is
 allowed; hover "BLOCKED" for the full list. Detail:
-[ai-org-router/ai_paladin/nodes/README.md](ai-org-router/ai_paladin/nodes/README.md).
+[ai-paladin/ai_paladin/nodes/README.md](ai-paladin/ai_paladin/nodes/README.md).
 
 ### Web limits (`internet_access.limits`)
 
@@ -207,7 +211,7 @@ These rules are for a **coding agent** such as Claude Code: shell commands,
 file writes, package installs. The router's own on-prem model cannot run
 commands or write files, so most of them are enforced by the Claude Code
 PreToolUse hook - **only once you install it**
-([ai-org-router/hooks/README.md](ai-org-router/hooks/README.md)).
+([ai-paladin/hooks/README.md](ai-paladin/hooks/README.md)).
 
 | File | Enforced by | What |
 |---|---|---|

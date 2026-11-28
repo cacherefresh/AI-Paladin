@@ -1,7 +1,7 @@
 """
 security/policies/ and security/monitors/, enforced.
 
-Run from ai-org-router/:  python3 -m unittest tests.test_enforcement -v
+Run from ai-paladin/:  python3 -m unittest tests.test_enforcement -v
 
 Router: optional domain allowlist, fence-probing on web tools,
 credential paths. Hook: commands, packages, write scope, credential paths,

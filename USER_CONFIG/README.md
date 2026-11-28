@@ -28,7 +28,7 @@ before AI-Paladin became open source, and they describe the product as it was
 on their date. For example, both say 37 protected terms, which was true before
 the shipped defaults were cut to a small generic set. They are kept so the
 manuals can grow from them. The originals stay in
-`ai-org-router/HUMAN_C_SUITE_DOCUMENTATION/PITCH_DECK/`.
+`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/PITCH_DECK/`.
 
 `PITCH_DECK_v0.1/PITCH_DECK.pdf` is the original export (29 pages);
 `build_pdfs.sh` keeps it unless you pass `--all`, because a fresh print
