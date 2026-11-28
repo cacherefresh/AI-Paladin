@@ -4,8 +4,12 @@
 # GitHub environments, and only Rob approves a production upload.
 # The click-by-click steps are in docs/RELEASING.md.
 #
-# TestPyPI: after this file is on feature/distribution-init, dispatch
-# this workflow from that branch (target=testpypi).
+# TestPyPI: dispatch this workflow from `development` or `sanctuary`
+# (target=testpypi). A workflow_dispatch workflow has to exist on
+# the default branch (`sanctuary`) before GitHub will let you start
+# it; that is why this file is also on sanctuary. The Lead Engineer
+# GitHub App cannot start workflow runs, so Rob starts them from
+# the Actions tab (Release > Run workflow).
 # PyPI: push a v* tag (for example v0.3.0). The publish-pypi job
 # waits for approval on the `pypi` GitHub environment.
 
@@ -44,11 +48,11 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -172,7 +176,7 @@ jobs:
           )
           PY
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
           path: dist/
@@ -181,7 +185,7 @@ jobs:
   publish-testpypi:
     name: Publish to TestPyPI
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi' && (github.ref == 'refs/heads/feature/distribution-init' || github.ref == 'refs/heads/sanctuary' || github.ref == 'refs/heads/DEVELOPMENT')
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi' && (github.ref == 'refs/heads/sanctuary' || github.ref == 'refs/heads/development')
     runs-on: ubuntu-latest
     environment:
       name: testpypi
@@ -189,7 +193,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
           path: dist/
@@ -209,7 +213,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
           path: dist/

@@ -18,11 +18,12 @@ Two kinds of tools work on this code:
 
 They follow the same rules:
 
-- Bots only create branches named `feature/...` or `bugfix/...`, and
-  only open pull requests. Rob always reviews and merges. Bots never
-  merge, and they never publish to PyPI, TestPyPI, a PPA or the
-  VS Code Marketplace. How Rob publishes the pip package is in
-  `docs/RELEASING.md`.
+- Bots only create branches named `feature/...` or `bugfix/...`, cut
+  from `development`, and only open pull requests into `development`.
+  Rob always reviews and merges. Bots never merge, never push to
+  `sanctuary` or `development` directly, and they never publish to
+  PyPI, TestPyPI, a PPA or the VS Code Marketplace. How Rob publishes
+  the pip package is in `docs/RELEASING.md`.
 - Do not edit `router/keywords.yaml`, `router/policy.yaml` or
   `security/policies/` to make a test pass. See "The gates are data,
   not prose" below.
@@ -41,6 +42,18 @@ They follow the same rules:
   without the hook.
 
 Claude Code reads `CLAUDE.md`, which points here.
+
+## Branches
+
+The default branch is `sanctuary`. It is the release branch.
+
+`development` (lowercase) is branched off `sanctuary`. Day-to-day
+work happens here.
+
+New work is cut from `development` onto a `feature/...` or
+`bugfix/...` branch. Bots and Claude Code open pull requests into
+`development` only. Rob reviews and merges those PRs. Only Rob
+promotes `development` into `sanctuary`.
 
 ## Scratch notes go in `TEMPORARY/TEMP_NOTES.md`
 

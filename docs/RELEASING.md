@@ -8,16 +8,31 @@ handle a PyPI API token. Only Rob publishes. The workflow uses
 (OIDC): GitHub Actions gets a short-lived token for each run, so no
 long-lived upload key exists in the repository or in GitHub secrets.
 
-The workflow file is `.github/workflows/release.yml`. It must exist
-on the branch you run it from. For the first TestPyPI dry run, merge
-the PR that adds this file into `feature/distribution-init`, then
-dispatch from that branch. Do not merge `feature/distribution-init`
-into `sanctuary` until the dry run looks good.
+The workflow file is `.github/workflows/release.yml`.
+
+A `workflow_dispatch` workflow must exist on the default branch
+(`sanctuary`) before GitHub will list it under Actions or let you
+start it from another branch. That is why
+[PR #13](https://github.com/cacherefresh/AI-Paladin/pull/13) put
+`release.yml` on sanctuary. Once it is there, you can run it from
+`development` or `sanctuary`; the run uses the workflow file and the
+code from the branch you select. The file is inert on sanctuary
+until someone starts it by hand or pushes a `v*` tag.
+
+The Lead Engineer GitHub App deliberately has no permission to
+start workflow runs, so only Rob starts a release. Use the Actions
+tab: **Release** > **Run workflow** > set "Use workflow from" to
+`development` or `sanctuary` > set target to `testpypi` > leave
+prerelease blank unless this is a redo > **Run workflow**.
 
 ## One-time setup (Rob)
 
 Do these once, before the first upload. A TestPyPI account is not a
 PyPI account; create both if you will later publish to production.
+The TestPyPI account, the `testpypi` and `pypi` GitHub environments,
+and the TestPyPI pending publisher were already created for the
+2026-11-28 dry run. Keep the steps below as the record of what to
+check, and for the later production PyPI publisher.
 
 ### 1. Create a TestPyPI account and turn on 2FA
 
@@ -36,8 +51,7 @@ The names must match the workflow and the Trusted Publisher exactly.
 
 1. Create `testpypi`. No required reviewer is needed (the dry run
    should run once you dispatch it). Optional: limit deployment
-   branches to `feature/distribution-init`, `sanctuary`, and later
-   `DEVELOPMENT`.
+   branches to `development` and `sanctuary`.
 2. Create `pypi`. Under "Required reviewers", add yourself
    (`cacherefresh`, or your GitHub user). This is the approval gate
    for a production upload. Optional: limit this environment to tags
@@ -64,8 +78,7 @@ TestPyPI. Add a pending publisher, which will create
    | Environment name | `testpypi` |
 
 3. Leave the branch field blank. The workflow itself only publishes
-   to TestPyPI from `feature/distribution-init`, `sanctuary`, or
-   `DEVELOPMENT`.
+   to TestPyPI from `sanctuary` or `development`.
 4. Submit the pending publisher.
 
 Use those values exactly, including the workflow filename
@@ -74,7 +87,7 @@ Use those values exactly, including the workflow filename
 ### 4. Later, for production PyPI (not this dry run)
 
 After the TestPyPI dry run looks good, and after distribution has
-merged into `sanctuary`:
+merged into `sanctuary` (both were done on 2026-11-28):
 
 1. Create a PyPI account at https://pypi.org with 2FA
    (https://pypi.org/manage/account/). This is separate from TestPyPI.
@@ -85,19 +98,19 @@ merged into `sanctuary`:
 4. Production publishes only from a `v*` tag, and waits for your
    approval on the `pypi` GitHub environment.
 
-## Running the TestPyPI dry run
+## Running a TestPyPI upload
 
-After `.github/workflows/release.yml` is on
-`feature/distribution-init`:
+Start the run from the Actions tab as described at the top of this
+file. Pick `development` or `sanctuary`. The TestPyPI job will not
+run from any other branch.
 
-GitHub only lists `workflow_dispatch` workflows in the Actions tab
-when the file also exists on the default branch (`sanctuary`). Until
-then, start the run from your machine with `gh`:
+If you prefer the command line on your own machine, and `gh` is
+logged in as you:
 
 ```bash
 gh workflow run release.yml \
   --repo cacherefresh/AI-Paladin \
-  --ref feature/distribution-init \
+  --ref development \
   -f target=testpypi
 ```
 
@@ -109,9 +122,10 @@ the pending publisher does not match (wrong workflow filename,
 environment name, owner, or repository). The job log usually says
 which.
 
-Do not run this workflow from `feature/testpypi-release` or another
-feature branch: the TestPyPI job is limited to
-`feature/distribution-init`, `sanctuary`, and `DEVELOPMENT`.
+The first dry run already succeeded on 2026-11-28:
+[run 46163165656](https://github.com/cacherefresh/AI-Paladin/actions/runs/46163165656)
+published `ai-paladin` 0.3.0. TestPyPI will reject a second upload
+of that same version. For a redo, use `prerelease=rc1` as below.
 
 ### Verify the install
 
@@ -168,10 +182,13 @@ changes the version only in the runner, for that build:
 | `rc1` | `0.3.0rc1` |
 | `dev1` or `.dev1` | `0.3.0.dev1` |
 
+From the Actions tab, set prerelease to `rc1`. Or, from your
+machine:
+
 ```bash
 gh workflow run release.yml \
   --repo cacherefresh/AI-Paladin \
-  --ref feature/distribution-init \
+  --ref development \
   -f target=testpypi \
   -f prerelease=rc1
 ```
@@ -192,10 +209,9 @@ tag; the workflow rejects that.
 ## Production PyPI (after the dry run)
 
 1. Finish the one-time PyPI publisher and `pypi` environment steps
-   above.
-2. Merge the distribution work into `sanctuary` (see `HANDOFF.md`
-   step (c) about PR #4).
-3. From `sanctuary`, when `VERSION` is `0.3.0`:
+   above. The TestPyPI dry run and the sanctuary merge of the
+   distribution work (PR #4) were done on 2026-11-28.
+2. From `sanctuary`, when `VERSION` is `0.3.0`:
 
    ```bash
    git switch sanctuary
@@ -204,11 +220,11 @@ tag; the workflow rejects that.
    git push origin v0.3.0
    ```
 
-4. The Release workflow builds the artifacts, checks that the tag
+3. The Release workflow builds the artifacts, checks that the tag
    equals `v` plus the VERSION file, and starts the `publish-pypi`
    job. That job waits on the `pypi` environment until you approve
    it in the Actions UI.
-5. Confirm with:
+4. Confirm with:
 
    ```bash
    python3 -m venv /tmp/ai-paladin-pypi
