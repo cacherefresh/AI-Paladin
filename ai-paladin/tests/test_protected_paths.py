@@ -11,8 +11,9 @@ policy file is still excluded from the real-repo corpus.
 
 What this proves, and what it does not: it proves the router's file scanner
 skips these files by their repo-relative path. It does not prove an agent is
-blocked from EDITING them - `scan_exclude` is about scanning, and the
-PreToolUse hook does not guard these repo files (see hooks/README.md).
+blocked from EDITING them - `scan_exclude` is about scanning only. Editing
+is guarded separately, by the PreToolUse hook's hook-tamper rule, and only
+where the hook is installed: tests/test_policy_file_guard.py.
 """
 
 import os
