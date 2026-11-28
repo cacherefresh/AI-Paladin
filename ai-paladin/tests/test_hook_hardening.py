@@ -178,6 +178,76 @@ class ShellWrites(_HookCase):
                 self.allowed(bash(c))
 
 
+class Interpreters(_HookCase):
+    """Code run by an interpreter - inline or a script the agent wrote - is
+    checked for the files it writes and the commands it runs."""
+
+    def script(self, name, text):
+        p = os.path.join(WS, name)
+        with open(p, "w") as fh:
+            fh.write(text)
+        os.chmod(p, 0o755)
+        return name
+
+    def test_inline_code_writes_refused(self):
+        for c in ["python3 -c \"open('/etc/ai-paladin-probe','w').write('x')\"",
+                  "python3 -c 'import os; os.remove(\"/usr/bin/x\")'",
+                  "python3 -c 'import pathlib; pathlib.Path(\"/etc\")"
+                  ".joinpath(\"x\"); pathlib.Path(\"/etc/x\").write_text(\"y\")'",
+                  "python3 -c 'import shutil; shutil.rmtree(\"backup\")'",
+                  "python3 -c 'P=\"/et\" + \"c/x\"; open(P, \"a\")'",
+                  "python3 -c 'import os; os.system(\"echo x > /etc/motd\")'",
+                  "python3 -c 'import subprocess; subprocess.run("
+                  "[\"pip\", \"install\", \"evilpkg==1.0\"])'",
+                  "python3 - <<'EOF'\nopen('/etc/x', 'w')\nEOF",
+                  "perl -e 'open(F, \">/etc/motd\"); print F 1'",
+                  "perl -pi -e 's/a/b/' /etc/hosts",
+                  "node -e \"require('fs').writeFileSync('/etc/x','y')\"",
+                  "ruby -e 'File.write(\"/etc/x\", \"y\")'"]:
+            with self.subTest(c=c):
+                self.refused(bash(c))
+
+    def test_inline_code_tamper_and_credentials_refused(self):
+        self.refused(bash("python3 -c 'import os; os.remove(os.path.expanduser("
+                          "\"~/.local/state/ai-paladin/logs/hooks.jsonl\"))'"),
+                     "hook-tamper")
+        self.refused(bash("python3 -c 'print(open(\"/root/.s\" + \"sh/id_rsa\")"
+                          ".read())'"), "credential-path-access")
+
+    def test_agent_written_scripts_refused(self):
+        cases = [
+            ("w1.py", "open('/etc/motd', 'w').write('x')\n", "python3 w1.py"),
+            ("w2.py", "#!/usr/bin/env python3\nimport os\n"
+                      "os.unlink(os.path.expanduser('~/.local/state/ai-paladin/"
+                      "logs/hooks.jsonl'))\n", "./w2.py"),
+            ("w3.sh", "#!/bin/sh\necho x > /etc/motd\n", "bash w3.sh"),
+            ("w4.sh", "pip install evilpkg==1.0\n", "sh ./w4.sh"),
+            ("w5.sh", "rm -rf ~/.claude\n", ". ./w5.sh"),
+            ("w6.sh", "#!/bin/bash\ncat ~/.ss''h/id_rsa\n", "./w6.sh"),
+            ("w7.py", "import subprocess\nsubprocess.run('echo x > /etc/m', "
+                      "shell=True)\n", "python3 -u w7.py --flag"),
+            ("w8.py", "open('/usr/x', 'w')\n", "python3 < w8.py"),
+        ]
+        for name, text, cmd in cases:
+            self.script(name, text)
+            with self.subTest(cmd=cmd):
+                self.refused(bash(cmd))
+
+    def test_ordinary_code_passes(self):
+        self.script("ok.py", "import json\nopen('out.json', 'w').write("
+                             "json.dumps({'a': 1}))\nprint(open('/etc/hosts')"
+                             ".read())\n")
+        self.script("ok.sh", "#!/bin/sh\nmake test > build.log 2>&1\n")
+        for c in ["python3 -c 'print(1)'", "python3 -m pytest -q",
+                  "python3 ok.py", "./ok.sh", "bash ok.sh",
+                  "python3 -c \"open('out.txt','w').write('x')\"",
+                  "python3 -c \"print(open('/etc/hosts').read())\"",
+                  "python3 -c 's=\"a\".replace(\"a\", \"/etc/x\")'",
+                  "node -e 'console.log(1)'", "python3 missing.py"]:
+            with self.subTest(c=c):
+                self.allowed(bash(c))
+
+
 class ShellScanUnit(unittest.TestCase):
 
     def test_segments_and_inner(self):
