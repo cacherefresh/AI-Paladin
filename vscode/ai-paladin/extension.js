@@ -95,7 +95,7 @@ function render(state) {
       "**AI-Paladin — router not reachable**",
       "No posture is being enforced from this editor's point of view, because"
       + " there is nothing answering at `" + endpoint() + "`.",
-      "Start it with `./run_demo.sh` in `ai-org-router/`.",
+      "Start it with `./run_demo.sh` in `ai-paladin/`.",
     ]);
     return statusItem.show();
   }

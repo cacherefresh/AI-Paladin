@@ -91,7 +91,7 @@ curl -s 127.0.0.1:11434/api/tags | grep -o '"name":"[^"]*"'
 #   all-minilm:latest         45 MB     the sentry
 
 # 2. AI-Paladin up                 # window 3
-cd ai-org-router
+cd ai-paladin
 ./run_demo.sh restart
 tail -f logs/server.log            # leave this running — it is your proof surface
 ```

@@ -89,11 +89,11 @@ scan_exclude:
   - "router/keywords.yaml"
   - "router/policy.yaml"
   - "config/keywords.yaml"
-  - "ai-org-router/router/keywords.yaml"
-  - "ai-org-router/router/policy.yaml"
-  - "ai-org-router/config/keywords.yaml"
-  - "ai-org-router/security/policies/*.yaml"
-  - "ai-org-router/security/monitors/*.yaml"
+  - "ai-paladin/router/keywords.yaml"
+  - "ai-paladin/router/policy.yaml"
+  - "ai-paladin/config/keywords.yaml"
+  - "ai-paladin/security/policies/*.yaml"
+  - "ai-paladin/security/monitors/*.yaml"
 
 # Paths whose CONTENTS are protected regardless of the words inside them.
 protected_paths:

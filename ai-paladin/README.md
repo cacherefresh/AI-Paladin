@@ -1,4 +1,4 @@
-# ai-org-router
+# ai-paladin
 
 A local-first AI router: cheap/routine tasks run on an on-prem Ollama node,
 complex work escalates to Claude. Modeled like a company org chart —

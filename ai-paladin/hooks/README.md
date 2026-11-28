@@ -12,9 +12,13 @@ from disk. The router's own enforcement (allowlist, credential files,
 fence-probing on web tools) is separate and only applies while the router
 runs.
 
-A prompt is a suggestion; a hook is a wall. Claude Code runs the hook before
-every matching tool call. Exit 2 refuses the call and shows the agent why;
-the agent cannot talk its way past it.
+A prompt is a suggestion; a hook is a guardrail. Claude Code runs the hook
+before every matching tool call. Exit 2 refuses the call and shows the agent
+why, and the agent cannot talk its way past a refusal. **The hook is advisory
+today**: a tripwire for careless and manipulated agents, not a security
+boundary. A determined agent can route around it (see Limits and the 11 known
+bypasses pinned as expected failures in `tests/test_hook_bypasses.py`).
+Making it a true boundary is a roadmap goal (`docs/ROADMAP.md`, section 9).
 
 ## What it enforces
 
@@ -50,7 +54,7 @@ ai-paladin-hook --uninstall --all    # remove it from every place it was install
 ```
 
 Without `pip install -e .`, use the file by its full path, still from your
-project: `python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --install`.
+project: `python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --install`.
 
 **If AI-Paladin was removed first** and Claude Code now refuses everything,
 Claude Code cannot fix itself - use an ordinary terminal in the guarded
@@ -97,10 +101,13 @@ ai-paladin-hook --status              # sessions, refusal counts, PAUSED
 ai-paladin-hook --release SESSION_ID  # a person lifts the pause
 ```
 
-(Without installing: `python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --status`.)
+(Without installing: `python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --status`.)
 
 ## Limits
 
+- **Advisory, not a boundary.** Decision (Rob, 2026-11-28): the hook is a
+  guardrail for now. The known bypasses are documented limits, not bugs we
+  are hiding.
 - **A tripwire, not a sandbox.** It reads tool calls, not what a shell
   command does once it runs. Variables, aliases, encodings and scripts can
   hide a command from a pattern. Run agents in a sandbox as well

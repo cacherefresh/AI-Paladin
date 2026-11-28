@@ -22,8 +22,8 @@ Concretely:
 
 | Content | Where |
 |---|---|
-| A reusable runbook or procedure | `ai-org-router/docs/` — committed |
-| Design intent, roadmap, honest limits | `ai-org-router/docs/ROADMAP.md` — committed |
+| A reusable runbook or procedure | `ai-paladin/docs/` — committed |
+| Design intent, roadmap, honest limits | `ai-paladin/docs/ROADMAP.md` — committed |
 | What a module does and why | its own `README.md` — committed |
 | This session's staging notes, todo, layout | `TEMPORARY/TEMP_NOTES.md` — ignored |
 
