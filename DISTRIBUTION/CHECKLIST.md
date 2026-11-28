@@ -55,10 +55,11 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [x] **(Rob)** Create GitHub environments `testpypi` and `pypi`. On `pypi`, add yourself as a required reviewer. (2026-11-28)
 - [x] **(Rob)** Register the pending Trusted Publisher on TestPyPI: project `ai-paladin`, owner `cacherefresh`, repository `AI-Paladin`, workflow `release.yml`, environment `testpypi` (2026-11-28)
 - [x] **(Rob)** Dry run: dispatch the Release workflow from the Actions tab (Release > Run workflow) with target `testpypi` from a branch the workflow allows (`development` or `sanctuary`), then install as in `docs/RELEASING.md`. First dry run: 2026-11-28, [run 46163165656](https://github.com/cacherefresh/AI-Paladin/actions/runs/46163165656), `ai-paladin` 0.3.0 on TestPyPI, clean install verified. TestPyPI rejects a second upload of the same version; redo with `prerelease=rc1`.
+- [ ] **(Rob)** Release gate: before merging `development` into `sanctuary`, publish the current development build to TestPyPI and smoke-test the install on a separate, clean Ubuntu machine with Python (not the development machine). Create a venv, then `pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ai-paladin==<VERSION>`, then `ai-paladin --version`, `ai-paladin --help`, `ai-paladin-hook --status` (plus any further checks). Only after it passes, promote with a merge commit, then tag. Merging to sanctuary does not publish; only the `v*` tag does. If the test fails, fix on a `bugfix/` branch into `development` and redo TestPyPI with `prerelease=rc1`. See `docs/RELEASING.md`.
 - [ ] **(Rob)** Create a PyPI account with two-factor authentication
 - [ ] **(Rob)** Create the PyPI organisation `cacherefresh`
 - [ ] **(Rob)** Register the pending Trusted Publisher on PyPI with the same fields, except environment `pypi`
-- [ ] **(Rob)** Tag and push the first release (`v0.3.0`), approve the `pypi` environment, which publishes `ai-paladin` 0.3.0 and claims the name
+- [ ] **(Rob)** After the release gate passes and `development` has been merged into `sanctuary`, tag and push the first release (`v0.3.0`), approve the `pypi` environment, which publishes `ai-paladin` 0.3.0 and claims the name
 
 PyPI only lets you claim a name with a real, working release. An empty
 placeholder can be taken back under its name-squatting policy.

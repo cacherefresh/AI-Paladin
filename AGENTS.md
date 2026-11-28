@@ -55,6 +55,14 @@ New work is cut from `development` onto a `feature/...` or
 `development` only. Rob reviews and merges those PRs. Only Rob
 promotes `development` into `sanctuary`.
 
+Before any merge of `development` into `sanctuary`, Rob publishes
+the current `development` build to TestPyPI and smoke-tests the
+install on a separate, clean Ubuntu machine with Python (not the
+development machine). Only after that test passes may sanctuary be
+updated (merge commit). The `v*` tag on sanctuary is what publishes
+to production PyPI; the merge itself does not. The numbered order
+and the install commands are in `docs/RELEASING.md`.
+
 ## Scratch notes go in `TEMPORARY/TEMP_NOTES.md`
 
 Session-specific working notes - staging plans, window layouts for a demo,

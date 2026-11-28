@@ -21,11 +21,22 @@ the VS Code Marketplace.
   [PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) then
   merged the distribution work, after the TestPyPI dry run.
 - Integration branch: `development` (lowercase), created by Rob on
-  2026-11-28 from sanctuary. It is currently at the same commit as
-  sanctuary (`d53c3c3`). New work is cut from `development`. Bots
-  and Claude Code open PRs into `development` only. Rob reviews and
-  merges those PRs, and only Rob promotes `development` into
-  `sanctuary`.
+  2026-11-28 from sanctuary. New work is cut from `development`.
+  Bots and Claude Code open PRs into `development` only. Rob
+  reviews and merges those PRs, and only Rob promotes `development`
+  into `sanctuary`. As of 2026-11-28, `development` is ahead of
+  sanctuary (docs, logo, CI allowlist).
+  [PR #18](https://github.com/cacherefresh/AI-Paladin/pull/18) is
+  the open promotion into sanctuary.
+- Release gate (standing rule, 2026-11-28): before any merge of
+  `development` into `sanctuary`, the current development build
+  must be published to TestPyPI and smoke-tested on a separate,
+  clean Ubuntu machine with Python (not the development machine).
+  Only then may Rob promote with a merge commit, then tag
+  `v<VERSION>` on sanctuary to publish to PyPI. The merge itself
+  does not publish. If the clean-box test fails, fix on a
+  `bugfix/` branch into `development` and redo TestPyPI with
+  `prerelease=rc1`. Details are in `docs/RELEASING.md`.
 - Snapshot branch: `feature/distribution-init-snapshot`, frozen at
   `cbc9355` ("Safe uninstall: hook removed everywhere before the
   package"), taken so a later PR that breaks working code can be
@@ -205,11 +216,31 @@ ai-paladin-hook --status
 
 ### (i) Production PyPI release
 
-After the `pypi` Trusted Publisher is registered (a PyPI account
-with 2FA, then a pending publisher with environment `pypi`), Rob
-publishes 0.3.0 from sanctuary by pushing a `v0.3.0` tag. The
-Release workflow waits for his approval on the `pypi` environment.
-Steps are in `docs/RELEASING.md`. Do not pass `prerelease` on a tag.
+This step is gated. Before merging `development` into `sanctuary`,
+Rob publishes the current development build to TestPyPI (0.3.0 is
+already there; if a redo is needed, use `prerelease=rc1`) and
+installs it on a separate, clean Ubuntu machine with Python:
+
+```bash
+python3 -m venv ~/paladin-test && source ~/paladin-test/bin/activate
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ai-paladin==0.3.0
+ai-paladin --version
+ai-paladin --help
+ai-paladin-hook --status
+```
+
+Only after that smoke test passes may `development` be promoted
+into `sanctuary` (merge commit). Then, after the `pypi` Trusted
+Publisher is registered (a PyPI account with 2FA, then a pending
+publisher with environment `pypi`), Rob publishes 0.3.0 from
+sanctuary by pushing a `v0.3.0` tag. The Release workflow waits
+for his approval on the `pypi` environment. Merging to sanctuary
+does not publish; only the tag does. Steps are in
+`docs/RELEASING.md`. Do not pass `prerelease` on a tag.
+
+[PR #18](https://github.com/cacherefresh/AI-Paladin/pull/18) is the
+open promotion PR. It will pick up this documentation once the
+docs land on `development`.
 
 ## How to run the tests
 
