@@ -52,7 +52,6 @@ READ_TOOLS = {"Read", "Grep", "Glob"}
 _CRED_IN_SHELL = re.compile(
     r"""(^|[\s'"=:/~])\.(ssh|aws)(/|\s|$|['"])"""
     r"""|(^|[\s'"=/])\.env(\.[\w-]+)?(\s|$|['"])""")
-_SEGMENT_SPLIT = re.compile(r"&&|\|\||[;|\n]")
 # A Bash command that would switch the guard off or edit what it enforces.
 _TAMPER_IN_SHELL = re.compile(
     r"ai-paladin-hook\s+--(release|uninstall|install)"
@@ -128,18 +127,9 @@ def _protected(real: str) -> bool:
 # package installs
 # ---------------------------------------------------------------------------
 
-def _tokens(segment: str) -> list:
-    try:
-        toks = shlex.split(segment)
-    except ValueError:
-        toks = segment.split()
-    while toks and (re.match(r"^\w+=", toks[0]) or toks[0] in ("sudo", "env")):
-        toks.pop(0)
-    return toks
-
-
 def _install_args(toks: list):
-    """(ecosystem, args after the install verb) or None."""
+    """(ecosystem, args after the install verb) or None. `toks` are a
+    command's words with wrappers (sudo, env, VAR=...) already removed."""
     if not toks:
         return None
     t = [os.path.basename(toks[0])] + toks[1:]
@@ -234,6 +224,45 @@ def check_install(eco: str, args: list, pkgs: dict):
 # the decision
 # ---------------------------------------------------------------------------
 
+# How deep sh -c 'bash -c "eval ..."' may nest before the hook stops reading
+# and refuses: a real command rarely nests more than twice.
+MAX_SHELL_DEPTH = 6
+
+
+def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
+                cwd: str, workspace: str, session: str, depth: int = 0):
+    """
+    Apply the Bash rules to a command and to every command nested in it.
+    `sh -c '...'`, `bash -c "..."`, eval, $(...), backticks and a here-doc
+    fed to a shell are unwrapped (ai_paladin/shell_scan.py) and checked as
+    if the agent had typed them directly.
+    """
+    from ai_paladin import shell_scan
+
+    if depth > MAX_SHELL_DEPTH:
+        raise Refused("commands.yaml", "command nests shells more than %d "
+                      "deep - too deep to inspect" % MAX_SHELL_DEPTH)
+    for b in cmds.get("block") or []:
+        if re.search(b["pattern"], command):
+            raise Refused("commands.yaml", "command matches blocked "
+                          "pattern %r" % b["pattern"])
+    if _TAMPER_IN_SHELL.search(command):
+        raise Refused("hook-tamper", "command would change or switch off "
+                      "AI-Paladin's guard or its settings - only a person "
+                      "may do that")
+    if _CRED_IN_SHELL.search(command):
+        raise Refused("credential-path-access", "command names a "
+                      "credential location (.ssh, .aws or .env)")
+    sc = shell_scan.scan(command)
+    for seg in sc.segments:
+        inst = _install_args(seg.words)
+        if inst:
+            check_install(inst[0], inst[1], pkgs)
+    for inner in sc.inner:
+        _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
+                    depth + 1)
+
+
 def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     """Raise Refused if the call breaks a rule. Pure: no state, no I/O
     beyond resolving paths."""
@@ -246,22 +275,8 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     session = str(call.get("session_id") or "unknown")
 
     if tool == "Bash":
-        command = str(ti.get("command", ""))
-        for b in cmds.get("block") or []:
-            if re.search(b["pattern"], command):
-                raise Refused("commands.yaml", "command matches blocked "
-                              "pattern %r" % b["pattern"])
-        if _TAMPER_IN_SHELL.search(command):
-            raise Refused("hook-tamper", "command would change or switch off "
-                          "AI-Paladin's guard or its settings - only a person "
-                          "may do that")
-        if _CRED_IN_SHELL.search(command):
-            raise Refused("credential-path-access", "command names a "
-                          "credential location (.ssh, .aws or .env)")
-        for seg in _SEGMENT_SPLIT.split(command):
-            inst = _install_args(_tokens(seg))
-            if inst:
-                check_install(inst[0], inst[1], pkgs)
+        _check_bash(str(ti.get("command", "")), cmds, pkgs, cred_globs,
+                    cwd, os.path.realpath(workspace), session)
         return
 
     paths = [ti.get(k) for k in ("file_path", "notebook_path", "path")
