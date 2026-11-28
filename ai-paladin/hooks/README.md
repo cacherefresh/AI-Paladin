@@ -121,10 +121,12 @@ current values.
 | Setting | Default | What it does |
 |---|---|---|
 | `shell_writes_enforce_allow` | `false` | Files written by Bash commands and interpreter code are always checked against `write_scope.deny` and the protected files. With `true`, they must also be inside `write_scope.allow` (the project folder and `/tmp/agent-<session>`): a shell write anywhere else is refused (`out-of-scope-path`). Off by default because ordinary shell work writes outside the project (`rm -rf /tmp/build`, `mkdir -p ~/scratch`). `/dev/null`, `/dev/stderr` and `>&2` are never files. |
+| `scripts_may_read_env_files` | `false` | A script **file** the agent runs (`python3 app.py`, `./run.sh`, `source x`) that names a `.env` / `.env.*` file - e.g. `load_dotenv(".env")` - is refused by default (credential-path-access). With `true`, such a script may name `.env` files. Still refused either way: `.ssh` / `.aws`, a script that writes a `.env`, inline code (`python3 -c`, here-docs), typed commands (`cat .env`, `source .env`) and the Read / Write tools. |
 
 ```yaml
 # ~/.config/ai-paladin/hook.yaml
 shell_writes_enforce_allow: true
+scripts_may_read_env_files: false
 ```
 
 ## After a pause

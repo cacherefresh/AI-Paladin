@@ -610,7 +610,8 @@ def _lang_of(text: str) -> str:
 
 def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
     """
-    [(language, source)] for code this command hands to an interpreter:
+    [(language, source, from_file)] for code this command hands to an
+    interpreter (from_file: read from a script file, not typed inline):
     `python3 -c CODE`, `perl -e CODE`, `node -e CODE`, a script file run by
     an interpreter, a shell, `source` or by its own path (./x.sh), and a
     here-doc / here-string / `< file` fed to an interpreter. Language is
@@ -625,14 +626,14 @@ def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
 
     def stdin_sources(lang):
         for doc in seg.heredocs:
-            out.append((lang, doc))
+            out.append((lang, doc, False))
         for op, target in seg.redirects:
             if op == "<<<":
-                out.append((lang, target))
+                out.append((lang, target, False))
             elif op == "<":
                 text = _read_script(target, env, cwd)
                 if text is not None:
-                    out.append((lang, text))
+                    out.append((lang, text, True))
 
     for rx, lang, code_flags, takes in _INTERP:
         if not rx.match(name):
@@ -642,17 +643,17 @@ def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
             a = args[i]
             if a in code_flags:
                 if i + 1 < len(args):
-                    out.append((lang, args[i + 1]))
+                    out.append((lang, args[i + 1], False))
                 return out
             hit = next((f for f in code_flags
                         if len(f) == 2 and a.startswith(f) and len(a) > 2
                         and not a.startswith("--")), None)
             if hit:                              # -c'code' / -pe'code'
-                out.append((lang, a[2:]))
+                out.append((lang, a[2:], False))
                 return out
             if lang == "perl" and re.fullmatch(r"-[a-zA-Z]*[eE]", a):
                 if i + 1 < len(args):            # perl -pie 'code'
-                    out.append((lang, args[i + 1]))
+                    out.append((lang, args[i + 1], False))
                 return out
             if lang == "python" and a == "-m":
                 return out                       # a module, not a file
@@ -666,7 +667,7 @@ def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
                 continue
             text = _read_script(a, env, cwd)
             if text is not None:
-                out.append((lang, text))
+                out.append((lang, text, True))
             return out
         stdin_sources(lang)
         return out
@@ -676,21 +677,21 @@ def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
         if ops:
             text = _read_script(ops[0], env, cwd)
             if text is not None:
-                out.append(("shell", text))
+                out.append(("shell", text, True))
         else:
             for op, target in seg.redirects:
                 if op == "<":
                     text = _read_script(target, env, cwd)
                     if text is not None:
-                        out.append(("shell", text))
+                        out.append(("shell", text, True))
     elif name in ("source", ".") and args:
         text = _read_script(args[0], env, cwd)
         if text is not None:
-            out.append(("shell", text))
+            out.append(("shell", text, True))
     elif "/" in w[0]:                            # ./build.sh, /tmp/x/run
         text = _read_script(w[0], env, cwd)
         if text is not None:
-            out.append((_lang_of(text), text))
+            out.append((_lang_of(text), text, True))
     return out
 
 
