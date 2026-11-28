@@ -118,9 +118,9 @@ table.dense th{font-size:8.5px}
   <h2>Three folders, never mixed</h2>
   <table>
     <tr><th>Folder</th><th>Normal install</th><th>Demo (<code>./run_demo.sh</code>, <code>--demo</code>)</th><th>Move it with</th><th>Who writes it</th></tr>
-    <tr><td>Shipped defaults</td><td><code>ai-org-router/router/</code>, <code>agents/</code>, <code>models/</code></td><td>same</td><td>&mdash;</td><td>Nobody at run time. Read-only.</td></tr>
-    <tr><td>Your settings</td><td><code>~/.config/ai-paladin/</code></td><td><code>ai-org-router/config/</code></td><td><code>AI_PALADIN_CONFIG_DIR</code></td><td>You, and the dashboard's model picker</td></tr>
-    <tr><td>Audit logs</td><td><code>~/.local/state/ai-paladin/logs/</code></td><td><code>ai-org-router/logs/</code></td><td><code>AI_PALADIN_LOG_DIR</code></td><td>The router, append-only</td></tr>
+    <tr><td>Shipped defaults</td><td><code>ai-paladin/router/</code>, <code>agents/</code>, <code>models/</code></td><td>same</td><td>&mdash;</td><td>Nobody at run time. Read-only.</td></tr>
+    <tr><td>Your settings</td><td><code>~/.config/ai-paladin/</code></td><td><code>ai-paladin/config/</code></td><td><code>AI_PALADIN_CONFIG_DIR</code></td><td>You, and the dashboard's model picker</td></tr>
+    <tr><td>Audit logs</td><td><code>~/.local/state/ai-paladin/logs/</code></td><td><code>ai-paladin/logs/</code></td><td><code>AI_PALADIN_LOG_DIR</code></td><td>The router, append-only</td></tr>
   </table>
   <div class="grid g2" style="margin-top:14px">
     <div>
@@ -206,7 +206,7 @@ protected      23 terms in 4 groups, 4 paths
       logic" for "pricing engine"); the misspelling gate catches "pricng engnie". Both can only
       <strong>add</strong> a match, never clear one.</p></div>
     <div class="card"><h3>The demo's terms</h3><p>nightjar, pricing engine, unreleased earnings and the rest
-      are not defaults. They live in the demo overlay, <code>ai-org-router/config/keywords.yaml</code>.</p></div>
+      are not defaults. They live in the demo overlay, <code>ai-paladin/config/keywords.yaml</code>.</p></div>
   </div>
 </section>
 
@@ -299,7 +299,7 @@ protected      23 terms in 4 groups, 4 paths
     <div>
       <h3>How to start</h3>
       <pre><span class="k">$ mkdir -p ~/.config/ai-paladin</span>
-<span class="k">$ cp ai-org-router/router/policy.yaml ~/.config/ai-paladin/</span>
+<span class="k">$ cp ai-paladin/router/policy.yaml ~/.config/ai-paladin/</span>
 <span class="c"># edit your copy, then restart</span>
 <span class="k">$ ai-paladin --where</span>
   policy.yaml   user   1c0e9b2a77d4  ~/.config/ai-paladin/policy.yaml</pre>
@@ -444,7 +444,7 @@ protected      23 terms in 4 groups, 4 paths
   <div class="grid g3" style="margin-top:14px">
     <div class="card"><h3>Never in git</h3><p>Logs record what people type. They live in your log folder
       and are gitignored in the demo. Back them up from the machine, not from a repository.</p></div>
-    <div class="card"><h3>A sample to read</h3><p><code>ai-org-router/logs.example/</code> holds a reviewed demo
+    <div class="card"><h3>A sample to read</h3><p><code>ai-paladin/logs.example/</code> holds a reviewed demo
       session. <code>./run_demo.sh --with-sample-logs</code> copies it into an <em>empty</em> log folder &mdash;
       never ahead of real records.</p></div>
     <div class="card"><h3>Where the sample ends</h3><p>Each sample file ends with a
@@ -516,7 +516,7 @@ protected      23 terms in 4 groups, 4 paths
       run at all, the call is refused and Claude Code shows how to recover (next slide). Every
       decision is written to <code>hooks.jsonl</code> in your log folder. Each rule's <code>enforced:</code> line
       in <code>behavioral_rules.yaml</code> says exactly what it covers. Full guide:
-      <code>ai-org-router/hooks/README.md</code>.</p>
+      <code>ai-paladin/hooks/README.md</code>.</p>
     </div>
   </div>
 </section>
@@ -552,7 +552,7 @@ protected      23 terms in 4 groups, 4 paths
 <span class="c">#    the package. NOT a plain pip uninstall.</span>
 <span class="k">$ ai-paladin uninstall</span></pre>
       <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
-      your project: <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --install</code></p>
+      your project: <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --install</code></p>
     </div>
     <div>
       <div class="card" style="margin-bottom:9px"><h3>Where --install writes</h3><p>This project:
@@ -569,7 +569,7 @@ protected      23 terms in 4 groups, 4 paths
         all-caps confirmation.</p></div>
       <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
         Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
-        <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --uninstall</code> (add
+        <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --uninstall</code> (add
         <code>--user</code> if you installed it for every project). Folder gone too? Delete the
         <code>pre_tool_use.py</code> entry under <code>hooks.PreToolUse</code> in the settings file by hand.</p></div>
       <div class="card ok"><h3>Why stopping the router does not switch it off</h3><p>If it did, stopping the

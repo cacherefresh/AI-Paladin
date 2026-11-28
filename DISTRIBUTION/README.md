@@ -37,7 +37,7 @@ that does not come from the `cacherefresh` publisher is not ours.** On PyPI,
 
 ### Two pieces, not one
 
-- **The router** (`ai-org-router/`) is the product: the gates, the egress
+- **The router** (`ai-paladin/`) is the product: the gates, the egress
   guard, the console. It ships through PyPI, GitHub Releases and, later, Ubuntu.
 - **The VS Code extension** (`vscode/ai-paladin/`) is a read-only
   window onto a running router. Installed alone it shows `⊘ AI-Paladin`
@@ -71,14 +71,14 @@ adding another needs a stated reason.
 [Ollama](https://ollama.com) is required to run a local model but is **not**
 bundled or installed by any AI-Paladin package. It is a separate program that
 can download models from the internet, and AI-Paladin never downloads models
-itself. See `ai-org-router/docs/ROADMAP.md`, section 8.
+itself. See `ai-paladin/docs/ROADMAP.md`, section 8.
 
 ## What must change in the code before any package
 
 These are blockers for PyPI and Ubuntu alike. They are tracked in the checklist.
 
 1. ~~**Generic top-level module names.**~~ **Done 2026-11-22.** The code now
-   lives under one `ai_paladin/` package (`ai-org-router/ai_paladin/`). Users
+   lives under one `ai_paladin/` package (`ai-paladin/ai_paladin/`). Users
    install and run `ai-paladin`; only Python imports use the underscore,
    because Python import names cannot contain a hyphen. The gate files stayed
    where they were (`router/`, `security/policies/`, `security/monitors/`).
@@ -92,7 +92,7 @@ These are blockers for PyPI and Ubuntu alike. They are tracked in the checklist.
 4. ~~**The shipped defaults sit beside the code, not inside the
    package.**~~ **Done 2026-11-27.** The wheel carries them as package data
    under `ai_paladin/_shipped/`; the repository keeps them where they are.
-   `ai-org-router/tests/wheel_smoke.py` builds the wheel, installs it into a
+   `ai-paladin/tests/wheel_smoke.py` builds the wheel, installs it into a
    clean virtual environment and boots the router from it.
 
 ## Ubuntu

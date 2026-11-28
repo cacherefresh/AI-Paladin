@@ -52,7 +52,7 @@ Last touched: 2026-11-19
   "latest Python" correctly (3.15.2) with 2 GETs.
 - Downloads running in background: gemma4:26b, flint:40b, gpt-oss:120b.
   They appear in the dropdown on their own once pulled (UI polls every 5s).
-- Test runs appended to ai-org-router/logs/*.jsonl (tracked as demo
+- Test runs appended to ai-paladin/logs/*.jsonl (tracked as demo
   evidence; they were already modified before this session).
 - Nothing committed.
 
