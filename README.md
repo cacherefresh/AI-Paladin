@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/cacherefresh-logo-512.png" width="160" alt="Cache Refresh"></p>
+
 # AI-Paladin - An AI-Org-Router
 
 > The project folder was formerly `ai-org-router/`; it is now `ai-paladin/`. Older
@@ -123,6 +125,61 @@ the machine. It is not a host firewall and not an air gap.
 
 The server never downloads a model - pulling is egress. A missing model is
 shown with the `ollama pull` command for a person to run.
+
+### Running several models at once
+
+Ollama is the service; a model is the file it loads into memory to answer.
+**One Ollama service can keep several models loaded at once**, as long as
+they fit in memory. The demo already does: while the on-prem model answers,
+`all-minilm` runs the sentry check and `qwen3:0.6b` runs the clerk
+(`agents/roster.yaml`).
+
+**How Ollama handles it**
+
+- **Loading** - a model loads the first time a request names it and stays
+  loaded until its keep-alive runs out. AI-Paladin asks for 60 minutes, so a
+  demo never waits on a cold load.
+- **Memory full** - if a new model does not fit, Ollama unloads the least
+  recently used idle model to make room.
+
+**Settings on the Ollama service** (environment variables):
+
+| Variable | What it controls |
+|---|---|
+| `OLLAMA_MAX_LOADED_MODELS` | How many models can be loaded at once. Default: 3 per GPU, or 3 on CPU. |
+| `OLLAMA_NUM_PARALLEL` | How many requests each model handles at the same time. |
+| `OLLAMA_MAX_QUEUE` | How many requests can wait before new ones are rejected. |
+
+To change one, add it to the service, then restart Ollama:
+
+```bash
+sudo systemctl edit ollama
+# add:
+# [Service]
+# Environment="OLLAMA_MAX_LOADED_MODELS=4"
+sudo systemctl restart ollama
+ollama ps        # what is loaded, and how much memory each takes
+```
+
+**What fits - example: 91 GiB RAM, CPU only**
+
+| Model | Download | Role |
+|---|---|---|
+| `all-minilm` | 0.05 GB | sentry |
+| `qwen3:0.6b` | 0.5 GB | clerk |
+| `gpt-oss:20b` | 13.8 GB | default on-prem model |
+| `devstral-small-2` | 15.2 GB | fallback |
+| `gemma4:26b` | 18.7 GB | picker option |
+| `gpt-oss:120b` | 65.4 GB | picker option |
+
+Loaded, a model takes its download size plus a few GB for context;
+`ollama ps` shows the real figure. On this example machine, `gpt-oss:20b`,
+`gemma4:26b` and `devstral-small-2` fit together with the two small ones,
+with room to spare. `gpt-oss:120b` fits only with the small ones.
+
+> **CPU only: loaded is not fast.** With no GPU, every model shares the same
+> CPU threads, so two models generating at the same moment each run slower.
+> A loaded, idle model costs memory, not speed.
 
 ### Internet access for the on-prem model (dashboard: three buttons)
 

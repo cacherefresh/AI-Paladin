@@ -102,6 +102,9 @@ def main() -> int:
     leaked = [n for n in names
               if any(n == x or n.endswith("/" + x) for x in repo_only)]
     assert not leaked, "repo-only agent files must not ship in the wheel: %s" % leaked
+    leaked_assets = [n for n in names
+                     if n == "assets" or n.startswith("assets/")]
+    assert not leaked_assets, "repo-only assets/ must not ship in the wheel: %s" % leaked_assets
 
     step("3. installing into a clean venv")
     venv = os.path.join(tmp, "venv")

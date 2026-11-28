@@ -14,19 +14,26 @@ the VS Code Marketplace.
 ## Current state
 
 - Repository: `https://github.com/cacherefresh/AI-Paladin`
-- Default branch: `sanctuary` (head `502a078`, "Add YouTube demo
-  section to README").
-- Integration branch for this work: `feature/distribution-init`
-  (protected, head `6fee477`). It is a clean fast-forward of
-  sanctuary (35 commits on top of `502a078`). Rob rebased it onto
-  sanctuary on 2026-11-28 so the YouTube README section is included.
-  New work PRs into this branch until Rob creates `DEVELOPMENT`.
+- Default / release branch: `sanctuary` (head `d53c3c3`, "Merge pull
+  request #4 from cacherefresh/feature/distribution-init").
+  [PR #13](https://github.com/cacherefresh/AI-Paladin/pull/13) put
+  `release.yml` on sanctuary so the workflow can be started;
+  [PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) then
+  merged the distribution work, after the TestPyPI dry run.
+- Integration branch: `development` (lowercase), created by Rob on
+  2026-11-28 from sanctuary. It is currently at the same commit as
+  sanctuary (`d53c3c3`). New work is cut from `development`. Bots
+  and Claude Code open PRs into `development` only. Rob reviews and
+  merges those PRs, and only Rob promotes `development` into
+  `sanctuary`.
 - Snapshot branch: `feature/distribution-init-snapshot`, frozen at
   `cbc9355` ("Safe uninstall: hook removed everywhere before the
   package"), taken so a later PR that breaks working code can be
-  compared against it. Do not treat it as the tip of distribution
-  work.
-- Merged into `feature/distribution-init` on 2026-11-28:
+  compared against it. Do not treat it as the tip of current work.
+- Historical: distribution work lived on `feature/distribution-init`
+  and was merged into sanctuary via PR #4 on 2026-11-28. That
+  integration branch is gone on origin. PRs merged into it earlier
+  the same day were
   [PR #8](https://github.com/cacherefresh/AI-Paladin/pull/8)
   (hook hardening),
   [PR #9](https://github.com/cacherefresh/AI-Paladin/pull/9)
@@ -34,23 +41,13 @@ the VS Code Marketplace.
   [PR #10](https://github.com/cacherefresh/AI-Paladin/pull/10)
   (versioning v0.3.0, docs consolidation, v0.3.0 manual PDF named
   `USER_CONFIG_MANUAL`).
-- Next step: the TestPyPI dry run (see (b) and
-  `docs/RELEASING.md`), then a merge of
-  `feature/distribution-init` into `sanctuary`. Rob confirmed
-  2026-11-28 to do the dry run first. Do not open a sanctuary merge
-  PR until that dry run is done. The release workflow is added on
-  `feature/testpypi-release`; dispatch it from
-  `feature/distribution-init` after that PR is merged.
-- [PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) is
-  do-not-merge. Leave it alone. It is already open from
-  `feature/distribution-init` into `sanctuary` (head `6fee477`, base
-  `502a078`), so it now contains the full distribution work. GitHub
-  will not accept a second open PR with the same head and base. A
-  later sanctuary merge will need a new branch, or Rob's decision on
-  #4. Do not retitle, close, draft, or merge #4 unless Rob says so.
-- Branch names for new work: `feature/...` or `bugfix/...` only. Rob
-  always merges, using the ruleset bypass checkbox when required.
+- Branch names for new work: `feature/...` or `bugfix/...` only,
+  cut from `development`. Rob always merges, using the ruleset
+  bypass checkbox when required.
 - Version: `0.3.0` (root `VERSION` file).
+- TestPyPI: `ai-paladin` 0.3.0 is at
+  https://test.pypi.org/project/ai-paladin/ . Production PyPI has
+  not been published yet.
 
 ## Work queue (in order)
 
@@ -82,8 +79,7 @@ The steps below stay as the procedure for the next rebuild.
 
 **Safe command (manual only; does not touch a pitch deck)**
 
-From the repository root, on a `feature/` branch off
-`feature/distribution-init`:
+From the repository root, on a `feature/` branch off `development`:
 
 ```bash
 ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh --manual
@@ -115,69 +111,30 @@ changes; do not commit them. Pitch decks are never edited by agents.
 
 **Commit and PR**
 
-Open a new `feature/` branch from `feature/distribution-init` and a
-PR into `feature/distribution-init`. Rob reviews and merges.
+Open a new `feature/` branch from `development` and a PR into
+`development`. Rob reviews and merges.
 
 ### (b) TestPyPI dry run
 
-**This is the next step.** PR #10 (including the v0.3.0 manual PDF)
-is already merged into `feature/distribution-init`. Do this before
-merging distribution into `sanctuary`. Only Rob can create the
-TestPyPI account, the GitHub environments, and the Trusted
-Publisher, and only Rob dispatches the upload. Agents must not
-upload, must not create accounts, and must not be given a token.
-The workflow uses Trusted Publishing (OIDC); there is no stored
-API token.
+**Done 2026-11-28.** GitHub Actions
+[run 46163165656](https://github.com/cacherefresh/AI-Paladin/actions/runs/46163165656)
+published `ai-paladin` 0.3.0 (wheel and sdist) to TestPyPI. A clean
+virtual environment install was verified: `ai-paladin --version`
+printed `ai-paladin 0.3.0`, `--help` exited 0, and
+`ai-paladin-hook --status` exited 0. The production PyPI job was
+skipped, as intended.
 
-The click-by-click steps are in **`docs/RELEASING.md`**. A short
-summary:
+The first `workflow_dispatch` attempt could not start until
+`release.yml` existed on the default branch. PR #13 put that file
+on sanctuary so the workflow could be registered. The Lead Engineer
+GitHub App has no permission to start workflow runs, on purpose, so
+only Rob starts a release from the Actions tab.
 
-1. Create a TestPyPI account at https://test.pypi.org and enable 2FA.
-   A TestPyPI account is not a PyPI account.
-2. In the GitHub repo, create environments named exactly `testpypi`
-   and `pypi`. On `pypi`, add yourself as a required reviewer.
-3. Add a pending Trusted Publisher at
-   https://test.pypi.org/manage/account/publishing/:
-   project `ai-paladin`, owner `cacherefresh`, repository
-   `AI-Paladin`, workflow `release.yml`, environment `testpypi`.
-4. After the release workflow PR has merged into
-   `feature/distribution-init`, dispatch it from that branch
-   (the file has to be on the branch that runs it):
-
-```bash
-gh workflow run release.yml \
-  --repo cacherefresh/AI-Paladin \
-  --ref feature/distribution-init \
-  -f target=testpypi
-```
-
-   The Actions tab may not list this workflow until it also exists
-   on `sanctuary`, so `gh` is the reliable way to start it now.
-
-5. In a clean virtual environment, install that upload and check the
-   commands. PyYAML is pulled from the real PyPI index because it may
-   not be on TestPyPI:
-
-```bash
-python3 -m venv /tmp/ai-paladin-testpypi
-/tmp/ai-paladin-testpypi/bin/pip install \
-  -i https://test.pypi.org/simple/ \
-  --extra-index-url https://pypi.org/simple/ \
-  ai-paladin==0.3.0
-/tmp/ai-paladin-testpypi/bin/ai-paladin --version
-/tmp/ai-paladin-testpypi/bin/ai-paladin --help
-/tmp/ai-paladin-testpypi/bin/ai-paladin-hook --status
-```
-
-`--version` should print `ai-paladin 0.3.0`. `--help` should exit 0.
-`ai-paladin-hook --status` should exit 0 (it may say the hook is not
-installed, which is expected in a clean venv).
-
-TestPyPI will not accept a second upload of version 0.3.0. If a redo
-is needed, do not change the committed `VERSION` file (it must stay
-`X.Y.Z`, and the VS Code extension must match it). Re-dispatch with
-`-f prerelease=rc1` to upload `0.3.0rc1` instead. Details are in
-`docs/RELEASING.md`.
+The click-by-click steps for a later TestPyPI upload (or a redo)
+are in **`docs/RELEASING.md`**. TestPyPI will not accept a second
+upload of version 0.3.0. If a redo is needed, do not change the
+committed `VERSION` file (it must stay `X.Y.Z`). Re-dispatch with
+`prerelease=rc1` to upload `0.3.0rc1` instead.
 
 A later production PyPI release uses the same workflow on a `v0.3.0`
 tag, after the `pypi` Trusted Publisher is registered, and waits for
@@ -185,47 +142,44 @@ Rob's approval on the `pypi` environment. That is not this step.
 
 ### (c) Merge `feature/distribution-init` into `sanctuary`
 
-After the TestPyPI dry run looks good, Rob opens (or accepts) a PR
-from the distribution work into `sanctuary` and merges it himself,
-using the bypass checkbox if the ruleset requires it. Bots do not
-merge, and they must not open that PR until the dry run is done.
+**Done 2026-11-28.** Rob retitled and merged
+[PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) into
+sanctuary after the TestPyPI dry run. sanctuary and `development`
+are at `d53c3c3`.
 
-See the PR #4 note in Current state: #4 already uses this head and
-base and is do-not-merge. Leave it alone. The merge PR will need a
-new branch, or Rob's decision on #4.
+### (d) Rob creates the `development` branch
 
-### (d) Rob creates the `DEVELOPMENT` branch
-
-After distribution has merged into `sanctuary`, Rob creates
-`DEVELOPMENT`. The branch ruleset will lock it automatically. Later
-feature work PRs into `DEVELOPMENT`, which then flows into
-`sanctuary`.
+**Done 2026-11-28.** The branch is `development` (lowercase), cut
+from sanctuary at `d53c3c3`. Later feature work PRs into
+`development`, which then flows into `sanctuary` when Rob promotes
+it. The earlier working name `DEVELOPMENT` (all caps) is not used.
 
 ### (e) VS Code extension
 
-One platform at a time: the pip package first (this distribution
-branch), then the VS Code extension on its own `feature/` branch,
-then the Ubuntu PPA. Remaining Marketplace work is listed in
-`DISTRIBUTION/CHECKLIST.md` section 2 (icon, licence copy, local
-`.vsix` install, Rob's publisher registration and publish). The
-extension version in `vscode/ai-paladin/package.json` must keep
-matching the root `VERSION` file (today 0.3.0).
+**This is the next step.** One platform at a time: the pip package
+is on TestPyPI, then the VS Code extension on its own `feature/`
+branch off `development`, then the Ubuntu PPA. Remaining
+Marketplace work is listed in `DISTRIBUTION/CHECKLIST.md` section 2
+(icon, licence copy, local `.vsix` install, Rob's publisher
+registration and publish). The extension version in
+`vscode/ai-paladin/package.json` must keep matching the root
+`VERSION` file (today 0.3.0).
 
 ### (f) Ubuntu PPA
 
 After the VS Code work, add Debian packaging on its own `feature/`
-branch. `debian/changelog` (or the same file under `packaging/`,
-`DISTRIBUTION/` or `ubuntu/`) must match the root `VERSION` file.
-`ai-paladin/tests/test_version.py` fails if they drift. Other steps
-are in `DISTRIBUTION/CHECKLIST.md` section 5. Only Rob creates the
-Launchpad account, signs the Code of Conduct, and uploads with
-`dput`.
+branch off `development`. `debian/changelog` (or the same file under
+`packaging/`, `DISTRIBUTION/` or `ubuntu/`) must match the root
+`VERSION` file. `ai-paladin/tests/test_version.py` fails if they
+drift. Other steps are in `DISTRIBUTION/CHECKLIST.md` section 5.
+Only Rob creates the Launchpad account, signs the Code of Conduct,
+and uploads with `dput`.
 
 ### (g) Required CI checks on the rulesets
 
 After the merges above, Rob adds the four CI checks as required
-status checks on the rulesets that protect `sanctuary`,
-`feature/distribution-init`, and `DEVELOPMENT` once it exists:
+status checks on the rulesets that protect `sanctuary` and
+`development`:
 
 - `tests (Python 3.12)`
 - `tests (Python 3.13)`
@@ -238,7 +192,7 @@ repository admin.
 
 ### (h) Re-run `ai-paladin-hook --install` where the hook is installed
 
-This can be done now; it does not have to wait for (a)-(g). PRs #8
+This can be done now; it does not have to wait for (e)-(g). PRs #8
 and #9 already changed install recording and hook behaviour, and
 asked for a re-install so fingerprints are stored. On each machine
 where the hook was installed:
@@ -248,6 +202,14 @@ ai-paladin-hook --install            # this project
 ai-paladin-hook --install --user     # if it was installed for every project
 ai-paladin-hook --status
 ```
+
+### (i) Production PyPI release
+
+After the `pypi` Trusted Publisher is registered (a PyPI account
+with 2FA, then a pending publisher with environment `pypi`), Rob
+publishes 0.3.0 from sanctuary by pushing a `v0.3.0` tag. The
+Release workflow waits for his approval on the `pypi` environment.
+Steps are in `docs/RELEASING.md`. Do not pass `prerelease` on a tag.
 
 ## How to run the tests
 
@@ -261,8 +223,8 @@ cd ai-paladin
 /tmp/ai-paladin-tests/bin/python -m unittest discover -s tests -v
 ```
 
-As of 2026-11-28, on `feature/testpypi-release`, that
-suite is **183 passed, 2 skipped** (185 tests run). The skips are:
+As of 2026-11-28, on `feature/development-branch-docs`, that
+suite is **184 passed, 2 skipped** (186 tests run). The skips are:
 
 - `test_debian_changelog_matches_when_present`, because there is no
   Ubuntu changelog in the tree yet.
@@ -270,17 +232,19 @@ suite is **183 passed, 2 skipped** (185 tests run). The skips are:
   `AI_PALADIN_WHEEL_TEST=1`.
 
 The two skips should remain until Debian packaging exists and until
-you opt into the wheel job. A new test on this branch would raise
-the passed count.
+you opt into the wheel job. The passed count is one higher than the
+previous suite because of an added dispatch runbook test. Confirm
+the count after you run the suite, and correct this paragraph if it
+has drifted.
 
 To also run the clean-venv wheel install (CI does this on Python
 3.12 and 3.13):
 
 ```bash
 cd ai-paladin
-AI_PALADIN_WHEEL_TEST=1 /tmp/ai-paladin-tests/bin/python \
-  -m unittest tests.test_wheel_install -v
+AI_PALADIN_WHEEL_TEST=1 /tmp/ai-paladin-tests/bin/python   -m unittest tests.test_wheel_install -v
 ```
 
 CI workflows are in `.github/workflows/ci.yml`, triggered on
-`feature/**` and on pull requests.
+`sanctuary`, `development`, `feature/**`, `bugfix/**`,
+and on pull requests.

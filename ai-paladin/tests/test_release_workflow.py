@@ -68,9 +68,10 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("prerelease", self.wf)
 
     def test_testpypi_job_is_limited_to_known_branches(self):
-        self.assertIn("refs/heads/feature/distribution-init", self.wf)
         self.assertIn("refs/heads/sanctuary", self.wf)
-        self.assertIn("refs/heads/DEVELOPMENT", self.wf)
+        self.assertIn("refs/heads/development", self.wf)
+        self.assertNotIn("refs/heads/DEVELOPMENT", self.wf)
+        self.assertNotIn("refs/heads/feature/distribution-init", self.wf)
 
 
 class ReleasingDocsTest(unittest.TestCase):
@@ -100,6 +101,14 @@ class ReleasingDocsTest(unittest.TestCase):
         self.assertIn("Do **not** change the committed `VERSION` file", self.text)
         self.assertIn("X.Y.Z", self.text)
         self.assertIn("test_version.py", self.text)
+
+    def test_runbook_explains_how_to_start_a_dispatch(self):
+        self.assertIn("default branch", self.text)
+        self.assertIn("Actions tab", self.text)
+        self.assertIn("prerelease=rc1", self.text)
+        self.assertIn("development", self.text)
+        self.assertNotIn("DEVELOPMENT", self.text)
+        self.assertNotIn("feature/distribution-init", self.text)
 
 
 class PackagingMetadataTest(unittest.TestCase):
