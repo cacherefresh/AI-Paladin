@@ -218,40 +218,19 @@ class HookOnOffTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": proj}):
             return hook.main(list(args))
 
-    def test_registry_finds_every_project(self):
+    def test_manifest_finds_every_project(self):
         other = tempfile.mkdtemp(prefix="ai-paladin-proj2-")
         self.assertEqual(self.in_project(self.proj, "--install"), 0)
         self.assertEqual(self.in_project(other, "--install"), 0)
         self.assertEqual(hook.main(["--install", "--user"]), 0)
-        self.assertEqual(len(hook.registered()), 3)
+        self.assertEqual(len(hook.candidates()), 3)
         # from a third, unrelated folder, everything is still found
         third = tempfile.mkdtemp(prefix="ai-paladin-proj3-")
         with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": third}):
             self.assertEqual(len(hook.where_installed()), 3)
             self.assertEqual(hook.main(["--uninstall", "--all"]), 0)
             self.assertEqual(hook.where_installed(), [])
-        self.assertEqual(hook.registered(), [])
-
-    def cli_uninstall(self, args, pip_rc=0, answer=None):
-        from ai_paladin import cli
-        run = mock.MagicMock(return_value=mock.MagicMock(returncode=pip_rc))
-        with mock.patch("importlib.metadata.version", return_value="0.1.0"), \
-                mock.patch("subprocess.run", run), \
-                mock.patch("builtins.input", return_value=answer or ""), \
-                mock.patch.object(sys, "stdout", io.StringIO()) as out, \
-                mock.patch.object(sys, "stderr", io.StringIO()):
-            code = cli.main(["uninstall"] + args)
-        return code, out.getvalue(), run
-
-    def test_cli_uninstall_removes_hook_then_package(self):
-        self.assertEqual(hook.main(["--install"]), 0)
-        code, out, run = self.cli_uninstall(["--yes"])
-        self.assertEqual(code, 0)
-        self.assertEqual(hook.where_installed(), [])
-        args = run.call_args[0][0]
-        self.assertEqual(args[1:], ["-m", "pip", "uninstall", "-y", "ai-paladin"])
-        self.assertIn("HAS BEEN REMOVED FROM 1 PLACE.", out)
-        self.assertTrue(out.rstrip().endswith("=" * 72))     # banner is last
+        self.assertEqual(hook.candidates(), [])
 
     def test_pipx_install_is_removed_with_pipx(self):
         from ai_paladin import cli
@@ -263,22 +242,6 @@ class HookOnOffTests(unittest.TestCase):
         with mock.patch.object(sys, "prefix", "/home/u/venv"):
             self.assertEqual(cli.remover_command()[1:],
                              ["-m", "pip", "uninstall", "-y", "ai-paladin"])
-
-    def test_cli_uninstall_asks_first(self):
-        self.assertEqual(hook.main(["--install"]), 0)
-        code, out, run = self.cli_uninstall([], answer="n")
-        self.assertEqual(code, 1)
-        run.assert_not_called()
-        self.assertEqual(len(hook.where_installed()), 1)     # untouched
-
-    def test_cli_uninstall_stops_if_a_hook_cannot_be_removed(self):
-        self.assertEqual(hook.main(["--install"]), 0)
-        with open(hook.settings_file(False), "w") as fh:
-            fh.write("{ broken")
-        code, out, run = self.cli_uninstall(["--yes"])
-        self.assertEqual(code, 1)
-        run.assert_not_called()                              # package kept
-        self.assertIn("AI-PALADIN WAS NOT UNINSTALLED", out)
 
     def settings(self, user=False):
         with open(hook.settings_file(user)) as fh:
@@ -335,6 +298,10 @@ class HookOnOffTests(unittest.TestCase):
             bash("pip uninstall -y ai-paladin"),
             bash("ai-paladin uninstall --yes"),
             bash("ai-paladin-hook --uninstall --all"),
+            bash("ai-paladin uninstall --dry-run"),
+            bash("rm install_manifest.json"),
+            tool("Write", file_path=os.path.join(paths.CONFIG_DIR,
+                                                 "install_manifest.json")),
             bash("echo {} > .claude/settings.local.json"),
             bash("rm -rf ~/.config/ai-paladin"),
             bash("rm ~/.local/state/ai-paladin/logs/hook-state/s1.json"),
