@@ -54,8 +54,8 @@ settings.
 No build step. From this directory:
 
 ```bash
-npx @vscode/vsce package        # produces ai-paladin-0.1.0.vsix
-code --install-extension ai-paladin-0.1.0.vsix
+npx @vscode/vsce package        # produces ai-paladin-0.3.0.vsix
+code --install-extension ai-paladin-0.3.0.vsix
 ```
 
 Or press <kbd>F5</kbd> in this folder to launch an Extension Development Host

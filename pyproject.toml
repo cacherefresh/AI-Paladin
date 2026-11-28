@@ -37,7 +37,7 @@ ai-paladin-hook = "ai_paladin.hook:main"
 
 
 [tool.setuptools.dynamic]
-version = {attr = "ai_paladin.__version__"}
+version = {file = "VERSION"}
 
 # Listed rather than discovered, because ai_paladin._shipped is not a code
 # package: it is ai-paladin/ itself, mapped in so its data files can be

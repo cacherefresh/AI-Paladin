@@ -41,7 +41,7 @@ from ai_paladin.security import egress_guard
 from ai_paladin.server import api_guard
 from ai_paladin.router.classifier import CORPORA, Config, list_corpus_files
 
-from ai_paladin import config_layers
+from ai_paladin import __version__, config_layers
 from ai_paladin.paths import CONFIG_DIR, LOG_DIR, shipped, user_config
 UI_DIR = shipped("ui", "demo")
 PORT = int(os.environ.get("PALADIN_PORT", "8722"))
@@ -513,7 +513,7 @@ def execute(decision: dict, prompt: str, corpus_id: str):
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "AI-Paladin/0.1"
+    server_version = "AI-Paladin/" + __version__
 
     def log_message(self, fmt, *args):
         pass  # keep the demo console clean

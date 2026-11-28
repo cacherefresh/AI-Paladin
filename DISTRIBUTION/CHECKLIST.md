@@ -28,7 +28,7 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [x] Uninstall order is told everywhere a user can meet it (2026-11-24):
       root README "Uninstalling" (also the PyPI page), the VS Code extension's README, `ai-paladin-hook --install` output, hooks/README.md, and the user manual (page 15)
 - [x] A leftover hook entry explains itself: if AI-Paladin was removed first, Claude Code's refusal names the settings file to fix and the `--uninstall` command (2026-11-24)
-- [x] `ai-paladin uninstall` (2026-11-28, supersedes the 2026-11-24 version that ran pip itself): run BEFORE `pip uninstall ai-paladin`. `--install` records what it added (file, entry, SHA-256 fingerprint) and any equivalent entry already present in `install_manifest.json` (config folder). Uninstall lists each entry, asks "Do you want me to remove the hooks I added outside of python?(Y/n)" (default Yes), removes only recorded unchanged entries (not a snapshot revert), keeps pre-existing and later-added hooks, flags edited entries (MODIFIED, kept), then tells the person to run pip (or pipx) uninstall. Options `--yes`, `--dry-run`, `--remove-modified`. Documented in root README, hooks/README.md, the VS Code README and the user manual (page 15; rebuild the PDF with `USER_CONFIG/build_pdfs.sh`)
+- [x] `ai-paladin uninstall` (2026-11-28, supersedes the 2026-11-24 version that ran pip itself): run BEFORE `pip uninstall ai-paladin`. `--install` records what it added (file, entry, SHA-256 fingerprint) and any equivalent entry already present in `install_manifest.json` (config folder). Uninstall lists each entry, asks "Do you want me to remove the hooks I added outside of python?(Y/n)" (default Yes), removes only recorded unchanged entries (not a snapshot revert), keeps pre-existing and later-added hooks, flags edited entries (MODIFIED, kept), then tells the person to run pip (or pipx) uninstall. Options `--yes`, `--dry-run`, `--remove-modified`. Documented in root README, hooks/README.md, the VS Code README and the user manual (page 15; rebuild the PDF with `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh`)
 - [x] Tests pass after the move (23/23), and the router boots, passes its egress self-test and pins protected prompts on-prem (2026-11-22)
 - [ ] **(Rob)** Full `./run_demo.sh` with Ollama, to confirm the demo end to end
 
@@ -55,7 +55,7 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [ ] **(Rob)** Create the PyPI organisation `cacherefresh`
 - [ ] **(Rob)** Register the Trusted Publisher on PyPI: repository `cacherefresh/AI-Paladin`, the release workflow's file name
 - [ ] **(Rob)** Optional dry run on TestPyPI first
-- [ ] **(Rob)** Tag and push the first release, which publishes `ai-paladin` 0.1.0 and claims the name
+- [ ] **(Rob)** Tag and push the first release, which publishes `ai-paladin` 0.3.0 and claims the name
 
 PyPI only lets you claim a name with a real, working release. An empty
 placeholder can be taken back under its name-squatting policy.

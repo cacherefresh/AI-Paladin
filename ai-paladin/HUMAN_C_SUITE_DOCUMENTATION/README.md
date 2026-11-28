@@ -1,28 +1,66 @@
 # HUMAN_C_SUITE_DOCUMENTATION
 
-Executive-facing material for AI-Paladin. Everything here is generated from a
-real run of the working prototype — no mockups, no illustrations.
+The one home for executive-facing material for AI-Paladin: the pitch
+deck and the configuration manual. Everything in the pitch deck is
+generated from a real run of the working prototype: no mockups, no
+illustrations.
+
+There is exactly one copy of each version. Do not add a second tree
+elsewhere in the repository.
+
+## Layout
+
+```
+HUMAN_C_SUITE_DOCUMENTATION/
+  build_pdfs.sh          rebuilds PDFs under latest/ only
+  PITCH_DECK/
+    CHANGES.md
+    latest/              the newest deck itself (today: v0.2)
+      VERSION            reads 0.2
+      PITCH_DECK.html
+      PITCH_DECK.pdf
+      screenshots/
+    v0.1/                frozen
+  USER_CONFIG/
+    CHANGES.md
+    latest/              the newest manual itself (today: v0.3.0)
+      VERSION            reads 0.3.0
+      USER_CONFIG_MANUAL.html
+      USER_CONFIG_MANUAL.pdf
+    v0.2/                frozen
+```
+
+`latest/` is not a copy of a version folder. It *is* the current
+version. There is no `PITCH_DECK/v0.2/` folder while latest is v0.2:
+when a v0.3 pitch deck is written, `git mv latest v0.2` and create a
+new `latest/`. The same move applies to the manual.
+
+Frozen folders are never edited. Pitch decks (including the one in
+`latest/`) are never edited by agents. Rebuild the configuration manual PDF with
+`./build_pdfs.sh --manual`; it will not overwrite a frozen PDF and will not touch a pitch deck.
+
+A short pointer at the repo-root `USER_CONFIG/README.md` leads here.
 
 ## Contents
 
-The pitch deck is versioned. Each version folder is self-contained - the HTML
-and the screenshots it references sit together, so an older deck still renders
-exactly as it was presented, even after screenshots are re-captured for a
-newer one.
-
 | Path | What it is |
 |---|---|
-| `PITCH_DECK/v0.1/` | The deck before the multi-model / internet-access branch. 32 slides. Frozen - do not edit. |
-| `PITCH_DECK/v0.1/PITCH_DECK.pdf` | The last exported PDF. **Older than v0.1's HTML** (29 pages, exported 2026-08-12), so it is missing the slides added after that date. |
-| `PITCH_DECK/v0.2/` | The current deck. 34 slides, light business theme. Adds the internet-access slides (LLM / RAG / bot, and HTTP method enforcement) and print CSS so each slide is one A4 page. Open `PITCH_DECK.html` in any browser; arrow keys or space to navigate, dots at the bottom jump to a slide. **No PDF yet** - export one (see Regenerating). |
-| `PITCH_DECK/<version>/screenshots/` | Captures of the live demo used by that version. 01-15 are the whole application window at 3120x1880 (retina) - no desktop, no browser chrome. v0.2's 16-18 are cropped from captures taken the same way, to the internet-access control only. |
+| `PITCH_DECK/latest/` | The current overview deck, v0.2. 34 slides, light business theme. Adds the internet-access slides (LLM / RAG / bot, and HTTP method enforcement) and print CSS so each slide is one A4 page. Open `PITCH_DECK.html` in any browser; arrow keys or space to navigate, dots at the bottom jump to a slide. |
+| `PITCH_DECK/latest/PITCH_DECK.pdf` | The exported PDF for v0.2. |
+| `PITCH_DECK/v0.1/` | The deck before the multi-model / internet-access branch. 32 slides. Frozen: do not edit. |
+| `PITCH_DECK/v0.1/PITCH_DECK.pdf` | The last exported PDF. Older than v0.1's HTML (29 pages, exported 2026-08-12), so it is missing the slides added after that date. |
+| `USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf` | The current configuration manual, v0.3.0 (`USER_CONFIG_MANUAL.html` is the source). Where settings live, every default and how to change it, the hook and the uninstaller. Rebuild with `./build_pdfs.sh --manual`. |
+| `USER_CONFIG/v0.2/` | The previous manual, frozen: `USER_CONFIG_DECK.html` and `USER_CONFIG_DECK.pdf` (those older filenames are kept). The PDF was last built on 2026-11-24. |
+| `PITCH_DECK/CHANGES.md`, `USER_CONFIG/CHANGES.md` | What changed as each set increment. |
 
-To start a new version, copy the latest folder to the next number and edit the
-copy. Leave released versions as they are.
+Each version folder is self-contained: the HTML and the screenshots it
+references sit together, so an older deck still renders exactly as it
+was presented.
 
 ## The screenshots
 
-Paths below are relative to a version's `screenshots/` folder.
+Paths below are relative to a pitch-deck version's `screenshots/`
+folder.
 
 Captured in one continuous session against the running prototype, so the
 latency card and counters accumulate coherently across the sequence.
@@ -100,8 +138,14 @@ everything else in the room. One who is told up front will credit the rest.
 
 ## Regenerating
 
-Screenshots and PDF are produced by driving the live prototype in a headless
-browser. Start the demo first (`./run_demo.sh` in `ai-paladin/`), then
-re-run the capture into the version folder you are editing. After editing that
-version's `PITCH_DECK.html`, re-export its PDF into the same folder via
-your browser's Print → Save as PDF (A4, landscape, background graphics on).
+Screenshots and a new pitch-deck version are produced by driving the live
+prototype in a headless browser. Start the demo first (`./run_demo.sh` in
+`ai-paladin/`), then capture into a new `latest/` (after moving the
+previous latest to a frozen folder). Agents must not edit an existing
+pitch deck.
+
+After editing the configuration manual in `USER_CONFIG/latest/`, rebuild
+its PDF with `./build_pdfs.sh --manual`. That invocation will not
+overwrite frozen PDFs and will not touch a pitch deck. A plain
+`./build_pdfs.sh` also keeps an existing `PITCH_DECK/latest` PDF unless
+you pass that HTML path explicitly.

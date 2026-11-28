@@ -118,9 +118,9 @@ table.dense th{font-size:8.5px}
   <h2>Three folders, never mixed</h2>
   <table>
     <tr><th>Folder</th><th>Normal install</th><th>Demo (<code>./run_demo.sh</code>, <code>--demo</code>)</th><th>Move it with</th><th>Who writes it</th></tr>
-    <tr><td>Shipped defaults</td><td><code>ai-paladin/router/</code>, <code>agents/</code>, <code>models/</code></td><td>same</td><td>&mdash;</td><td>Nobody at run time. Read-only.</td></tr>
-    <tr><td>Your settings</td><td><code>~/.config/ai-paladin/</code></td><td><code>ai-paladin/config/</code></td><td><code>AI_PALADIN_CONFIG_DIR</code></td><td>You, and the dashboard's model picker</td></tr>
-    <tr><td>Audit logs</td><td><code>~/.local/state/ai-paladin/logs/</code></td><td><code>ai-paladin/logs/</code></td><td><code>AI_PALADIN_LOG_DIR</code></td><td>The router, append-only</td></tr>
+    <tr><td>Shipped defaults</td><td><code>ai-org-router/router/</code>, <code>agents/</code>, <code>models/</code></td><td>same</td><td>&mdash;</td><td>Nobody at run time. Read-only.</td></tr>
+    <tr><td>Your settings</td><td><code>~/.config/ai-paladin/</code></td><td><code>ai-org-router/config/</code></td><td><code>AI_PALADIN_CONFIG_DIR</code></td><td>You, and the dashboard's model picker</td></tr>
+    <tr><td>Audit logs</td><td><code>~/.local/state/ai-paladin/logs/</code></td><td><code>ai-org-router/logs/</code></td><td><code>AI_PALADIN_LOG_DIR</code></td><td>The router, append-only</td></tr>
   </table>
   <div class="grid g2" style="margin-top:14px">
     <div>
@@ -206,7 +206,7 @@ protected      23 terms in 4 groups, 4 paths
       logic" for "pricing engine"); the misspelling gate catches "pricng engnie". Both can only
       <strong>add</strong> a match, never clear one.</p></div>
     <div class="card"><h3>The demo's terms</h3><p>nightjar, pricing engine, unreleased earnings and the rest
-      are not defaults. They live in the demo overlay, <code>ai-paladin/config/keywords.yaml</code>.</p></div>
+      are not defaults. They live in the demo overlay, <code>ai-org-router/config/keywords.yaml</code>.</p></div>
   </div>
 </section>
 
@@ -299,7 +299,7 @@ protected      23 terms in 4 groups, 4 paths
     <div>
       <h3>How to start</h3>
       <pre><span class="k">$ mkdir -p ~/.config/ai-paladin</span>
-<span class="k">$ cp ai-paladin/router/policy.yaml ~/.config/ai-paladin/</span>
+<span class="k">$ cp ai-org-router/router/policy.yaml ~/.config/ai-paladin/</span>
 <span class="c"># edit your copy, then restart</span>
 <span class="k">$ ai-paladin --where</span>
   policy.yaml   user   1c0e9b2a77d4  ~/.config/ai-paladin/policy.yaml</pre>
@@ -444,7 +444,7 @@ protected      23 terms in 4 groups, 4 paths
   <div class="grid g3" style="margin-top:14px">
     <div class="card"><h3>Never in git</h3><p>Logs record what people type. They live in your log folder
       and are gitignored in the demo. Back them up from the machine, not from a repository.</p></div>
-    <div class="card"><h3>A sample to read</h3><p><code>ai-paladin/logs.example/</code> holds a reviewed demo
+    <div class="card"><h3>A sample to read</h3><p><code>ai-org-router/logs.example/</code> holds a reviewed demo
       session. <code>./run_demo.sh --with-sample-logs</code> copies it into an <em>empty</em> log folder &mdash;
       never ahead of real records.</p></div>
     <div class="card"><h3>Where the sample ends</h3><p>Each sample file ends with a
@@ -497,9 +497,9 @@ protected      23 terms in 4 groups, 4 paths
     <table class="dense">
       <tr><th>Rule</th><th>File</th><th>Refuses</th></tr>
       <tr><td>Blocked commands</td><td><code>commands.yaml</code></td><td><code>rm -rf /</code>, <code>curl … | bash</code>, <code>nc -l</code>, <code>history -c</code>, encryption tools</td></tr>
-      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File-tool writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code>. Shell and script writes: the deny list only, unless <code>shell_writes_enforce_allow: true</code> in <code>hook.yaml</code> (opt-in)</td></tr>
+      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code></td></tr>
       <tr><td>Packages</td><td><code>packages.yaml</code></td><td>Installs not on the allowlist, unpinned, or from URLs / files</td></tr>
-      <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code> &mdash; also in scripts the agent runs; <code>scripts_may_read_env_files: true</code> in <code>hook.yaml</code> lets script files name <code>.env</code> (opt-in)</td></tr>
+      <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code></td></tr>
       <tr><td>mass-file-touch</td><td><code>behavioral_rules.yaml</code></td><td>Writes past 200 in 60 s</td></tr>
       <tr><td>fence-probing</td><td><code>behavioral_rules.yaml</code></td><td><strong>Everything</strong>, after more than 3 refusals, until a person releases the session</td></tr>
       <tr><td>hook-tamper</td><td><code>behavioral_rules.yaml</code></td><td>The agent switching the guard off: editing Claude's settings or AI-Paladin's config, <code>--release</code>, <code>--uninstall</code></td></tr>
@@ -510,14 +510,13 @@ protected      23 terms in 4 groups, 4 paths
 <span class="k">$ ai-paladin-hook --install --user</span>   <span class="c"># every project</span>
 <span class="k">$ ai-paladin-hook --status</span>
 <span class="k">$ ai-paladin-hook --release SESSION_ID</span>
-<span class="k">$ ai-paladin uninstall</span>             <span class="c"># 1st: removes the hooks it added, then</span>
-<span class="k">$ pip uninstall ai-paladin</span>         <span class="c"># 2nd: removes the package</span></pre>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># removes it all</span></pre>
       <p class="note" style="margin-top:8px"><strong>Independent of the router</strong>: stopping the router does
       not switch it off &mdash; otherwise that would be the way past every rule. Fails closed: if the hook cannot
       run at all, the call is refused and Claude Code shows how to recover (next slide). Every
       decision is written to <code>hooks.jsonl</code> in your log folder. Each rule's <code>enforced:</code> line
       in <code>behavioral_rules.yaml</code> says exactly what it covers. Full guide:
-      <code>ai-paladin/hooks/README.md</code>.</p>
+      <code>ai-org-router/hooks/README.md</code>.</p>
     </div>
   </div>
 </section>
@@ -549,12 +548,11 @@ protected      23 terms in 4 groups, 4 paths
 <span class="k">$ ai-paladin-hook --uninstall</span>
 <span class="k">$ ai-paladin-hook --uninstall --all</span>
 
-<span class="c"># 4. remove AI-Paladin - ai-paladin uninstall FIRST, then pip.</span>
-<span class="c">#    NOT a plain pip uninstall.</span>
-<span class="k">$ ai-paladin uninstall</span>             <span class="c"># asks: Do you want me to remove the hooks I added outside of python?(Y/n)</span>
-<span class="k">$ pip uninstall ai-paladin</span>         <span class="c"># it tells you to run this next</span></pre>
+<span class="c"># 4. remove AI-Paladin - hook everywhere first, then</span>
+<span class="c">#    the package. NOT a plain pip uninstall.</span>
+<span class="k">$ ai-paladin uninstall</span></pre>
       <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
-      your project: <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --install</code></p>
+      your project: <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --install</code></p>
     </div>
     <div>
       <div class="card" style="margin-bottom:9px"><h3>Where --install writes</h3><p>This project:
@@ -566,18 +564,12 @@ protected      23 terms in 4 groups, 4 paths
         <h3>Why not a plain pip uninstall?</h3><p>pip runs nothing while removing a package, so it cannot take
         the hook out or warn you. A hook that cannot start <strong>refuses</strong> the call, so a leftover entry
         makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
-        Every <code>--install</code> records exactly what it added (file, hook entry, fingerprint) in
-        <code>install_manifest.json</code> in <code>~/.config/ai-paladin</code>. <code>ai-paladin uninstall</code>
-        lists those entries, asks <em>Do you want me to remove the hooks I added outside of python?(Y/n)</em>
-        (Enter = yes), removes only them, and then tells you to run <code>pip uninstall ai-paladin</code>
-        (<code>pipx uninstall</code> if that is how you installed it). It is not a snapshot revert: a hook that was
-        already there before install, or that someone added since, stays; an entry of ours you edited after install
-        is flagged <strong>MODIFIED</strong> and kept unless you say otherwise. <code>--dry-run</code> lists
-        without changing anything; <code>--yes</code> skips the question. It stops without changing anything if a
-        settings file cannot be read.</p></div>
+        <code>ai-paladin uninstall</code> finds every recorded install, removes the hook from each, stops if any
+        cannot be removed, then uninstalls (via pipx if that is how it was installed) and ends with an
+        all-caps confirmation.</p></div>
       <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
         Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
-        <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --uninstall</code> (add
+        <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --uninstall</code> (add
         <code>--user</code> if you installed it for every project). Folder gone too? Delete the
         <code>pre_tool_use.py</code> entry under <code>hooks.PreToolUse</code> in the settings file by hand.</p></div>
       <div class="card ok"><h3>Why stopping the router does not switch it off</h3><p>If it did, stopping the

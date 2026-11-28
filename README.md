@@ -43,7 +43,7 @@ is planned in [DISTRIBUTION/](DISTRIBUTION/).
 ## Settings
 
 The full configuration manual, with every default and how to change it, is
-[USER_CONFIG/USER_MANUAL/USER_CONFIG_DECK.pdf](USER_CONFIG/USER_MANUAL/USER_CONFIG_DECK.pdf).
+[ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf](ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf).
 
 Every setting below is a file or a dashboard control. Files under `router/`
 are **enforcement, not documentation** - edit them to change policy, never to

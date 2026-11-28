@@ -20,7 +20,7 @@ python3 bench/make_chart.py     # re-render the chart
 ```
 
 Then paste the new `scaling_chart.svg` over the `<svg>` block on the scaling
-slide of the current deck, `HUMAN_C_SUITE_DOCUMENTATION/PITCH_DECK/v0.2/PITCH_DECK.html`.
+slide of the current deck, `HUMAN_C_SUITE_DOCUMENTATION/PITCH_DECK/latest/PITCH_DECK.html`.
 
 ## Why bandwidth, not FLOPs
 
