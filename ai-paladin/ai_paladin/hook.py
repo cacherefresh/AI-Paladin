@@ -395,6 +395,23 @@ def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
                          use_allow=False)
 
 
+_MCP_PATH_KEY = re.compile(r"(path|file|filename|dir|directory|dest|"
+                           r"destination|source|target)s?$", re.I)
+_MCP_WRITE_TOOL = re.compile(r"write|edit|create|delete|remove|move|rename|"
+                             r"mkdir|upload|save|append|patch|put|copy", re.I)
+
+
+def _mcp_paths(ti: dict) -> list:
+    out = []
+    for k, v in ti.items():
+        if not _MCP_PATH_KEY.search(str(k)):
+            continue
+        for item in (v if isinstance(v, list) else [v]):
+            if isinstance(item, str) and item and "://" not in item:
+                out.append(item)
+    return out
+
+
 def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     """Raise Refused if the call breaks a rule. No state; the only I/O is
     resolving paths and reading a script a Bash command would run."""
@@ -413,6 +430,16 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
 
     paths = [ti.get(k) for k in ("file_path", "notebook_path", "path")
              if ti.get(k)]
+    writes = tool in WRITE_TOOLS
+    if tool == "WebFetch":
+        url = str(ti.get("url", ""))
+        if url.lower().startswith("file:"):      # a local file, by URL
+            paths = [re.sub(r"^file:(//[^/]*)?", "", url, flags=re.I)]
+    elif tool.startswith("mcp__"):
+        # An MCP server's tool: any argument that names a file is checked
+        # like Read's path; a tool whose name says it writes, like Write's.
+        paths = _mcp_paths(ti)
+        writes = bool(_MCP_WRITE_TOOL.search(tool.split("__")[-1]))
     for p in paths:
         real = _real(p, cwd)
         if is_credential_path(real, cred_globs) or is_credential_path(p, cred_globs):
@@ -420,7 +447,7 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     if tool == "Glob" and _CRED_IN_SHELL.search(" " + str(ti.get("pattern", ""))):
         raise Refused("credential-path-access", "glob pattern targets a "
                       "credential location")
-    if tool in WRITE_TOOLS:
+    if writes:
         for p in paths:
             real = _real(p, cwd)
             if _protected(real):
@@ -480,7 +507,8 @@ def decide(call: dict) -> tuple:
     ti = call.get("tool_input") or {}
     detail = str(ti.get("command") or ti.get("file_path") or
                  ti.get("notebook_path") or ti.get("path") or
-                 ti.get("pattern") or "")[:300]
+                 ti.get("pattern") or ti.get("url") or ti.get("query") or
+                 ti.get("description") or "")[:300]
     state = _load_state(session)
     rule, reason = None, None
 
@@ -525,7 +553,13 @@ def decide(call: dict) -> tuple:
 # turning it on and off: Claude Code's settings
 # ---------------------------------------------------------------------------
 
-MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob"
+# Claude Code calls the hook only for tools this matches (a regex). Beyond the
+# file and shell tools: WebFetch / WebSearch, Task / Agent (subagents) and
+# every MCP tool, so each is logged, counts toward fence-probing, stops when
+# a session is paused, and has its paths checked. An install made before
+# this list grew keeps its old matcher until `--install` is run again.
+MATCHER = ("Bash|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob"
+           "|WebFetch|WebSearch|Task|Agent|mcp__.*")
 
 
 def settings_file(user: bool) -> str:
