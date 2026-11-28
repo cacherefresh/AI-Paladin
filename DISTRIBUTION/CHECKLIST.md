@@ -48,8 +48,8 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 ## 3. PyPI
 
 - [x] Minimal `pyproject.toml` at the repo root: name, licence, PyYAML, the `ai-paladin` command; editable install tested (2026-11-24)
-- [ ] Ship the defaults inside the package (router/*.yaml, agents/, models/, ui/, demo/) so a wheel works, not just an editable install
-- [ ] Build locally (`python3 -m build`) and install the wheel into a clean virtual environment to test it
+- [x] Ship the defaults inside the package (router/*.yaml, agents/, models/, ui/, demo/) so a wheel works, not just an editable install - as `ai_paladin/_shipped/` package data (2026-11-27)
+- [x] Build the wheel and install it into a clean virtual environment to test it - `ai-org-router/tests/wheel_smoke.py`, run by CI on Python 3.12 and 3.13 (2026-11-27)
 - [ ] Add a GitHub Actions release workflow using Trusted Publishing - no stored upload key
 - [ ] **(Rob)** Create a PyPI account with two-factor authentication
 - [ ] **(Rob)** Create the PyPI organisation `cacherefresh`

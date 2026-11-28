@@ -89,10 +89,11 @@ These are blockers for PyPI and Ubuntu alike. They are tracked in the checklist.
    `keywords.yaml` is an overlay (add or remove by name; removals reported as
    WEAKENED); `policy.yaml`, `roster.yaml` and `catalog.yaml` are replaced
    whole by a user copy. See the root README, "Where settings live".
-4. **Still open: the shipped defaults sit beside the code, not inside the
-   package.** An editable install works; a wheel would not carry them. The
-   `ai-paladin` command refuses to start without them. Part of the PyPI
-   work.
+4. ~~**The shipped defaults sit beside the code, not inside the
+   package.**~~ **Done 2026-11-27.** The wheel carries them as package data
+   under `ai_paladin/_shipped/`; the repository keeps them where they are.
+   `ai-org-router/tests/wheel_smoke.py` builds the wheel, installs it into a
+   clean virtual environment and boots the router from it.
 
 ## Ubuntu
 
