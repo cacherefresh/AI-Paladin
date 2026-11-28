@@ -116,4 +116,6 @@ Planned for **Ubuntu 24.04 LTS** through a Launchpad PPA,
 - **Files:** shipped defaults in `/usr/share/ai-paladin/`, your overrides in
   `~/.config/ai-paladin/`, logs in `~/.local/state/ai-paladin/`.
 
+The Ubuntu package version must match the repo-root `VERSION` file, the same number pip and the VS Code extension use. When Debian packaging is added, the first entry in `debian/changelog` (or `packaging/debian/changelog`, `DISTRIBUTION/debian/changelog`, `ubuntu/debian/changelog`) is the source the test reads. `ai-paladin/tests/test_version.py` fails if they drift. There is no Ubuntu packaging in the tree yet.
+
 Steps are in [CHECKLIST.md](CHECKLIST.md#5-ubuntu-launchpad-ppa).
