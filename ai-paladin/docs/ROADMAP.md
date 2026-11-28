@@ -548,7 +548,8 @@ for:
 > misbehaving agent can ignore "please don't delete files"; it cannot ignore
 > a PreToolUse script exit 2.*
 
-(Guardrail, not wall: the hook is advisory today - see section 9.)
+(Guardrail, not wall: the hook is a hardened guardrail, not a security
+boundary - see section 9.)
 
 A Claude Code hook is therefore the honest place to intercept — no proxy, no
 man-in-the-middle, and it is the same deterministic enforcement primitive the
@@ -726,19 +727,23 @@ one is a goal, recorded here as design intent.
 
 ### Where it stands
 
-- 11 known bypasses are pinned as expected failures in
-  `tests/test_hook_bypasses.py`. They are documented known limits; each states
-  what the hook *should* refuse and passes today only as an `expectedFailure`.
-- The hook matches what a tool call or shell command *names*, not what it
-  *does*. Variables, aliases, encodings, scripts that write protected files
-  without naming them, and Bash file writes outside the write scope get through.
+- Stage 1 is done: the 11 bypasses pinned in `tests/test_hook_bypasses.py`
+  are closed (branch `bugfix/hook-bypasses`, one commit per root cause) and
+  pass as regression tests, with wider coverage in
+  `tests/test_hook_hardening.py`. The hook also refuses agent edits to the
+  policy files (`tests/test_policy_file_guard.py`).
+- The hook now resolves what a call touches - nested shells, quoting,
+  variables, `cd`, symlinks, files written by Bash, by interpreter code and
+  by agent-written scripts - but it still reads code rather than running it.
+  Anything decided at run time (a computed path, a decoded string, an
+  imported module, a program that writes files itself) gets through.
 - An app-level hook runs in the same user space as the thing it guards, so
   hardening it can shrink the gap but cannot close it.
 
 ### The goal, in two stages
 
-1. **Harden the hook.** Close every known bypass in its own `bugfix/` PR, before
-   the distribution branch merges. Resolve where a command actually lands
+1. **Harden the hook.** Close every known bypass on a `bugfix/` branch, one
+   commit per root cause, before the distribution branch merges. Resolve where a command actually lands
    rather than how it is spelled, and refuse agent-written scripts that touch
    protected paths. Each fix turns an `expectedFailure` into a passing test, so
    the gap shrinks visibly in CI. Afterwards the hook is described as a

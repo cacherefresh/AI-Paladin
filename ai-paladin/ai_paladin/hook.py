@@ -27,13 +27,21 @@ What it enforces (each rule's `enforced:` line in the YAML says the same):
                   versions, nothing from URLs, paths or requirement files
   behavioral_rules.yaml
                   credential-path-access, out-of-scope-path, backup-tamper,
-                  mass-file-touch, fence-probing
+                  mass-file-touch, fence-probing, hook-tamper (including
+                  AI-Paladin's own policy files)
+
+Bash commands are parsed (ai_paladin/shell_scan.py) and code handed to an
+interpreter is read (ai_paladin/code_scan.py), so the rules apply to
+commands nested in sh -c / eval / $(...), to paths however they are spelled,
+and to the files a command or an agent-written script writes.
 
 It FAILS CLOSED: if the hook itself errors, the tool call is refused. A gate
 that opens when it breaks is not a gate.
 
-LIMIT: this inspects tool calls, not what a shell command does once it runs.
-It is a tripwire for careless or manipulated agents, not a sandbox.
+LIMIT: this reads tool calls and the code they would run; it does not run
+them. Anything decided at run time (a computed path, a decoded string, an
+imported module) is not seen. It is a hardened guardrail, not a sandbox or
+a security boundary (docs/ROADMAP.md, section 9).
 """
 
 import fnmatch

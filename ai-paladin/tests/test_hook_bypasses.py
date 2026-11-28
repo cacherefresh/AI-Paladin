@@ -1,21 +1,24 @@
 """
-Known PreToolUse hook bypasses, recorded as expected failures.
+The 11 PreToolUse hook bypasses found before distribution, now regression
+tests.
 
 Run from ai-paladin/:  python3 -m unittest tests.test_hook_bypasses -v
 
-Each test states what the hook SHOULD refuse and is marked expected-failure
-because today it allows it. They are pinned here, not fixed, on purpose:
+Each test states what the hook SHOULD refuse. They were pinned as expected
+failures (Rob, 2026-11-28: the hook was advisory, hardening deferred) and
+were closed on bugfix/hook-bypasses, one commit per root cause:
 
-    HARDENING_DEFERRED - decided by Rob (2026-11-28): the hook is ADVISORY
-    for now, a guardrail for honest mistakes. These bypasses are documented
-    known limits. Making the hook a true security boundary is a roadmap goal
-    (docs/ROADMAP.md, section 9); until each fix lands the enforcement logic
-    in ai_paladin/hook.py and the policy files are unchanged.
+    nested shells (sh -c, bash -c)            ai_paladin/shell_scan.py
+    shell quoting in credential paths         shell_scan.word_paths
+    files written by Bash (>, rm, : >)        shell_scan.write_targets
+    files written by interpreter code         ai_paladin/code_scan.py
+    tools outside the matcher                 hook.MATCHER
 
-When the hook is hardened, remove the @expectedFailure from the tests it now
-passes; unittest reports an "unexpected success" for any bypass that gets
-closed without updating this file. Never make one pass by editing
-security/policies/ or security/monitors/ to suit the test.
+Wider coverage of each fix is in tests/test_hook_hardening.py. A bypass that
+cannot be closed at the hook level goes back here as @expectedFailure with
+a reason pointing at the OS-level boundary goal (docs/ROADMAP.md,
+section 9). Never make one pass by editing security/policies/ or
+security/monitors/ to suit the test.
 """
 
 import os
@@ -33,8 +36,8 @@ from ai_paladin import config_layers, hook                  # noqa: E402
 from ai_paladin.hook import Refused, evaluate               # noqa: E402
 from ai_paladin.security import monitors                    # noqa: E402
 
-HARDENING_DEFERRED = ("hook is advisory for now (Rob, 2026-11-28); a true "
-                      "security boundary is a roadmap goal, ROADMAP.md s.9")
+HARDENING_DEFERRED = ("a known hook bypass has reopened; see "
+                      "tests/test_hook_bypasses.py and ROADMAP.md s.9")
 
 CMDS = config_layers.load_whole("commands.yaml")[0]
 PKGS = config_layers.load_whole("packages.yaml")[0]
@@ -48,7 +51,7 @@ def bash(cmd):
 
 
 class KnownHookBypasses(unittest.TestCase):
-    """Each test fails today; see HARDENING_DEFERRED."""
+    """Each was a bypass; each must now be refused."""
 
     def setUp(self):
         self.env = mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": WS})
@@ -66,7 +69,7 @@ class KnownHookBypasses(unittest.TestCase):
                                              HARDENING_DEFERRED))
 
     # -- package installs ---------------------------------------------------
-    # `pip install evilpkg==1.0` is refused; wrapping it in a shell is not.
+    # `pip install evilpkg==1.0` is refused; wrapped in a shell, it was not.
 
     def test_pip_install_inside_sh_c(self):
         self.assertRefused(bash("sh -c 'pip install evilpkg==1.0'"))
@@ -75,13 +78,13 @@ class KnownHookBypasses(unittest.TestCase):
         self.assertRefused(bash('bash -c "pip install evilpkg==1.0"'))
 
     # -- credential paths ---------------------------------------------------
-    # `cat ~/.ssh/id_rsa` is refused; shell quote-splitting the path is not.
+    # `cat ~/.ssh/id_rsa` is refused; quote-splitting the path got past.
 
     def test_quote_split_ssh_path(self):
         self.assertRefused(bash("cat ~/.ss''h/id_rsa"))
 
     # -- write scope --------------------------------------------------------
-    # Write/Edit outside the project is refused; Bash writes are not checked.
+    # Write/Edit into /etc is refused; Bash writes were not checked.
 
     def test_shell_redirect_into_etc(self):
         self.assertRefused(bash("echo hi > /etc/motd"))
@@ -101,7 +104,7 @@ class KnownHookBypasses(unittest.TestCase):
 
     # -- tools the hook never sees ------------------------------------------
     # Claude Code only calls the hook for tools named in the matcher it is
-    # installed with; anything else runs unchecked.
+    # installed with; anything else runs unchecked, so these must be in it.
 
     def test_matcher_covers_webfetch(self):
         self.assertIn("WebFetch", hook.MATCHER.split("|"), HARDENING_DEFERRED)
@@ -137,7 +140,7 @@ class BypassBaselineStillHolds(unittest.TestCase):
             evaluate(bash("cat $HOME/.ssh/id_rsa"), CMDS, PKGS, CRED)
 
     def test_whole_quoted_ssh_segment_refused(self):
-        # Quoting a whole path segment is caught; splitting one is not.
+        # Quoting a whole path segment was always caught.
         with self.assertRaises(Refused):
             evaluate(bash('cat ~/".ssh"/id_rsa'), CMDS, PKGS, CRED)
 

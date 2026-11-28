@@ -14,23 +14,35 @@ runs.
 
 A prompt is a suggestion; a hook is a guardrail. Claude Code runs the hook
 before every matching tool call. Exit 2 refuses the call and shows the agent
-why, and the agent cannot talk its way past a refusal. **The hook is advisory
-today**: a tripwire for careless and manipulated agents, not a security
-boundary. A determined agent can route around it (see Limits and the 11 known
-bypasses pinned as expected failures in `tests/test_hook_bypasses.py`).
-Making it a true boundary is a roadmap goal (`docs/ROADMAP.md`, section 9).
+why, and the agent cannot talk its way past a refusal. **The hook is a
+hardened guardrail, not a security boundary.** It reads what a tool call
+would touch - shell commands unwrapped from `sh -c` / `eval` / `$(...)`,
+paths resolved through quoting, variables, `cd`, `../` and symlinks, the
+files a command or an agent-written script writes - but it runs in the same
+user space as the agent and reads code rather than running it, so a
+determined agent can still route around it (see Limits). The 11 bypasses
+once pinned as expected failures in `tests/test_hook_bypasses.py` are
+closed and now pass as regression tests. Making it a true boundary is a
+roadmap goal (`docs/ROADMAP.md`, section 9).
 
 ## What it enforces
 
 | Rule | File | What happens |
 |---|---|---|
-| Blocked commands (`rm -rf /`, `curl … \| bash`, `nc -l`, …) | `commands.yaml` `block` | Bash call refused |
-| Write scope | `commands.yaml` `write_scope` | Write / Edit / MultiEdit / NotebookEdit outside the project folder or `/tmp/agent-<session>`, or into `/etc`, `/usr`, `~/.ssh`, `~/.aws`, backups, `.git/objects`, refused. Symlinks are resolved first |
-| Package installs | `packages.yaml` | pip / npm / pnpm / yarn / cargo / poetry installs refused unless the package is on the allowlist with a pinned, matching version; URLs, paths, `-e` and `-r` refused |
-| credential-path-access | `behavioral_rules.yaml` | Read / Grep / Glob / Write / Edit on `.ssh`, `.aws`, `.env`, `.env.*`, and Bash commands naming them, refused |
+| Blocked commands (`rm -rf /`, `curl … \| bash`, `nc -l`, …) | `commands.yaml` `block` | Bash call refused, including when nested in `sh -c`, `bash -c`, `eval`, `$(...)`, backticks or a here-doc fed to a shell |
+| Write scope | `commands.yaml` `write_scope` | Write / Edit / MultiEdit / NotebookEdit (and MCP write tools) outside the project folder or `/tmp/agent-<session>`, or into `/etc`, `/usr`, `~/.ssh`, `~/.aws`, backups, `.git/objects`, refused. Files written by Bash (`>`, `tee`, `cp`, `mv`, `rm`, `sed -i`, `dd of=`, …) and by interpreter code or agent-written scripts (`python3 -c`, `python3 x.py`, `./x.sh`, …) are checked against `deny`, not `allow`. Paths are resolved first: quoting, `~`, `$VAR`, globs, `cd`, `../`, symlinks |
+| Package installs | `packages.yaml` | pip / npm / pnpm / yarn / cargo / poetry installs refused unless the package is on the allowlist with a pinned, matching version; URLs, paths, `-e` and `-r` refused. Nested shells and `subprocess` / `os.system` calls in scripts are checked too |
+| credential-path-access | `behavioral_rules.yaml` | Read / Grep / Glob / Write / Edit / MCP tools / `file:` WebFetch on `.ssh`, `.aws`, `.env`, `.env.*`, and Bash commands or interpreter code naming them (after quote removal and path resolution), refused |
 | mass-file-touch | `behavioral_rules.yaml` | More than 200 file-tool writes in 60 s: further writes refused |
 | fence-probing | `behavioral_rules.yaml` | More than 3 refusals in one session: **every** tool call refused until a person releases it |
-| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders, `ai-paladin-hook --release/--install/--uninstall`, `ai-paladin uninstall`, `pip uninstall ai-paladin` |
+| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders (configured and default locations), AI-Paladin's policy files (`router/keywords.yaml`, `router/policy.yaml`, `config/keywords.yaml`, `security/policies/`, `security/monitors/` in any AI-Paladin tree), by any route the hook inspects; `ai-paladin-hook --release/--install/--uninstall`, `ai-paladin uninstall`, `pip uninstall ai-paladin` |
+
+Tools covered: Bash, Write, Edit, MultiEdit, NotebookEdit, Read, Grep,
+Glob, WebFetch, WebSearch, Task / Agent and every MCP tool (`mcp__.*`).
+WebSearch and Task / Agent have no path to check; they are logged, count
+toward fence-probing and are refused while a session is paused. **An install
+made before this list grew keeps its old, shorter matcher: run
+`ai-paladin-hook --install` again to update it.**
 
 Every decision, allowed or refused, is appended to `hooks.jsonl` in the log
 folder (`~/.local/state/ai-paladin/logs/` by default). The hook **fails
@@ -105,20 +117,28 @@ ai-paladin-hook --release SESSION_ID  # a person lifts the pause
 
 ## Limits
 
-- **Advisory, not a boundary.** Decision (Rob, 2026-11-28): the hook is a
-  guardrail for now. The known bypasses are documented limits, not bugs we
-  are hiding.
-- **A tripwire, not a sandbox.** It reads tool calls, not what a shell
-  command does once it runs. Variables, aliases, encodings and scripts can
-  hide a command from a pattern. Run agents in a sandbox as well
-  (`security/sandbox.md`).
-- Bash commands that write files (`>`, `cp`, `mv`, `rm`) are not checked
-  against the write scope, and Bash renames are not counted as writes.
+- **A hardened guardrail, not a boundary.** Decision (Rob, 2026-11-28): the
+  hook is a guardrail; the 11 known bypasses were closed before
+  distribution, and the true boundary is OS-level (`docs/ROADMAP.md`,
+  section 9).
+- **It reads, it does not run.** Shell commands and scripts are parsed, not
+  executed. A path or command decided only at run time - a variable set by
+  another program, an alias or function, a string decoded from base64, a
+  path assembled in a loop, a module a script imports, a program that
+  writes files on its own terms (`git checkout`, `make`) - is not seen.
+  Run agents in a sandbox as well (`security/sandbox.md`).
+- Bash and script writes are checked against `write_scope.deny` and the
+  protected files, not against `write_scope.allow` (ordinary shell work
+  such as `rm -rf /tmp/build` writes outside the project). Bash renames are
+  not counted as writes for mass-file-touch.
 - It cannot kill an agent. "kill_agent" rules are carried out by refusing
   the call.
 - Package checksums (`require_checksum`) and the approval queue in
   `packages.yaml` are not enforced yet.
-- It does not gate Claude Code's own network use (WebFetch, WebSearch).
-- `hook-tamper` matches what a command names. It also refuses harmless
-  commands that merely mention those files (`cat .claude/settings.json`),
-  and a script that changes them without naming them is not caught.
+- It does not gate Claude Code's own network use: WebFetch and WebSearch
+  reach the hook (logged, paused with the session, `file:` URLs checked),
+  but no domain allowlist is applied to them.
+- `hook-tamper` matches what a command names or resolves to. It also
+  refuses harmless commands that merely mention those files
+  (`cat .claude/settings.json`), and a program that changes them with a
+  path computed at run time is not caught.
