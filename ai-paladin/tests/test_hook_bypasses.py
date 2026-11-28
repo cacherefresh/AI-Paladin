@@ -103,19 +103,15 @@ class KnownHookBypasses(unittest.TestCase):
     # Claude Code only calls the hook for tools named in the matcher it is
     # installed with; anything else runs unchecked.
 
-    @unittest.expectedFailure
     def test_matcher_covers_webfetch(self):
         self.assertIn("WebFetch", hook.MATCHER.split("|"), HARDENING_DEFERRED)
 
-    @unittest.expectedFailure
     def test_matcher_covers_websearch(self):
         self.assertIn("WebSearch", hook.MATCHER.split("|"), HARDENING_DEFERRED)
 
-    @unittest.expectedFailure
     def test_matcher_covers_task(self):
         self.assertIn("Task", hook.MATCHER.split("|"), HARDENING_DEFERRED)
 
-    @unittest.expectedFailure
     def test_matcher_covers_mcp_tools(self):
         self.assertTrue(any(p.startswith("mcp__") for p in hook.MATCHER.split("|")),
                         HARDENING_DEFERRED)

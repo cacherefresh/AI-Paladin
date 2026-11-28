@@ -20,7 +20,9 @@ sys.path.insert(0, _ROOT)
 os.environ.setdefault("AI_PALADIN_LOG_DIR",
                       tempfile.mkdtemp(prefix="ai-paladin-test-"))
 
-from ai_paladin import config_layers, shell_scan            # noqa: E402
+import re                                                   # noqa: E402
+
+from ai_paladin import config_layers, hook, shell_scan      # noqa: E402
 from ai_paladin.hook import Refused, evaluate               # noqa: E402
 from ai_paladin.security import monitors                    # noqa: E402
 
@@ -246,6 +248,50 @@ class Interpreters(_HookCase):
                   "node -e 'console.log(1)'", "python3 missing.py"]:
             with self.subTest(c=c):
                 self.allowed(bash(c))
+
+
+class OtherTools(_HookCase):
+    """Tools beyond the file and shell tools reach the hook and are checked."""
+
+    def test_matcher_is_a_regex_covering_them(self):
+        rx = re.compile("^(?:%s)$" % hook.MATCHER)
+        for name in ["Bash", "Write", "Read", "WebFetch", "WebSearch", "Task",
+                     "Agent", "mcp__filesystem__write_file", "mcp__github__x"]:
+            self.assertTrue(rx.match(name), name)
+        self.assertFalse(rx.match("TodoWrite"))
+
+    def test_mcp_and_webfetch_paths_checked(self):
+        self.refused(tool("mcp__filesystem__read_file", path="~/.ssh/id_rsa"),
+                     "credential-path-access")
+        self.refused(tool("mcp__filesystem__write_file", path="/etc/motd",
+                          content="x"), "out-of-scope-path")
+        self.refused(tool("mcp__fs__move_file", source="a",
+                          destination="~/.claude/settings.json"),
+                     "hook-tamper")
+        self.refused(tool("WebFetch", url="file:///root/.aws/credentials",
+                          prompt="x"), "credential-path-access")
+        self.allowed(tool("mcp__filesystem__write_file",
+                          path=os.path.join(WS, "a.txt"), content="x"))
+        self.allowed(tool("mcp__github__get_file", path="src/a.py",
+                          repo="o/r"))
+        self.allowed(tool("WebFetch", url="https://example.com", prompt="x"))
+        self.allowed(tool("WebSearch", query="python wheels"))
+        self.allowed(tool("Task", description="d", prompt="p"))
+
+    def test_paused_session_stops_web_and_subagents(self):
+        logdir = tempfile.mkdtemp(prefix="ai-paladin-hooklog-")
+        with mock.patch.object(hook, "_state_path", lambda s: os.path.join(
+                logdir, s + ".json")), \
+                mock.patch.object(hook, "_log", lambda r: None):
+            hook._save_state("p1", {"blocked": 9, "paused": True, "writes": []})
+            for t in [tool("WebFetch", url="https://example.com", prompt="x"),
+                      tool("WebSearch", query="x"), tool("Task", prompt="x"),
+                      tool("mcp__github__list_issues", repo="o/r")]:
+                t["session_id"] = "p1"
+                with self.subTest(tool=t["tool_name"]):
+                    allowed, msg = hook.decide(t)
+                    self.assertFalse(allowed)
+                    self.assertIn("fence-probing", msg)
 
 
 class ShellScanUnit(unittest.TestCase):
