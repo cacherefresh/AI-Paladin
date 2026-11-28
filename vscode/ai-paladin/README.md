@@ -65,9 +65,11 @@ for iteration.
 
 Removing this extension removes only the status-bar item. It does **not**
 touch the Claude Code hook, which is a separate thing a person installs. To
-remove AI-Paladin and the hook together, run `ai-paladin uninstall` - not a
-plain `pip uninstall`, which would leave the hook behind and make Claude
-Code refuse every tool call. See the main README, "Uninstalling".
+remove AI-Paladin and the hook together, run `ai-paladin uninstall` first (it
+lists and removes only the hook entries AI-Paladin added, after asking), then
+`pip uninstall ai-paladin`. A plain `pip uninstall` would leave the hook behind
+and make Claude Code refuse every tool call. See the main README,
+"Uninstalling".
 
 ## Settings
 

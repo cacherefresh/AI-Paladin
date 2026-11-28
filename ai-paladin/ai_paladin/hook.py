@@ -8,10 +8,12 @@ stderr is shown to the agent. Install: hooks/README.md.
 
     ai-paladin-hook                    the hook itself (reads stdin)
     ai-paladin-hook --install [--user] add it to Claude Code's settings
-    ai-paladin-hook --uninstall --all  remove it from every recorded place
+    ai-paladin-hook --uninstall --all  remove what --install added, everywhere
     ai-paladin-hook --uninstall [--user]   remove it (do this before
                                        pip uninstall, or Claude Code refuses
-                                       every tool call - see below)
+                                       every tool call - see below). To remove
+                                       AI-Paladin entirely, run
+                                       `ai-paladin uninstall` first, then pip.
     ai-paladin-hook --release SESSION  lift a fence-probing pause
     ai-paladin-hook --status           where it is installed; paused sessions
 
@@ -94,7 +96,7 @@ _TAMPER_IN_SHELL = re.compile(
     r"|\.config/ai-paladin|hook-state"
     r"|pip3?\s+uninstall\s+(-y\s+)?ai[-_]paladin"
     r"|ai-paladin\s+uninstall|ai_paladin\s+uninstall"
-    r"|hook_installs\.json")
+    r"|hook_installs\.json|install_manifest\.json")
 
 
 class Refused(Exception):
@@ -841,147 +843,139 @@ def _write_settings(path: str, data: dict):
     os.replace(tmp, path)
 
 
-# Every settings file --install has written to, so that uninstalling can find
-# all of them - not just this project and ~/.claude. Lives in the config
-# folder, which the hook-tamper rule keeps agents out of.
-REGISTRY = "hook_installs.json"
-
-
-def _registry_path() -> str:
-    from ai_paladin import paths as ap
-    return os.path.join(ap.CONFIG_DIR, REGISTRY)
-
-
-def registered() -> list:
-    try:
-        with open(_registry_path(), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return [str(p) for p in data.get("settings_files", [])]
-    except (OSError, ValueError, AttributeError):
-        return []
-
-
-def _set_registry(files: list):
-    p = _registry_path()
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump({"settings_files": sorted(set(files))}, fh, indent=2)
-        fh.write("\n")
-    os.replace(tmp, p)
-
+# What --install wrote, and what was already there, is recorded in the install
+# manifest (ai_paladin/installs.py): install_manifest.json in the config
+# folder, which the hook-tamper rule keeps agents out of. Uninstalling removes
+# only what the manifest says we added.
 
 def _has_ours(path: str) -> bool:
     pre = (_read_settings(path).get("hooks") or {}).get("PreToolUse") or []
     return any(isinstance(e, dict) and _is_ours(e) for e in pre)
 
 
-def _remove_from(path: str) -> bool:
-    """Remove our entry from one settings file. True if one was removed.
-    Raises OSError/ValueError if the file cannot be read."""
-    data = _read_settings(path)
-    pre = (data.get("hooks") or {}).get("PreToolUse") or []
-    kept = [e for e in pre if not (isinstance(e, dict) and _is_ours(e))]
-    if len(kept) == len(pre):
-        return False
-    if kept:
-        data["hooks"]["PreToolUse"] = kept
-    else:
-        del data["hooks"]["PreToolUse"]
-        if not data["hooks"]:
-            del data["hooks"]
-    _write_settings(path, data)
-    _log({"ts": datetime.now(timezone.utc).isoformat(), "kind": "hook",
-          "decision": "uninstalled", "detail": path})
-    return True
-
-
 def install(user: bool) -> int:
+    from ai_paladin import installs
     path = settings_file(user)
     try:
         data = _read_settings(path)
-    except (OSError, ValueError) as exc:
-        print("not changed - cannot read %s: %s" % (path, exc), file=sys.stderr)
+        entry = {"matcher": MATCHER,
+                 "hooks": [{"type": "command", "command": hook_command(path)}]}
+        done = installs.apply_install(path, data, entry)
+    except (OSError, ValueError, installs.ManifestError) as exc:
+        print("not changed - %s" % exc, file=sys.stderr)
         return 1
-    pre = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
-    pre[:] = [e for e in pre if not (isinstance(e, dict) and _is_ours(e))]
-    pre.append({"matcher": MATCHER,
-                "hooks": [{"type": "command", "command": hook_command(path)}]})
     _write_settings(path, data)
-    _set_registry(registered() + [path])
     _log({"ts": datetime.now(timezone.utc).isoformat(), "kind": "hook",
           "decision": "installed", "detail": path})
-    print("installed in %s\nClaude Code picks it up in new sessions.\n\n"
+    extra = ""
+    if done["kept"]:
+        extra = ("\nAn equivalent hook was already in that file before this "
+                 "install, so it was left alone and will stay when you "
+                 "uninstall:\n  " + "\n  ".join(done["kept"]) + "\n")
+        if not done["added"]:
+            extra += "(nothing new was added to that file)\n"
+    print("installed in %s\nClaude Code picks it up in new sessions.\n%s\n"
+          "Recorded in %s: exactly what was added, so that uninstalling "
+          "removes only that.\n\n"
           "To turn it off:  ai-paladin-hook --uninstall%s\n"
-          "To remove AI-Paladin entirely:  ai-paladin uninstall  (removes the "
-          "hook everywhere first)\n"
+          "To remove AI-Paladin entirely: run  ai-paladin uninstall  FIRST "
+          "(it removes the hook entries recorded above), THEN  pip uninstall "
+          "ai-paladin.\n"
           "Do not use a plain pip uninstall while the hook is installed, or "
           "Claude Code will refuse every tool call until the entry is removed."
-          % (path, " --user" if user else ""))
+          % (path, extra, installs.manifest_path(),
+             " --user" if user else ""))
     return 0
+
+
+def _uninstall_files(paths_: list) -> tuple:
+    """Remove what we recorded from these settings files. Returns
+    (removed, flagged, failed): files changed, [(file, summary)] of entries
+    of ours that were edited after install (kept), [(file, error)]."""
+    from ai_paladin import installs
+    known = {i["file"]: i for i in installs.plan()}
+    removed, flagged, failed = [], [], []
+    for p in paths_:
+        item = known.get(p)
+        if item is None:
+            continue
+        if item["error"]:
+            failed.append((p, item["error"]))
+            continue
+        flagged += [(p, summ) for _, _, summ in item["modified"]]
+        try:
+            changed = bool(item["remove"])
+            installs.remove(item)
+        except (OSError, ValueError) as exc:
+            failed.append((p, str(exc)))
+            continue
+        if changed:
+            removed.append(p)
+    return removed, flagged, failed
+
+
+def _report_uninstall(removed, flagged, failed) -> int:
+    for p in removed:
+        print("removed from %s" % p)
+    for p, summ in flagged:
+        print("KEPT in %s: an entry of ours was edited after install (%s). "
+              "Remove it by hand, or run 'ai-paladin uninstall' to be asked."
+              % (p, summ), file=sys.stderr)
+    for p, err in failed:
+        print("NOT removed - cannot read %s: %s" % (p, err), file=sys.stderr)
+    return 1 if (flagged or failed) else 0
 
 
 def uninstall(user: bool) -> int:
     path = settings_file(user)
+    from ai_paladin import installs
     try:
-        removed = _remove_from(path)
-    except (OSError, ValueError) as exc:
-        print("not changed - cannot read %s: %s" % (path, exc), file=sys.stderr)
+        known = {i["file"] for i in installs.plan()}
+    except installs.ManifestError as exc:
+        print("not changed - %s" % exc, file=sys.stderr)
         return 1
-    _set_registry([p for p in registered() if p != path])
-    print(("removed from %s" if removed else "not installed in %s") % path)
-    return 0
+    if path not in known:
+        print("not installed in %s (AI-Paladin has no record of adding a hook "
+              "there, so it removes nothing)" % path)
+        return 0
+    removed, flagged, failed = _uninstall_files([path])
+    if not (removed or flagged or failed):
+        print("nothing of ours left in %s" % path)
+    return _report_uninstall(removed, flagged, failed)
 
 
 def candidates() -> list:
-    """Every settings file the hook could be in: recorded installs, this
-    project, and ~/.claude."""
-    seen, out = set(), []
-    for p in registered() + [settings_file(False), settings_file(True)]:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
+    """Every settings file we recorded adding a hook to."""
+    from ai_paladin import installs
+    try:
+        return [i["file"] for i in installs.plan()]
+    except installs.ManifestError:
+        return []
 
 
 def uninstall_all() -> tuple:
-    """Remove the hook from every candidate. Returns (removed, failed), where
-    failed is [(path, error)] for files that exist but cannot be read."""
-    removed, failed = [], []
-    for p in candidates():
-        if not os.path.exists(p):
-            continue
-        try:
-            if _remove_from(p):
-                removed.append(p)
-        except (OSError, ValueError) as exc:
-            failed.append((p, str(exc)))
-    _set_registry([p for p, _ in failed])
-    return removed, failed
+    """Remove what we recorded, everywhere. Returns (removed, flagged, failed)."""
+    return _uninstall_files(candidates())
 
 
 def where_installed() -> list:
-    out = []
-    for p in candidates():
-        try:
-            if os.path.exists(p) and _has_ours(p):
-                out.append(p)
-        except (OSError, ValueError):
-            continue
-    return out
+    from ai_paladin import installs
+    return installs.files_with_work()
 
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:2] == ["--uninstall", "--all"] and len(argv) == 2:
-        removed, failed = uninstall_all()
-        for p in removed:
-            print("removed from %s" % p)
-        for p, err in failed:
-            print("NOT removed - cannot read %s: %s" % (p, err), file=sys.stderr)
-        if not removed and not failed:
-            print("not installed anywhere AI-Paladin knows of")
-        return 1 if failed else 0
+        from ai_paladin import installs
+        try:
+            removed, flagged, failed = uninstall_all()
+        except installs.ManifestError as exc:
+            print("not changed - %s" % exc, file=sys.stderr)
+            return 1
+        code = _report_uninstall(removed, flagged, failed)
+        if not removed and not flagged and not failed:
+            print("not installed anywhere AI-Paladin has a record of")
+        return code
     if argv and argv[0] in ("--install", "--uninstall") and \
             set(argv[1:]) <= {"--user"}:
         user = "--user" in argv[1:]
