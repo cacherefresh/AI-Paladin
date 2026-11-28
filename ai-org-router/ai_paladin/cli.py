@@ -167,6 +167,11 @@ def main(argv=None) -> int:
 
     if args.demo:
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.isfile(os.path.join(here, "config", "keywords.yaml")):
+            print("ai-paladin: --demo needs a source checkout (it uses the "
+                  "repo's config/ and logs/); this copy is installed from a "
+                  "wheel.", file=sys.stderr)
+            return 2
         os.environ["AI_PALADIN_CONFIG_DIR"] = os.path.join(here, "config")
         os.environ["AI_PALADIN_LOG_DIR"] = os.path.join(here, "logs")
     if args.port:
@@ -176,8 +181,9 @@ def main(argv=None) -> int:
     if missing:
         print("ai-paladin: shipped defaults not found:\n  "
               + "\n  ".join(missing)
-              + "\nOnly a source checkout or an editable install "
-                "(pip install -e) is supported until packaging is finished.",
+              + "\nThis installation is incomplete; reinstall the package "
+                "(pip install --force-reinstall ai-paladin) or run from a "
+                "source checkout.",
               file=sys.stderr)
         return 2
 

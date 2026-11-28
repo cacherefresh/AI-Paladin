@@ -3,10 +3,10 @@ Where AI-Paladin's files live.
 
 Three places, never mixed:
 
-  BASE        shipped, read-only. The project folder (ai-org-router/): the
-              code package plus the defaults it ships with - router/,
-              agents/, models/, ui/, demo/. Nothing here is written at run
-              time.
+  BASE        shipped, read-only. In a source checkout, the project folder
+              (ai-org-router/); in an installed wheel, ai_paladin/_shipped/.
+              Holds the defaults: router/, agents/, models/, security/,
+              ui/, demo/, hooks/. Nothing here is written at run time.
   CONFIG_DIR  this user's settings and overrides. Written by the dashboard
               (local_models.yaml) and by the user (keywords.yaml overlay,
               replacement policy.yaml, web_accounts.yaml).
@@ -25,7 +25,14 @@ ai_paladin module - ai_paladin.cli does this for you.
 
 import os
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PKG = os.path.dirname(os.path.abspath(__file__))
+# An installed wheel carries the shipped defaults inside the package, under
+# ai_paladin/_shipped/ (pyproject.toml maps ai-org-router/ there). A source
+# checkout or an editable install has no such folder and reads them from
+# ai-org-router/ itself.
+_BUNDLED = os.path.join(_PKG, "_shipped")
+BASE = (_BUNDLED if os.path.isfile(os.path.join(_BUNDLED, "router", "policy.yaml"))
+        else os.path.dirname(_PKG))
 
 
 def _from_env(var: str, default: str) -> str:
