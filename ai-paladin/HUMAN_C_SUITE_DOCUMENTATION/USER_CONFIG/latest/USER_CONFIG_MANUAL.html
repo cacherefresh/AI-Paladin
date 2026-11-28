@@ -285,7 +285,7 @@ protected      23 terms in 4 groups, 4 paths
   <div class="kicker">Policy, roster, catalog &middot; and the security rules</div>
   <h2>These are replaced whole</h2>
   <p class="lead">Put a <code>policy.yaml</code>, <code>roster.yaml</code> or <code>catalog.yaml</code> &mdash; or
-  <code>commands.yaml</code>, <code>packages.yaml</code>, <code>behavioral_rules.yaml</code> (slide 14) &mdash; in your
+  <code>commands.yaml</code>, <code>packages.yaml</code>, <code>behavioral_rules.yaml</code> (slide 15) &mdash; in your
   settings folder and it is used <strong>instead of</strong> the shipped one, all of it.</p>
   <div class="grid g3">
     <div class="card"><span class="tag rep">policy.yaml</span><h3>Postures &amp; internet</h3><p>The four
@@ -407,7 +407,62 @@ protected      23 terms in 4 groups, 4 paths
   </div>
 </section>
 
-<!-- 11: accounts -->
+<!-- 11: several models -->
+<section class="slide">
+  <div class="kicker">On-prem model &middot; Ollama &middot; several models at once</div>
+  <h2>One Ollama service, several models</h2>
+  <p class="lead" style="max-width:80ch">Ollama is the service; a model is the file it loads into memory to
+    answer. One service can keep several models loaded at once, as long as they fit. The demo already does:
+    while the on-prem model answers, <code>all-minilm</code> runs the sentry check and
+    <code>qwen3:0.6b</code> runs the clerk.</p>
+  <div class="grid g2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:6px">
+    <div>
+      <div class="grid g2">
+        <div class="card"><span class="tag add">loading</span><h3>On first use</h3><p>A model loads the
+          first time a request names it and stays loaded until its keep-alive runs out. AI-Paladin asks for
+          60 minutes, so a demo never waits on a cold load.</p></div>
+        <div class="card"><span class="tag rem">memory full</span><h3>Oldest idle goes</h3><p>If a new model
+          does not fit, Ollama unloads the least recently used idle model to make room.</p></div>
+      </div>
+      <h3 style="margin-top:12px">Settings on the Ollama service</h3>
+      <table class="dense">
+        <tr><th>Variable</th><th>What it controls</th></tr>
+        <tr><td><code>OLLAMA_MAX_LOADED_MODELS</code></td><td>How many models can be loaded at once. Default: 3 per GPU, or 3 on CPU.</td></tr>
+        <tr><td><code>OLLAMA_NUM_PARALLEL</code></td><td>How many requests each model handles at the same time.</td></tr>
+        <tr><td><code>OLLAMA_MAX_QUEUE</code></td><td>How many requests can wait before new ones are rejected.</td></tr>
+      </table>
+      <pre style="margin-top:10px"><span class="c"># change one: add the lines, save, restart</span>
+<span class="k">$ sudo systemctl edit ollama</span>
+[Service]
+Environment="OLLAMA_MAX_LOADED_MODELS=4"
+<span class="k">$ sudo systemctl restart ollama</span>
+<span class="c"># what is loaded, and how much memory each takes</span>
+<span class="k">$ ollama ps</span></pre>
+    </div>
+    <div>
+      <h3>What fits &mdash; example: 91 GiB RAM, CPU only</h3>
+      <table class="dense">
+        <tr><th>Model</th><th>Download</th><th>Role</th></tr>
+        <tr><td>all-minilm</td><td>0.05 GB</td><td>sentry</td></tr>
+        <tr><td>qwen3:0.6b</td><td>0.5 GB</td><td>clerk</td></tr>
+        <tr><td>gpt-oss:20b</td><td>13.8 GB</td><td>default on-prem model</td></tr>
+        <tr><td>devstral-small-2</td><td>15.2 GB</td><td>fallback</td></tr>
+        <tr><td>gemma4:26b</td><td>18.7 GB</td><td>picker option</td></tr>
+        <tr><td>gpt-oss:120b</td><td>65.4 GB</td><td>picker option</td></tr>
+      </table>
+      <p class="note" style="margin-top:6px">Loaded, a model takes its download size plus a few GB for context.
+        <code>ollama ps</code> shows the real figure.</p>
+      <div class="card ok" style="margin-top:8px"><h3>Fits together</h3><p>gpt-oss:20b, gemma4:26b and
+        devstral-small-2 with the two small ones, with room to spare. gpt-oss:120b fits only with the small
+        ones.</p></div>
+      <div class="card warn" style="margin-top:8px"><span class="tag lim">CPU only</span><h3>Loaded is not
+        fast</h3><p>With no GPU, every model shares the same CPU threads: two models generating at the same
+        moment each run slower. A loaded, idle model costs memory, not speed.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12: accounts -->
 <section class="slide">
   <div class="kicker">Web sign-in accounts &middot; web_accounts.yaml</div>
   <h2>Secrets the model can use but never see</h2>
@@ -432,7 +487,7 @@ protected      23 terms in 4 groups, 4 paths
   </div>
 </section>
 
-<!-- 12: logs -->
+<!-- 13: logs -->
 <section class="slide">
   <div class="kicker">Audit logs</div>
   <h2>What is recorded, and where</h2>
@@ -455,7 +510,7 @@ protected      23 terms in 4 groups, 4 paths
   </div>
 </section>
 
-<!-- 13: running -->
+<!-- 14: running -->
 <section class="slide">
   <div class="kicker">Running it</div>
   <h2>Commands</h2>
@@ -488,7 +543,7 @@ protected      23 terms in 4 groups, 4 paths
   </table>
 </section>
 
-<!-- 14: hook -->
+<!-- 15: hook -->
 <section class="slide">
   <div class="kicker">Coding agents &middot; security/policies &middot; security/monitors</div>
   <h2>The Claude Code hook</h2>
@@ -524,7 +579,7 @@ protected      23 terms in 4 groups, 4 paths
   </div>
 </section>
 
-<!-- 15: hook on/off -->
+<!-- 16: hook on/off -->
 <section class="slide tight">
   <div class="kicker">Coding agents &middot; turning the hook on and off</div>
   <h2>A person turns it on. A person turns it off.</h2>
@@ -590,7 +645,7 @@ protected      23 terms in 4 groups, 4 paths
         settings file cannot be read.</p></div>
 </section>
 
-<!-- 16: limits -->
+<!-- 17: limits -->
 <section class="slide">
   <div class="kicker">Honest limits &middot; v0.3.0</div>
   <h2>What these settings do not do</h2>
