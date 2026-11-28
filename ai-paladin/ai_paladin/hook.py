@@ -315,12 +315,54 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
         for inner in seg.inner:
             _check_bash(inner, cmds, pkgs, cred_globs, here, workspace,
                         session, depth + 1)
+        for lang, source in shell_scan.programs(seg, env, here):
+            if lang == "shell":
+                _check_bash(source, cmds, pkgs, cred_globs, here, workspace,
+                            session, depth + 1)
+            else:
+                _check_code(source, lang, cmds, pkgs, cred_globs, here,
+                            workspace, session, depth + 1)
         if seg.name in ("cd", "pushd"):          # later segments run there
             dest = seg.words[1] if len(seg.words) > 1 else "~"
             if dest != "-":
                 here = _real(shell_scan.expand_word(dest, env, here)[0], here)
     for inner in sc.substitutions:
         _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
+                    depth + 1)
+
+
+def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
+                cred_globs: list, cwd: str, workspace: str, session: str,
+                depth: int):
+    """
+    Code handed to an interpreter (python3 -c, a script the agent wrote,
+    perl -e, ...): the files it writes get the same checks as a Bash write,
+    the paths it names the credential check, and the shell commands it runs
+    (os.system, subprocess) every Bash rule (ai_paladin/code_scan.py).
+    """
+    from ai_paladin import code_scan, shell_scan
+    from ai_paladin.security.monitors import is_credential_path
+
+    if depth > MAX_SHELL_DEPTH:
+        raise Refused("commands.yaml", "code nests more than %d levels deep "
+                      "- too deep to inspect" % MAX_SHELL_DEPTH)
+    writes, shells, strings = code_scan.effects(source, lang)
+    env = dict(os.environ)
+    for s in strings:
+        s = code_scan.strip_mode(s)
+        if not s or len(s) > 4096 or any(ch.isspace() for ch in s):
+            continue                     # prose, not a path
+        if _CRED_IN_SHELL.search(" " + s + " ") or any(
+                is_credential_path(p, cred_globs) or
+                is_credential_path(_real(p, cwd), cred_globs)
+                for p in shell_scan.expand_word(s, env, cwd)):
+            raise Refused("credential-path-access", "%s code names a "
+                          "credential path (%s)" % (lang, s))
+    for target, kind in writes:
+        for p in shell_scan.expand_word(code_scan.strip_mode(target), env, cwd):
+            _check_shell_write(p, kind, cwd, cmds, workspace, session)
+    for command in shells:
+        _check_bash(command, cmds, pkgs, cred_globs, cwd, workspace, session,
                     depth + 1)
 
 
@@ -354,8 +396,8 @@ def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
 
 
 def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
-    """Raise Refused if the call breaks a rule. Pure: no state, no I/O
-    beyond resolving paths."""
+    """Raise Refused if the call breaks a rule. No state; the only I/O is
+    resolving paths and reading a script a Bash command would run."""
     from ai_paladin.security.monitors import is_credential_path
 
     tool = call.get("tool_name", "")

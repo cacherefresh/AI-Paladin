@@ -556,6 +556,134 @@ def _inner_commands(seg: Segment) -> List[str]:
     return found
 
 
+# ---------------------------------------------------------------------------
+# interpreters and scripts: code the command runs
+# ---------------------------------------------------------------------------
+
+_INTERP = [(re.compile(r"^(python|pypy)[\d.]*$"), "python", {"-c"},
+            {"-W", "-X", "-Q"}),
+           (re.compile(r"^perl[\d.]*$"), "perl", {"-e", "-E"},
+            {"-M", "-I", "-x", "-l", "-0"}),
+           (re.compile(r"^ruby[\d.]*$"), "ruby", {"-e"}, {"-r", "-I", "-C"}),
+           (re.compile(r"^(node|nodejs|bun)$"), "node",
+            {"-e", "--eval", "-p", "--print"}, {"-r", "--require"}),
+           (re.compile(r"^php[\d.]*$"), "php", {"-r"}, {"-d", "-c"}),
+           (re.compile(r"^(osascript|lua[\d.]*|tclsh|Rscript)$"), "other",
+            {"-e"}, set())]
+
+
+def _read_script(path: str, env: Dict[str, str], cwd: str) -> Optional[str]:
+    p = expand_word(path, env, cwd)[0]
+    p = p if os.path.isabs(p) else os.path.join(cwd, p)
+    try:
+        if not os.path.isfile(p) or os.path.getsize(p) > MAX_SCRIPT_BYTES:
+            return None
+        with open(p, "rb") as fh:
+            data = fh.read(MAX_SCRIPT_BYTES)
+    except OSError:
+        return None
+    if b"\0" in data[:4096]:
+        return None                          # a binary, not a script
+    return data.decode("utf-8", "replace")
+
+
+def _lang_of(text: str) -> str:
+    first = text.split("\n", 1)[0]
+    if not first.startswith("#!"):
+        return "shell"                       # no shebang: sh runs it
+    for rx, lang, _, _ in _INTERP:
+        for word in re.split(r"[\s/]+", first[2:]):
+            if rx.match(word):
+                return lang
+    return "shell"
+
+
+def programs(seg: Segment, env: Dict[str, str], cwd: str) -> List[tuple]:
+    """
+    [(language, source)] for code this command hands to an interpreter:
+    `python3 -c CODE`, `perl -e CODE`, `node -e CODE`, a script file run by
+    an interpreter, a shell, `source` or by its own path (./x.sh), and a
+    here-doc / here-string / `< file` fed to an interpreter. Language is
+    "shell", "python", "perl", "ruby", "node", "php" or "other". Script files
+    are read from disk at the moment the hook runs.
+    """
+    out = []
+    w = seg.words
+    if not w:
+        return out
+    name, args = seg.name, w[1:]
+
+    def stdin_sources(lang):
+        for doc in seg.heredocs:
+            out.append((lang, doc))
+        for op, target in seg.redirects:
+            if op == "<<<":
+                out.append((lang, target))
+            elif op == "<":
+                text = _read_script(target, env, cwd)
+                if text is not None:
+                    out.append((lang, text))
+
+    for rx, lang, code_flags, takes in _INTERP:
+        if not rx.match(name):
+            continue
+        i = 0
+        while i < len(args):
+            a = args[i]
+            if a in code_flags:
+                if i + 1 < len(args):
+                    out.append((lang, args[i + 1]))
+                return out
+            hit = next((f for f in code_flags
+                        if len(f) == 2 and a.startswith(f) and len(a) > 2
+                        and not a.startswith("--")), None)
+            if hit:                              # -c'code' / -pe'code'
+                out.append((lang, a[2:]))
+                return out
+            if lang == "perl" and re.fullmatch(r"-[a-zA-Z]*[eE]", a):
+                if i + 1 < len(args):            # perl -pie 'code'
+                    out.append((lang, args[i + 1]))
+                return out
+            if lang == "python" and a == "-m":
+                return out                       # a module, not a file
+            if a in takes:
+                i += 2
+                continue
+            if a == "-":
+                break
+            if a.startswith("-"):
+                i += 1
+                continue
+            text = _read_script(a, env, cwd)
+            if text is not None:
+                out.append((lang, text))
+            return out
+        stdin_sources(lang)
+        return out
+
+    if name in SHELLS and shell_c_argument(w) is None:
+        ops = [a for a in args if not a.startswith("-")]
+        if ops:
+            text = _read_script(ops[0], env, cwd)
+            if text is not None:
+                out.append(("shell", text))
+        else:
+            for op, target in seg.redirects:
+                if op == "<":
+                    text = _read_script(target, env, cwd)
+                    if text is not None:
+                        out.append(("shell", text))
+    elif name in ("source", ".") and args:
+        text = _read_script(args[0], env, cwd)
+        if text is not None:
+            out.append(("shell", text))
+    elif "/" in w[0]:                            # ./build.sh, /tmp/x/run
+        text = _read_script(w[0], env, cwd)
+        if text is not None:
+            out.append((_lang_of(text), text))
+    return out
+
+
 def scan(command: str) -> Scan:
     """Split one command string. Nested command strings are listed (in
     `.substitutions` and each segment's `.inner`), not followed: the caller

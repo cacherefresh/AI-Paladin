@@ -86,7 +86,6 @@ class KnownHookBypasses(unittest.TestCase):
     def test_shell_redirect_into_etc(self):
         self.assertRefused(bash("echo hi > /etc/motd"))
 
-    @unittest.expectedFailure
     def test_python_c_write_into_etc(self):
         self.assertRefused(bash(
             "python3 -c \"open('/etc/ai-paladin-probe','w').write('x')\""))
