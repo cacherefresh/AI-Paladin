@@ -497,7 +497,7 @@ protected      23 terms in 4 groups, 4 paths
     <table class="dense">
       <tr><th>Rule</th><th>File</th><th>Refuses</th></tr>
       <tr><td>Blocked commands</td><td><code>commands.yaml</code></td><td><code>rm -rf /</code>, <code>curl … | bash</code>, <code>nc -l</code>, <code>history -c</code>, encryption tools</td></tr>
-      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code></td></tr>
+      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File-tool writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code>. Shell and script writes: the deny list only, unless <code>shell_writes_enforce_allow: true</code> in <code>hook.yaml</code> (opt-in)</td></tr>
       <tr><td>Packages</td><td><code>packages.yaml</code></td><td>Installs not on the allowlist, unpinned, or from URLs / files</td></tr>
       <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code></td></tr>
       <tr><td>mass-file-touch</td><td><code>behavioral_rules.yaml</code></td><td>Writes past 200 in 60 s</td></tr>

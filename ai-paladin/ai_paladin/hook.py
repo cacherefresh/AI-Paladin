@@ -315,7 +315,8 @@ MAX_SHELL_DEPTH = 6
 
 
 def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
-                cwd: str, workspace: str, session: str, depth: int = 0):
+                cwd: str, workspace: str, session: str, depth: int = 0,
+                strict: bool = False):
     """
     Apply the Bash rules to a command and to every command nested in it.
     `sh -c '...'`, `bash -c "..."`, eval, $(...), backticks and a here-doc
@@ -367,29 +368,30 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
             check_install(inst[0], inst[1], pkgs)
         for word, kind in shell_scan.write_targets(seg):
             for p in shell_scan.expand_word(word, env, here):
-                _check_shell_write(p, kind, here, cmds, workspace, session)
+                _check_shell_write(p, kind, here, cmds, workspace, session,
+                                   strict)
         for inner in seg.inner:
             _check_bash(inner, cmds, pkgs, cred_globs, here, workspace,
-                        session, depth + 1)
+                        session, depth + 1, strict)
         for lang, source in shell_scan.programs(seg, env, here):
             if lang == "shell":
                 _check_bash(source, cmds, pkgs, cred_globs, here, workspace,
-                            session, depth + 1)
+                            session, depth + 1, strict)
             else:
                 _check_code(source, lang, cmds, pkgs, cred_globs, here,
-                            workspace, session, depth + 1)
+                            workspace, session, depth + 1, strict)
         if seg.name in ("cd", "pushd"):          # later segments run there
             dest = seg.words[1] if len(seg.words) > 1 else "~"
             if dest != "-":
                 here = _real(shell_scan.expand_word(dest, env, here)[0], here)
     for inner in sc.substitutions:
         _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
-                    depth + 1)
+                    depth + 1, strict)
 
 
 def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
                 cred_globs: list, cwd: str, workspace: str, session: str,
-                depth: int):
+                depth: int, strict: bool = False):
     """
     Code handed to an interpreter (python3 -c, a script the agent wrote,
     perl -e, ...): the files it writes get the same checks as a Bash write,
@@ -416,10 +418,11 @@ def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
                           "credential path (%s)" % (lang, s))
     for target, kind in writes:
         for p in shell_scan.expand_word(code_scan.strip_mode(target), env, cwd):
-            _check_shell_write(p, kind, cwd, cmds, workspace, session)
+            _check_shell_write(p, kind, cwd, cmds, workspace, session,
+                               strict)
     for command in shells:
         _check_bash(command, cmds, pkgs, cred_globs, cwd, workspace, session,
-                    depth + 1)
+                    depth + 1, strict)
 
 
 # Not files: writing here goes to a terminal or nowhere.
@@ -428,12 +431,15 @@ _NOT_FILES = re.compile(r"^/dev/(null|zero|stdout|stderr|stdin|tty|fd/\d+)$"
 
 
 def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
-                       workspace: str, session: str):
-    """A file a Bash command writes (>, tee, cp, mv, rm, sed -i, dd of=...).
-    Protected files and write_scope.deny apply, as for the Write tool.
-    write_scope.allow does not: ordinary shell work (rm -rf /tmp/build,
-    a cache in ~) writes outside the project, and refusing it would make the
-    hook unusable rather than safer."""
+                       workspace: str, session: str, strict: bool = False):
+    """A file a Bash command or interpreter code writes (>, tee, cp, mv, rm,
+    sed -i, dd of=, open(..., 'w'), ...). Protected files and
+    write_scope.deny always apply, as for the Write tool.
+
+    write_scope.allow applies only when `strict` - the opt-in
+    shell_writes_enforce_allow setting in hook.yaml (load_hook_settings).
+    By default it does not: ordinary shell work (rm -rf /tmp/build, a cache
+    in ~) writes outside the project."""
     if _NOT_FILES.match(path):
         return
     real = _real(path, cwd)
@@ -443,12 +449,58 @@ def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
                       "which holds AI-Paladin's policy, settings or audit log "
                       "or Claude Code's settings - only a person may do that"
                       % path)
-    check_write_path(real, cmds, workspace, session, use_allow=False)
+    check_write_path(real, cmds, workspace, session, use_allow=strict)
     if kind == "destroy":
         # deleting a folder deletes what is in it: `rm -rf backup` is a
         # write to backup/** as much as `rm backup/db` is
         check_write_path(os.path.join(real, "_"), cmds, workspace, session,
-                         use_allow=False)
+                         use_allow=strict)
+
+
+# ---------------------------------------------------------------------------
+# the hook's own settings: hook.yaml in the user's settings folder
+# ---------------------------------------------------------------------------
+
+HOOK_SETTINGS = "hook.yaml"
+HOOK_SETTING_DEFAULTS = {
+    # Also hold files written by Bash commands and interpreter code to
+    # commands.yaml write_scope.allow (default-deny outside the allowed
+    # folders), not only to write_scope.deny. Off by default.
+    "shell_writes_enforce_allow": False,
+}
+
+
+def load_hook_settings() -> dict:
+    """
+    ~/.config/ai-paladin/hook.yaml (AI_PALADIN_CONFIG_DIR/hook.yaml), over
+    HOOK_SETTING_DEFAULTS. No file means the defaults. The file lives in the
+    config folder the hook-tamper rule keeps agents out of, so only a person
+    can change it. An unknown key or a non-boolean value raises ValueError:
+    the hook then refuses every call (fail closed) rather than silently run
+    without a setting the user meant to turn on.
+    """
+    import yaml
+    from ai_paladin import paths
+    out = dict(HOOK_SETTING_DEFAULTS)
+    p = paths.user_config(HOOK_SETTINGS)
+    if not os.path.exists(p):
+        return out
+    with open(p, "r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if data is None:
+        return out
+    if not isinstance(data, dict):
+        raise ValueError("%s: top level must be a mapping" % p)
+    unknown = sorted(set(data) - set(HOOK_SETTING_DEFAULTS))
+    if unknown:
+        raise ValueError("%s: unknown setting(s) %s - known: %s" % (
+            p, ", ".join(map(str, unknown)),
+            ", ".join(sorted(HOOK_SETTING_DEFAULTS))))
+    for k, v in data.items():
+        if not isinstance(v, bool):
+            raise ValueError("%s: %s must be true or false, not %r" % (p, k, v))
+        out[k] = v
+    return out
 
 
 _MCP_PATH_KEY = re.compile(r"(path|file|filename|dir|directory|dest|"
@@ -468,9 +520,11 @@ def _mcp_paths(ti: dict) -> list:
     return out
 
 
-def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
+def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list,
+             settings: dict = None):
     """Raise Refused if the call breaks a rule. No state; the only I/O is
-    resolving paths and reading a script a Bash command would run."""
+    resolving paths, reading a script a Bash command would run, and reading
+    hook.yaml when `settings` is not given (load_hook_settings)."""
     from ai_paladin.security.monitors import is_credential_path
 
     tool = call.get("tool_name", "")
@@ -480,8 +534,11 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     session = str(call.get("session_id") or "unknown")
 
     if tool == "Bash":
+        if settings is None:
+            settings = load_hook_settings()
         _check_bash(str(ti.get("command", "")), cmds, pkgs, cred_globs,
-                    cwd, os.path.realpath(workspace), session)
+                    cwd, os.path.realpath(workspace), session,
+                    strict=bool(settings.get("shell_writes_enforce_allow")))
         return
 
     paths = [ti.get(k) for k in ("file_path", "notebook_path", "path")
@@ -847,6 +904,14 @@ def main(argv=None) -> int:
         print("installed in   %s" % ("\n               ".join(places)
                                      if places else "nowhere AI-Paladin "
                                      "knows of - run --install"))
+        try:
+            strict = load_hook_settings()["shell_writes_enforce_allow"]
+            print("shell writes   %s" % (
+                "write_scope deny + allow (shell_writes_enforce_allow: true)"
+                if strict else "write_scope deny only (default)"))
+        except (OSError, ValueError) as exc:
+            print("shell writes   hook.yaml unreadable - every call is "
+                  "refused: %s" % exc)
         d = os.path.join(paths.LOG_DIR, "hook-state")
         for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
             try:

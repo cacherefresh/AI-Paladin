@@ -106,6 +106,27 @@ The hook reads the same settings folder as the router, so a `commands.yaml`,
 `packages.yaml` or `behavioral_rules.yaml` in `~/.config/ai-paladin/`
 replaces the shipped one.
 
+## Settings: `hook.yaml`
+
+The hook's own switches live in `hook.yaml` in your settings folder
+(`~/.config/ai-paladin/hook.yaml`, or `$AI_PALADIN_CONFIG_DIR/hook.yaml`).
+No file means every default. It is a user setting, not a policy file: the
+shipped `security/policies/` files are unchanged, and this file sits in the
+config folder that rule `hook-tamper` keeps agents out of, so only a person
+can change it. An unknown key or a value that is not `true` / `false` makes
+the hook refuse every call (fail closed) until it is fixed, so a misspelt
+setting is never silently ignored. `ai-paladin-hook --status` shows the
+current values.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `shell_writes_enforce_allow` | `false` | Files written by Bash commands and interpreter code are always checked against `write_scope.deny` and the protected files. With `true`, they must also be inside `write_scope.allow` (the project folder and `/tmp/agent-<session>`): a shell write anywhere else is refused (`out-of-scope-path`). Off by default because ordinary shell work writes outside the project (`rm -rf /tmp/build`, `mkdir -p ~/scratch`). `/dev/null`, `/dev/stderr` and `>&2` are never files. |
+
+```yaml
+# ~/.config/ai-paladin/hook.yaml
+shell_writes_enforce_allow: true
+```
+
 ## After a pause
 
 ```bash
@@ -127,9 +148,11 @@ ai-paladin-hook --release SESSION_ID  # a person lifts the pause
   path assembled in a loop, a module a script imports, a program that
   writes files on its own terms (`git checkout`, `make`) - is not seen.
   Run agents in a sandbox as well (`security/sandbox.md`).
-- Bash and script writes are checked against `write_scope.deny` and the
-  protected files, not against `write_scope.allow` (ordinary shell work
-  such as `rm -rf /tmp/build` writes outside the project). Bash renames are
+- By default, Bash and script writes are checked against
+  `write_scope.deny` and the protected files, not against
+  `write_scope.allow` (ordinary shell work such as `rm -rf /tmp/build`
+  writes outside the project); set `shell_writes_enforce_allow: true` in
+  `hook.yaml` to enforce the allow list too. Bash renames are
   not counted as writes for mass-file-touch.
 - It cannot kill an agent. "kill_agent" rules are carried out by refusing
   the call.
