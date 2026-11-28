@@ -25,6 +25,62 @@ tab: **Release** > **Run workflow** > set "Use workflow from" to
 `development` or `sanctuary` > set target to `testpypi` > leave
 prerelease blank unless this is a redo > **Run workflow**.
 
+## Release gate
+
+Before any merge of `development` into `sanctuary`, the current
+`development` build must be published to TestPyPI and installed on a
+separate, clean Ubuntu machine with Python (not the development
+machine), then smoke-tested there. This is a standing rule as of
+2026-11-28.
+
+Numbered order:
+
+1. Publish the current `development` build to TestPyPI (dispatch the
+   Release workflow with target `testpypi`, as described below).
+2. On a separate, clean Ubuntu machine with Python (not the machine
+   you develop on), create a virtual environment and install that
+   build:
+
+   ```bash
+   python3 -m venv ~/paladin-test && source ~/paladin-test/bin/activate
+   pip install -i https://test.pypi.org/simple/ \
+     --extra-index-url https://pypi.org/simple/ \
+     ai-paladin==<VERSION>
+   ```
+
+   Use the version that was just uploaded (`0.3.0`, or `0.3.0rc1` if
+   this is a redo). The extra index lets pip pull dependencies such
+   as PyYAML from real PyPI, because TestPyPI may not have them.
+3. Smoke-test the install:
+
+   ```bash
+   ai-paladin --version
+   ai-paladin --help
+   ai-paladin-hook --status
+   ```
+
+   Plus any further checks Rob adds. `--version` should print
+   `ai-paladin` and the expected version. `--help` should print
+   usage and exit 0. `ai-paladin-hook --status` should run and exit
+   0 (it may say the hook is not installed, which is expected in a
+   clean venv).
+4. Only after that clean-box test passes may `development` be
+   promoted into `sanctuary`. Use a merge commit, not squash or
+   rebase, so the two branches stay in step.
+5. After the promotion, tag `v<VERSION>` on sanctuary (for example
+   `v0.3.0`) and push the tag. That is what starts the production
+   PyPI release. Rob then approves the `pypi` environment in the
+   Actions UI.
+
+Merging `development` into `sanctuary` does not publish anything.
+Only the `v*` tag starts the production upload, and only after Rob
+approves the `pypi` environment.
+
+If the clean-box test fails, do not promote. Fix the problem on a
+`bugfix/` branch into `development`, then redo the TestPyPI upload
+with `prerelease=rc1` (or the next unused pre-release). TestPyPI
+rejects a second upload of the same version.
+
 ## One-time setup (Rob)
 
 Do these once, before the first upload. A TestPyPI account is not a
@@ -129,6 +185,10 @@ of that same version. For a redo, use `prerelease=rc1` as below.
 
 ### Verify the install
 
+For the sanctuary promotion gate, run the install and smoke tests
+on a separate, clean Ubuntu machine with Python, not on the
+development machine. See [Release gate](#release-gate) above.
+
 In a clean virtual environment, install the uploaded package. PyYAML
 is pulled from the real PyPI index because it may not be on TestPyPI:
 
@@ -207,6 +267,11 @@ The production 0.3.0 upload to real PyPI still uses the committed
 tag; the workflow rejects that.
 
 ## Production PyPI (after the dry run)
+
+Do not start this section until the [Release gate](#release-gate)
+above has passed: the current `development` build is on TestPyPI
+and has been smoke-tested on a separate, clean Ubuntu machine.
+Merging into `sanctuary` does not publish; only the `v*` tag does.
 
 1. Finish the one-time PyPI publisher and `pypi` environment steps
    above. The TestPyPI dry run and the sanctuary merge of the
