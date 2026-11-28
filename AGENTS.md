@@ -169,6 +169,11 @@ When incrementing a document set:
    bump, to the root `CHANGELOG.md` and the root `VERSION` file. Update
    `vscode/ai-paladin/package.json` to match. Run the version test.
 
+From v0.3.0 on, the configuration manual files in `USER_CONFIG/latest/`
+are named `USER_CONFIG_MANUAL.html` and `USER_CONFIG_MANUAL.pdf`.
+Frozen earlier versions keep the older `USER_CONFIG_DECK` filenames
+and must not be renamed.
+
 Rebuild the configuration manual PDF with
 `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh --manual`.
 That invocation does not touch a pitch deck. Frozen PDFs are never
