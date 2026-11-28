@@ -1,6 +1,7 @@
 """
 AGENTS.md, CLAUDE.md and HANDOFF.md live at the repo root so tools can
-read them, and must not be shipped in the pip package.
+read them, and must not be shipped in the pip package. The same is true
+of assets/ (brand logo and favicons).
 
 Run from ai-paladin/:  python3 -m unittest tests.test_repo_only_docs -v
 """
@@ -15,6 +16,13 @@ _REPO = _AI_PALADIN.parent
 sys.path.insert(0, str(_AI_PALADIN))
 
 REPO_ONLY = ("AGENTS.md", "CLAUDE.md", "HANDOFF.md")
+REPO_ONLY_DIRS = ("assets/",)
+LOGO_FILES = (
+    "assets/logo/cacherefresh-logo-512.gif",
+    "assets/logo/cacherefresh-logo-512.png",
+    "assets/logo/favicon-32.png",
+    "assets/logo/favicon.ico",
+)
 
 
 class RepoOnlyDocsTest(unittest.TestCase):
@@ -24,6 +32,12 @@ class RepoOnlyDocsTest(unittest.TestCase):
             path = _REPO / name
             self.assertTrue(path.is_file(), f"missing repo-root {name}")
             self.assertGreater(path.stat().st_size, 0, f"{name} is empty")
+
+    def test_assets_logo_exists_at_repo_root(self):
+        for rel in LOGO_FILES:
+            path = _REPO / rel
+            self.assertTrue(path.is_file(), f"missing {rel}")
+            self.assertGreater(path.stat().st_size, 0, f"{rel} is empty")
 
     def test_claude_md_points_at_agents_md(self):
         text = (_REPO / "CLAUDE.md").read_text(encoding="utf-8")
@@ -40,6 +54,8 @@ class RepoOnlyDocsTest(unittest.TestCase):
     def test_pyproject_does_not_ship_them(self):
         text = (_REPO / "pyproject.toml").read_text(encoding="utf-8")
         for name in REPO_ONLY:
+            self.assertNotIn(name, text, f"{name} is referenced in pyproject.toml")
+        for name in REPO_ONLY_DIRS:
             self.assertNotIn(name, text, f"{name} is referenced in pyproject.toml")
         # Wheel package data is only the listed globs under ai-paladin/.
         self.assertIn("include-package-data = false", text)
@@ -58,7 +74,7 @@ class RepoOnlyDocsTest(unittest.TestCase):
         )
         for match in include.finditer(text):
             chunk = match.group(0)
-            for name in REPO_ONLY:
+            for name in REPO_ONLY + REPO_ONLY_DIRS:
                 if name in chunk:
                     self.fail(f"MANIFEST.in would include {name}: {chunk.strip()}")
 

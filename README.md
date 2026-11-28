@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/cacherefresh-logo-512.png" width="160" alt="Cache Refresh"></p>
+
 # AI-Paladin - An AI-Org-Router
 
 > The project folder was formerly `ai-org-router/`; it is now `ai-paladin/`. Older
