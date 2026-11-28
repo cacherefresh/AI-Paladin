@@ -135,9 +135,56 @@ def _guard_dirs() -> list:
     return sorted({os.path.realpath(d) for d in dirs})
 
 
+# The enforcement files of an AI-Paladin tree (AGENTS.md: "the gates are
+# data, not prose"). Relative to the tree's root - ai-paladin/ in the
+# repository, ai_paladin/_shipped/ in a wheel.
+POLICY_FILES = ("router/keywords.yaml", "router/policy.yaml",
+                "config/keywords.yaml")
+POLICY_DIRS = ("security/policies", "security/monitors")
+
+
+def _paladin_root(root: str) -> bool:
+    """Is `root` an AI-Paladin tree: the one this hook runs from, or a
+    checkout of it (the ai_paladin package or hooks/ wrapper beside it)?"""
+    from ai_paladin import paths as ap
+    r = os.path.realpath(root or "/")
+    return (r == os.path.realpath(ap.BASE)
+            or os.path.isfile(os.path.join(r, "ai_paladin", "hook.py"))
+            or os.path.isfile(os.path.join(r, "hooks", "pre_tool_use.py")))
+
+
+def _policy_file(real: str) -> bool:
+    for rel in POLICY_FILES:
+        if real.endswith("/" + rel) and _paladin_root(real[:-len(rel) - 1]):
+            return True
+    for d in POLICY_DIRS:
+        i = real.find("/" + d)
+        while i >= 0:
+            end = i + 1 + len(d)
+            if (end == len(real) or real[end] == "/") and _paladin_root(real[:i]):
+                return True
+            i = real.find("/" + d, i + 1)
+    return False
+
+
+def _policy_locations(workspace: str) -> list:
+    """The enforcement files of every AI-Paladin tree the hook knows of: its
+    own, and the project's if the project is (or contains) a checkout."""
+    from ai_paladin import paths as ap
+    roots = {os.path.realpath(r) for r in
+             (ap.BASE, workspace, os.path.join(workspace, "ai-paladin"))
+             if _paladin_root(r)}
+    return [os.path.join(r, rel) for r in sorted(roots)
+            for rel in POLICY_FILES + POLICY_DIRS]
+
+
 def _protected(real: str) -> bool:
-    """Files an agent must not edit: they decide what the guard enforces."""
+    """Files an agent must not edit: they decide what the guard enforces -
+    AI-Paladin's config and log folders, Claude Code's settings, and the
+    policy files of an AI-Paladin tree."""
     if any(_under(real, d) for d in _guard_dirs()):
+        return True
+    if _policy_file(real):
         return True
     parent, name = os.path.split(real)
     return (os.path.basename(parent) == ".claude"
@@ -147,8 +194,9 @@ def _protected(real: str) -> bool:
 def _holds_protected(real: str, workspace: str) -> bool:
     """True if deleting or moving `real` would take protected files with it
     (`rm -rf ~/.config`, `mv .claude elsewhere`)."""
-    held = _guard_dirs() + [os.path.join(workspace, ".claude"),
-                            os.path.join(os.path.expanduser("~"), ".claude")]
+    held = (_guard_dirs() + _policy_locations(workspace)
+            + [os.path.join(workspace, ".claude"),
+               os.path.join(os.path.expanduser("~"), ".claude")])
     return any(_under(os.path.realpath(h), real) for h in held)
 
 
@@ -384,8 +432,8 @@ def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
     if _protected(real) or (kind == "destroy"
                             and _holds_protected(real, workspace)):
         raise Refused("hook-tamper", "command would write, move or delete %s, "
-                      "which holds AI-Paladin's or Claude Code's settings or "
-                      "the hook's audit log - only a person may do that"
+                      "which holds AI-Paladin's policy, settings or audit log "
+                      "or Claude Code's settings - only a person may do that"
                       % path)
     check_write_path(real, cmds, workspace, session, use_allow=False)
     if kind == "destroy":
@@ -451,8 +499,9 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
         for p in paths:
             real = _real(p, cwd)
             if _protected(real):
-                raise Refused("hook-tamper", "%s holds AI-Paladin's or Claude "
-                              "Code's settings - only a person may edit it" % p)
+                raise Refused("hook-tamper", "%s is one of AI-Paladin's policy, "
+                              "settings or log files, or Claude Code's "
+                              "settings - only a person may edit it" % p)
             check_write_path(real, cmds, os.path.realpath(workspace), session)
 
 
