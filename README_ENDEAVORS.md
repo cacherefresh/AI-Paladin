@@ -27,8 +27,8 @@ settings (LLM, RAG, bot), and the HTTP method classes and switches.
 
 ## The principle
 
-A prompt is a suggestion. A hook is a guardrail: advisory today, a tripwire
-rather than a boundary. A driver is the foundation a real wall would stand on. Each layer down removes one more thing an agent - or the
+A prompt is a suggestion. A hook is a guardrail: a hardened guardrail today,
+not a boundary. A driver is the foundation a real wall would stand on. Each layer down removes one more thing an agent - or the
 person driving it - can talk its way past.
 
 ## The prompt
