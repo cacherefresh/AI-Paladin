@@ -83,7 +83,6 @@ class KnownHookBypasses(unittest.TestCase):
     # -- write scope --------------------------------------------------------
     # Write/Edit outside the project is refused; Bash writes are not checked.
 
-    @unittest.expectedFailure
     def test_shell_redirect_into_etc(self):
         self.assertRefused(bash("echo hi > /etc/motd"))
 
@@ -94,11 +93,9 @@ class KnownHookBypasses(unittest.TestCase):
 
     # -- tampering with the hook's own evidence ------------------------------
 
-    @unittest.expectedFailure
     def test_rm_hook_audit_log(self):
         self.assertRefused(bash("rm ~/.local/state/ai-paladin/logs/hooks.jsonl"))
 
-    @unittest.expectedFailure
     def test_truncate_hook_audit_log(self):
         self.assertRefused(bash(
             ": > ~/.local/state/ai-paladin/logs/hooks.jsonl"))

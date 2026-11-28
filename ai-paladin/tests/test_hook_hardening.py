@@ -130,6 +130,54 @@ class ShellSpelling(_HookCase):
                 self.allowed(bash(c))
 
 
+class ShellWrites(_HookCase):
+    """Files a Bash command writes, renames or deletes get the Write tool's
+    protections: protected files, and write_scope.deny."""
+
+    def test_writes_into_denied_paths_refused(self):
+        for c in ["echo hi > /etc/motd", "echo hi >> /etc/motd",
+                  "echo hi 2>/etc/motd", "echo hi &>/etc/motd",
+                  "echo hi | tee -a /etc/motd", "cp x /etc/motd",
+                  "cp -t /usr/local/bin x", "mv x /usr/bin/ls",
+                  "install -m 755 x /usr/local/bin/x", "touch /etc/x",
+                  "ln -sf x /etc/x", "sed -i s/a/b/ /etc/hosts",
+                  "dd if=x of=/etc/motd", "rm /usr/bin/python3",
+                  "truncate -s 0 /etc/motd", "chmod +x /usr/bin/x",
+                  "curl -o /etc/x https://example.com",
+                  "tar xzf a.tgz -C /usr", "cd /etc && echo hi > motd",
+                  "cd / ; cd etc ; echo hi > motd",
+                  "sh -c 'echo hi > /etc/motd'",
+                  "echo hi > /e''tc/motd", "echo hi > /e*c/motd",
+                  "rm -rf backup/old", "rm .git/objects/ab/cd",
+                  "find backup -delete"]:
+            with self.subTest(c=c):
+                self.refused(bash(c))
+
+    def test_hook_evidence_and_settings_refused(self):
+        logs = os.path.join(os.path.expanduser("~"), ".local", "state",
+                            "ai-paladin")
+        for c in ["rm ~/.local/state/ai-paladin/logs/hooks.jsonl",
+                  ": > ~/.local/state/ai-paladin/logs/hooks.jsonl",
+                  "truncate -s0 %s/logs/hooks.jsonl" % logs,
+                  "cd ~/.local/state && rm -rf ai-paladin",
+                  "rm -rf ~/.local/state", "mv ~/.config ~/old-config",
+                  "rm -rf ~/.claude", "rm -rf .claude",
+                  "find ~/.local -delete"]:
+            with self.subTest(c=c):
+                self.refused(bash(c), "hook-tamper")
+
+    def test_ordinary_writes_pass(self):
+        for c in ["echo hi > out.txt", "ls > /dev/null 2>&1", "make 2>&1",
+                  "cmd >&2", "cp a b", "mv old new", "rm -rf ./dist",
+                  "rm -rf /tmp/build", "mkdir -p ~/scratch/x",
+                  "sed -i s/a/b/ src/a.py", "tee log.txt < in",
+                  "chmod +x run.sh", "tar czf out.tgz src",
+                  "curl -o page.html https://example.com",
+                  "touch ~/scratch/stamp", "cd src && echo x > y"]:
+            with self.subTest(c=c):
+                self.allowed(bash(c))
+
+
 class ShellScanUnit(unittest.TestCase):
 
     def test_segments_and_inner(self):
@@ -142,6 +190,18 @@ class ShellScanUnit(unittest.TestCase):
         sc = shell_scan.scan("(cd x);ls 2>&1 >out")
         self.assertEqual([s.words for s in sc.segments], [["cd", "x"], ["ls"]])
         self.assertEqual(sc.segments[1].redirects, [(">&", "1"), (">", "out")])
+
+    def test_write_targets(self):
+        def wt(c):
+            return [t for s in shell_scan.scan(c).segments
+                    for t in shell_scan.write_targets(s)]
+        self.assertEqual(wt("cp -r a b c/"), [("c/", "write")])
+        self.assertEqual(wt("rm -rf x y"), [("x", "destroy"), ("y", "destroy")])
+        self.assertEqual(wt("sed -e s/a/b/ -i f g"), [("f", "write"),
+                                                       ("g", "write")])
+        self.assertEqual(wt("chmod -x f"), [("f", "write")])
+        self.assertEqual(wt("chmod 644 f"), [("f", "write")])
+        self.assertEqual(wt("ls 2>&1 >o"), [("o", "write")])
 
     def test_expand_word(self):
         env = {"HOME": "/home/u", "D": ".ssh"}

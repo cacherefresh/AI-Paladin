@@ -64,6 +64,7 @@ class Segment:
         self.assigns: Dict[str, str] = assigns or {}  # VAR=value on the line
         self.redirects: List[tuple] = redirects      # (operator, word)
         self.heredocs: List[str] = heredocs
+        self.inner: List[str] = []           # command strings it runs
 
     @property
     def name(self) -> str:
@@ -80,7 +81,12 @@ class Scan:
 
     def __init__(self):
         self.segments: List[Segment] = []
-        self.inner: List[str] = []          # nested shell command strings
+        self.substitutions: List[str] = []  # $(...), `...`, <(...)
+
+    @property
+    def inner(self) -> List[str]:
+        """Every nested command string: substitutions, then each segment's."""
+        return self.substitutions + [c for s in self.segments for c in s.inner]
 
     @property
     def words(self) -> List[str]:
@@ -360,6 +366,152 @@ def word_paths(word: str, env: Dict[str, str], cwd: str) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
+# files a command writes
+# ---------------------------------------------------------------------------
+
+WRITE, DESTROY = "write", "destroy"
+_FILE_REDIRECTS = {">", ">>", ">|", "&>", "&>>", "<>"}
+
+
+def _operands(args: List[str], takes: set):
+    """(operands, {option: [values]}) for one command's arguments. `takes`
+    are the options that consume a value (`-t DIR`, `-tDIR`, `--opt=V`)."""
+    ops, vals, i = [], {}, 0
+    while i < len(args):
+        a = args[i]
+        if a == "--":
+            ops.extend(args[i + 1:])
+            break
+        if a.startswith("--") and "=" in a:
+            k, v = a.split("=", 1)
+            vals.setdefault(k, []).append(v)
+        elif a in takes:
+            vals.setdefault(a, []).append(args[i + 1] if i + 1 < len(args)
+                                          else "")
+            i += 1
+        elif a.startswith("-") and not a.startswith("--") and len(a) > 2 \
+                and a[:2] in takes:
+            vals.setdefault(a[:2], []).append(a[2:])
+        elif a.startswith("-") and a != "-":
+            vals.setdefault(a, []).append("")
+        else:
+            ops.append(a)
+        i += 1
+    return ops, vals
+
+
+def _short_flag(vals: dict, letter: str, long: str = None) -> bool:
+    return any((k.startswith("-") and not k.startswith("--") and letter in k)
+               or (long and k.startswith(long)) for k in vals)
+
+
+_DESTROY_ALL = {"rm", "rmdir", "unlink", "shred", "srm"}
+_WRITE_ALL = {"touch": {"-d", "-t", "-r", "--date", "--reference"},
+              "mkdir": {"-m", "--mode"}, "truncate": {"-s", "-r", "--size",
+                                                     "--reference"},
+              "tee": set(), "mkfifo": {"-m", "--mode"}}
+_COPY_LIKE = {"cp": {"-t", "-S", "--target-directory", "--suffix"},
+              "install": {"-t", "-m", "-o", "-g", "-S", "--mode", "--owner",
+                          "--group", "--target-directory", "--suffix"},
+              "ln": {"-t", "-S", "--target-directory", "--suffix"},
+              "link": set(), "scp": {"-P", "-i", "-o", "-F", "-c", "-l"},
+              "rsync": {"-e", "--rsh", "-f", "--filter", "--exclude",
+                        "--include", "-T", "--temp-dir"}}
+_MODE = re.compile(r"^[-+=][rwxXstugo,+=-]*$")
+
+
+def write_targets(seg: Segment) -> List[tuple]:
+    """[(word, WRITE or DESTROY)] - the files this one command writes,
+    renames or deletes, as written (not yet expanded). Covers redirections
+    and the common file utilities; a program that writes files on its own
+    terms is not visible here."""
+    out = []
+    for op, t in seg.redirects:
+        if op in _FILE_REDIRECTS or (op == ">&" and
+                                     not re.fullmatch(r"\d*-?", t)):
+            out.append((t, WRITE))
+    if not seg.words:
+        return out
+    name, args = seg.name, seg.words[1:]
+    if name in _DESTROY_ALL:
+        ops, _ = _operands(args, set())
+        out += [(o, DESTROY) for o in ops]
+    elif name in _WRITE_ALL:
+        ops, _ = _operands(args, _WRITE_ALL[name])
+        out += [(o, WRITE) for o in ops]
+    elif name == "mv":
+        ops, vals = _operands(args, {"-t", "-S", "--target-directory",
+                                     "--suffix"})
+        out += [(o, DESTROY) for o in ops]
+        out += [(v, WRITE) for k in ("-t", "--target-directory")
+                for v in vals.get(k, [])]
+    elif name in _COPY_LIKE:
+        ops, vals = _operands(args, _COPY_LIKE[name])
+        tdir = [v for k in ("-t", "--target-directory") for v in vals.get(k, [])]
+        if tdir:
+            out += [(v, WRITE) for v in tdir]
+        elif name == "install" and "-d" in vals:
+            out += [(o, WRITE) for o in ops]
+        elif len(ops) >= 2:
+            out.append((ops[-1], WRITE))
+    elif name in ("chmod", "chown", "chgrp", "chattr", "setfacl"):
+        mode_dash = [a for a in args if _MODE.match(a) and
+                     a not in ("-R", "-f", "-v", "-c", "-h", "-H", "-L", "-P")]
+        ops, vals = _operands([a for a in args if a not in mode_dash],
+                              {"--reference"})
+        files = ops if (mode_dash or "--reference" in vals) else ops[1:]
+        out += [(o, WRITE) for o in files]
+    elif name == "dd":
+        out += [(a[3:], WRITE) for a in args if a.startswith("of=")]
+    elif name in ("sed", "gsed", "perl"):
+        takes = {"-e", "-f", "--expression", "--file"} if name != "perl" \
+            else {"-e", "-E", "-M", "-I", "-x"}
+        ops, vals = _operands(args, takes)
+        if _short_flag(vals, "i", "--in-place"):
+            has_script = any(k in vals for k in ("-e", "-f", "-E",
+                                                 "--expression", "--file"))
+            out += [(o, WRITE) for o in (ops if has_script else ops[1:])]
+    elif name in ("curl", "wget"):
+        takes = ({"-o", "--output", "--output-dir", "-K", "--config", "-d",
+                  "-H", "-u", "-X", "-A", "-e", "-b", "-c", "-F", "-T"}
+                 if name == "curl" else
+                 {"-O", "--output-document", "-P", "--directory-prefix",
+                  "-o", "-a", "--output-file", "--append-output"})
+        _, vals = _operands(args, takes)
+        for k in ("-o", "--output", "--output-dir", "-c", "-O",
+                  "--output-document", "-P", "--directory-prefix", "-a",
+                  "--output-file", "--append-output"):
+            if name == "curl" and k in ("-O", "-P", "-a"):
+                continue
+            out += [(v, WRITE) for v in vals.get(k, []) if v and v != "-"]
+    elif name in ("tar", "bsdtar", "unzip"):
+        if name == "unzip":
+            _, vals = _operands(args, {"-d", "-x"})
+            out += [(v, WRITE) for v in vals.get("-d", [])]
+        else:
+            first = args[0] if args else ""
+            _, vals = _operands(args, {"-C", "--directory", "-f", "--file",
+                                       "-T", "-X"})
+            extracting = (re.fullmatch(r"[A-Za-z]*x[A-Za-z]*", first)
+                          or _short_flag(vals, "x", "--extract"))
+            if extracting:
+                out += [(v, WRITE) for k in ("-C", "--directory")
+                        for v in vals.get(k, [])]
+    elif name == "find":
+        if "-delete" in args or any(
+                a in ("-exec", "-execdir", "-ok", "-okdir") and
+                k + 1 < len(args) and os.path.basename(args[k + 1]) in
+                (_DESTROY_ALL | {"mv"}) for k, a in enumerate(args)):
+            starts = []
+            for a in args:
+                if a.startswith(("-", "(", "!")):
+                    break
+                starts.append(a)
+            out += [(s, DESTROY) for s in (starts or ["."])]
+    return out
+
+
+# ---------------------------------------------------------------------------
 # nesting: commands that run other commands
 # ---------------------------------------------------------------------------
 
@@ -405,12 +557,13 @@ def _inner_commands(seg: Segment) -> List[str]:
 
 
 def scan(command: str) -> Scan:
-    """Split one command string. Nested command strings are listed in
-    `.inner`, not followed: the caller scans each, with a depth limit."""
+    """Split one command string. Nested command strings are listed (in
+    `.substitutions` and each segment's `.inner`), not followed: the caller
+    scans each, with a depth limit."""
     result = Scan()
     text, subs, docs = _prepare(str(command))
-    result.inner.extend(subs)
+    result.substitutions.extend(subs)
     result.segments = _segments(tokens(text), docs)
     for seg in result.segments:
-        result.inner.extend(_inner_commands(seg))
+        seg.inner.extend(_inner_commands(seg))
     return result

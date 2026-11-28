@@ -98,7 +98,10 @@ def _matches(path: str, entry: str) -> bool:
     return _under(path, entry)
 
 
-def check_write_path(path: str, cmds: dict, workspace: str, session: str):
+def check_write_path(path: str, cmds: dict, workspace: str, session: str,
+                     use_allow: bool = True):
+    """Refuse a write to `path` outside commands.yaml write_scope. With
+    use_allow=False only `deny` applies (used for Bash commands)."""
     scope = cmds.get("write_scope") or {}
     for d in scope.get("deny") or []:
         if _matches(path, _expand(d, workspace, session)):
@@ -106,6 +109,8 @@ def check_write_path(path: str, cmds: dict, workspace: str, session: str):
                     else "out-of-scope-path")
             raise Refused(rule, "writing to %s is denied (write_scope.deny: %s)"
                           % (path, d))
+    if not use_allow:
+        return
     allow = [_expand(a, workspace, session) for a in scope.get("allow") or []]
     if allow and not any(_matches(path, a) for a in allow):
         raise Refused("out-of-scope-path",
@@ -113,14 +118,38 @@ def check_write_path(path: str, cmds: dict, workspace: str, session: str):
                       % (path, ", ".join(allow)))
 
 
+def _guard_dirs() -> list:
+    """AI-Paladin's config and log folders: the ones in use, and the default
+    XDG locations too, so pointing AI_PALADIN_*_DIR elsewhere does not leave
+    the usual copies open to an agent."""
+    from ai_paladin import paths as ap
+    home = os.path.expanduser("~")
+    xdg_config = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
+    xdg_state = (os.environ.get("XDG_STATE_HOME")
+                 or os.path.join(home, ".local", "state"))
+    dirs = [ap.CONFIG_DIR, ap.LOG_DIR,
+            os.path.join(xdg_config, "ai-paladin"),
+            os.path.join(xdg_state, "ai-paladin"),
+            os.path.join(home, ".config", "ai-paladin"),
+            os.path.join(home, ".local", "state", "ai-paladin")]
+    return sorted({os.path.realpath(d) for d in dirs})
+
+
 def _protected(real: str) -> bool:
     """Files an agent must not edit: they decide what the guard enforces."""
-    from ai_paladin import paths as ap
-    if _under(real, ap.CONFIG_DIR) or _under(real, ap.LOG_DIR):
+    if any(_under(real, d) for d in _guard_dirs()):
         return True
     parent, name = os.path.split(real)
     return (os.path.basename(parent) == ".claude"
             and name in ("settings.json", "settings.local.json"))
+
+
+def _holds_protected(real: str, workspace: str) -> bool:
+    """True if deleting or moving `real` would take protected files with it
+    (`rm -rf ~/.config`, `mv .claude elsewhere`)."""
+    held = _guard_dirs() + [os.path.join(workspace, ".claude"),
+                            os.path.join(os.path.expanduser("~"), ".claude")]
+    return any(_under(os.path.realpath(h), real) for h in held)
 
 
 # ---------------------------------------------------------------------------
@@ -268,20 +297,60 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
         raise Refused("credential-path-access", "command names a "
                       "credential location (.ssh, .aws or .env)")
     env = dict(os.environ)
+    here = cwd
     for seg in sc.segments:
         env.update(seg.assigns)
         for word in seg.words + [t for _, t in seg.redirects]:
-            for p in shell_scan.word_paths(word, env, cwd):
+            for p in shell_scan.word_paths(word, env, here):
                 if is_credential_path(p, cred_globs) or \
-                        is_credential_path(_real(p, cwd), cred_globs):
+                        is_credential_path(_real(p, here), cred_globs):
                     raise Refused("credential-path-access", "%r resolves to "
                                   "a credential path (%s)" % (word, p))
         inst = _install_args(seg.words)
         if inst:
             check_install(inst[0], inst[1], pkgs)
-    for inner in sc.inner:
+        for word, kind in shell_scan.write_targets(seg):
+            for p in shell_scan.expand_word(word, env, here):
+                _check_shell_write(p, kind, here, cmds, workspace, session)
+        for inner in seg.inner:
+            _check_bash(inner, cmds, pkgs, cred_globs, here, workspace,
+                        session, depth + 1)
+        if seg.name in ("cd", "pushd"):          # later segments run there
+            dest = seg.words[1] if len(seg.words) > 1 else "~"
+            if dest != "-":
+                here = _real(shell_scan.expand_word(dest, env, here)[0], here)
+    for inner in sc.substitutions:
         _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
                     depth + 1)
+
+
+# Not files: writing here goes to a terminal or nowhere.
+_NOT_FILES = re.compile(r"^/dev/(null|zero|stdout|stderr|stdin|tty|fd/\d+)$"
+                        r"|^/proc/self/fd/\d+$")
+
+
+def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
+                       workspace: str, session: str):
+    """A file a Bash command writes (>, tee, cp, mv, rm, sed -i, dd of=...).
+    Protected files and write_scope.deny apply, as for the Write tool.
+    write_scope.allow does not: ordinary shell work (rm -rf /tmp/build,
+    a cache in ~) writes outside the project, and refusing it would make the
+    hook unusable rather than safer."""
+    if _NOT_FILES.match(path):
+        return
+    real = _real(path, cwd)
+    if _protected(real) or (kind == "destroy"
+                            and _holds_protected(real, workspace)):
+        raise Refused("hook-tamper", "command would write, move or delete %s, "
+                      "which holds AI-Paladin's or Claude Code's settings or "
+                      "the hook's audit log - only a person may do that"
+                      % path)
+    check_write_path(real, cmds, workspace, session, use_allow=False)
+    if kind == "destroy":
+        # deleting a folder deletes what is in it: `rm -rf backup` is a
+        # write to backup/** as much as `rm backup/db` is
+        check_write_path(os.path.join(real, "_"), cmds, workspace, session,
+                         use_allow=False)
 
 
 def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
