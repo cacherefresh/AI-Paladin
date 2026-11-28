@@ -60,7 +60,9 @@ pip install ./ai_paladin-<version>-py3-none-any.whl
 
 PyPI uploads will use **Trusted Publishing**: GitHub Actions authenticates
 with a short-lived token for each release, so no long-lived upload key exists
-to be stolen.
+to be stolen. The workflow is `.github/workflows/release.yml`. The steps
+to run a TestPyPI dry run, and later a production release, are in
+[docs/RELEASING.md](../docs/RELEASING.md).
 
 ## Dependencies
 

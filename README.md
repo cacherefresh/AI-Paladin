@@ -37,8 +37,10 @@ ai-paladin --where          # show which files are in force, and exit
 python3 -m ai_paladin       # the same, without installing (from ai-paladin/)
 ```
 
-Only an editable install (`pip install -e`) works today; a packaged release
-is planned in [DISTRIBUTION/](DISTRIBUTION/).
+A wheel install works (`pip install ai-paladin` once the package is on
+PyPI, or `pip install` a built `.whl`). From a checkout, `pip install -e .`
+puts the commands on your PATH. How to publish a release is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Settings
 

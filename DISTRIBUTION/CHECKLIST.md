@@ -50,12 +50,15 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [x] Minimal `pyproject.toml` at the repo root: name, licence, PyYAML, the `ai-paladin` command; editable install tested (2026-11-24)
 - [x] Ship the defaults inside the package (router/*.yaml, agents/, models/, ui/, demo/) so a wheel works, not just an editable install - as `ai_paladin/_shipped/` package data (2026-11-27)
 - [x] Build the wheel and install it into a clean virtual environment to test it - `ai-paladin/tests/wheel_smoke.py`, run by CI on Python 3.12 and 3.13 (2026-11-27)
-- [ ] Add a GitHub Actions release workflow using Trusted Publishing - no stored upload key
+- [ ] Add a GitHub Actions release workflow using Trusted Publishing - no stored upload key. The workflow is `.github/workflows/release.yml`; the steps Rob runs are in `docs/RELEASING.md`. Tick this once that work has merged into `feature/distribution-init`.
+- [ ] **(Rob)** Create a TestPyPI account with two-factor authentication (separate from PyPI). See `docs/RELEASING.md`.
+- [ ] **(Rob)** Create GitHub environments `testpypi` and `pypi`. On `pypi`, add yourself as a required reviewer.
+- [ ] **(Rob)** Register the pending Trusted Publisher on TestPyPI: project `ai-paladin`, owner `cacherefresh`, repository `AI-Paladin`, workflow `release.yml`, environment `testpypi`
+- [ ] **(Rob)** Dry run: after the workflow is on `feature/distribution-init`, dispatch the Release workflow from that branch with target `testpypi`, then install as in `docs/RELEASING.md`
 - [ ] **(Rob)** Create a PyPI account with two-factor authentication
 - [ ] **(Rob)** Create the PyPI organisation `cacherefresh`
-- [ ] **(Rob)** Register the Trusted Publisher on PyPI: repository `cacherefresh/AI-Paladin`, the release workflow's file name
-- [ ] **(Rob)** Optional dry run on TestPyPI first
-- [ ] **(Rob)** Tag and push the first release, which publishes `ai-paladin` 0.3.0 and claims the name
+- [ ] **(Rob)** Register the pending Trusted Publisher on PyPI with the same fields, except environment `pypi`
+- [ ] **(Rob)** Tag and push the first release (`v0.3.0`), approve the `pypi` environment, which publishes `ai-paladin` 0.3.0 and claims the name
 
 PyPI only lets you claim a name with a real, working release. An empty
 placeholder can be taken back under its name-squatting policy.

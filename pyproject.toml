@@ -10,7 +10,7 @@
 # clean virtual environment and boots the router from it.
 
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,17 +19,21 @@ dynamic = ["version"]
 description = "Keeps protected work on-prem: a router whose gates are enforced in code, not asked of a model."
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "ℂacheℝefresh (CacheRefresh)"}]
 dependencies = ["PyYAML>=6"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]
+Homepage = "https://github.com/cacherefresh/AI-Paladin"
 Source = "https://github.com/cacherefresh/AI-Paladin"
+Issues = "https://github.com/cacherefresh/AI-Paladin/issues"
+Changelog = "https://github.com/cacherefresh/AI-Paladin/blob/sanctuary/CHANGELOG.md"
 
 [project.scripts]
 ai-paladin = "ai_paladin.cli:main"
@@ -48,7 +52,6 @@ version = {file = "VERSION"}
 "ai_paladin._shipped" = "ai-paladin"
 
 [tool.setuptools]
-license-files = ["LICENSE", "NOTICE"]
 # Only the package-data globs below, never whatever happens to sit in the
 # folder (build metadata, local config, logs).
 include-package-data = false

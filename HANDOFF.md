@@ -34,10 +34,13 @@ the VS Code Marketplace.
   [PR #10](https://github.com/cacherefresh/AI-Paladin/pull/10)
   (versioning v0.3.0, docs consolidation, v0.3.0 manual PDF named
   `USER_CONFIG_MANUAL`).
-- Next step: the TestPyPI dry run, then a merge of
+- Next step: the TestPyPI dry run (see (b) and
+  `docs/RELEASING.md`), then a merge of
   `feature/distribution-init` into `sanctuary`. Rob confirmed
   2026-11-28 to do the dry run first. Do not open a sanctuary merge
-  PR until that dry run is done.
+  PR until that dry run is done. The release workflow is added on
+  `feature/testpypi-release`; dispatch it from
+  `feature/distribution-init` after that PR is merged.
 - [PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) is
   do-not-merge. Leave it alone. It is already open from
   `feature/distribution-init` into `sanctuary` (head `6fee477`, base
@@ -120,26 +123,38 @@ PR into `feature/distribution-init`. Rob reviews and merges.
 **This is the next step.** PR #10 (including the v0.3.0 manual PDF)
 is already merged into `feature/distribution-init`. Do this before
 merging distribution into `sanctuary`. Only Rob can create the
-TestPyPI account and upload. Agents must not upload and must not be
-given the token.
+TestPyPI account, the GitHub environments, and the Trusted
+Publisher, and only Rob dispatches the upload. Agents must not
+upload, must not create accounts, and must not be given a token.
+The workflow uses Trusted Publishing (OIDC); there is no stored
+API token.
 
-There is not yet a GitHub Actions release workflow in this
-repository. Until there is, the dry run is a local build and a
-manual upload.
+The click-by-click steps are in **`docs/RELEASING.md`**. A short
+summary:
 
-1. Rob creates an account at https://test.pypi.org with two-factor
-   authentication, and an API token from
-   https://test.pypi.org/manage/account/token/.
-2. From `feature/distribution-init`, on Rob's machine:
+1. Create a TestPyPI account at https://test.pypi.org and enable 2FA.
+   A TestPyPI account is not a PyPI account.
+2. In the GitHub repo, create environments named exactly `testpypi`
+   and `pypi`. On `pypi`, add yourself as a required reviewer.
+3. Add a pending Trusted Publisher at
+   https://test.pypi.org/manage/account/publishing/:
+   project `ai-paladin`, owner `cacherefresh`, repository
+   `AI-Paladin`, workflow `release.yml`, environment `testpypi`.
+4. After the release workflow PR has merged into
+   `feature/distribution-init`, dispatch it from that branch
+   (the file has to be on the branch that runs it):
 
 ```bash
-python3 -m pip install build twine
-python3 -m build
-python3 -m twine check dist/*
-python3 -m twine upload --repository testpypi dist/*
+gh workflow run release.yml \
+  --repo cacherefresh/AI-Paladin \
+  --ref feature/distribution-init \
+  -f target=testpypi
 ```
 
-3. In a clean virtual environment, install that upload and check the
+   The Actions tab may not list this workflow until it also exists
+   on `sanctuary`, so `gh` is the reliable way to start it now.
+
+5. In a clean virtual environment, install that upload and check the
    commands. PyYAML is pulled from the real PyPI index because it may
    not be on TestPyPI:
 
@@ -150,19 +165,23 @@ python3 -m venv /tmp/ai-paladin-testpypi
   --extra-index-url https://pypi.org/simple/ \
   ai-paladin==0.3.0
 /tmp/ai-paladin-testpypi/bin/ai-paladin --version
-/tmp/ai-paladin-testpypi/bin/ai-paladin --where
-/tmp/ai-paladin-testpypi/bin/ai-paladin-hook --help
-/tmp/ai-paladin-testpypi/bin/ai-paladin uninstall --dry-run
+/tmp/ai-paladin-testpypi/bin/ai-paladin --help
+/tmp/ai-paladin-testpypi/bin/ai-paladin-hook --status
 ```
 
-`--version` should print `ai-paladin 0.3.0`. `--where` should list
-the shipped files. `uninstall --dry-run` should run without changing
-anything (it may say there is nothing recorded if the hook was never
-installed in that environment).
+`--version` should print `ai-paladin 0.3.0`. `--help` should exit 0.
+`ai-paladin-hook --status` should exit 0 (it may say the hook is not
+installed, which is expected in a clean venv).
 
-A later production PyPI release still needs the Trusted Publishing
-workflow and the other **(Rob)** steps in `DISTRIBUTION/CHECKLIST.md`
-section 3. That is not this step.
+TestPyPI will not accept a second upload of version 0.3.0. If a redo
+is needed, do not change the committed `VERSION` file (it must stay
+`X.Y.Z`, and the VS Code extension must match it). Re-dispatch with
+`-f prerelease=rc1` to upload `0.3.0rc1` instead. Details are in
+`docs/RELEASING.md`.
+
+A later production PyPI release uses the same workflow on a `v0.3.0`
+tag, after the `pypi` Trusted Publisher is registered, and waits for
+Rob's approval on the `pypi` environment. That is not this step.
 
 ### (c) Merge `feature/distribution-init` into `sanctuary`
 
@@ -242,8 +261,8 @@ cd ai-paladin
 /tmp/ai-paladin-tests/bin/python -m unittest discover -s tests -v
 ```
 
-As of 2026-11-28, on `feature/distribution-init` (`6fee477`), that
-suite is **175 passed, 2 skipped** (177 tests run). The skips are:
+As of 2026-11-28, on `feature/testpypi-release`, that
+suite is **183 passed, 2 skipped** (185 tests run). The skips are:
 
 - `test_debian_changelog_matches_when_present`, because there is no
   Ubuntu changelog in the tree yet.
