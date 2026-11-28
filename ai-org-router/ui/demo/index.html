@@ -502,6 +502,20 @@ const bytes = n => n < 1024 ? n + " B" : (n/1024).toFixed(1) + " KB";
 const SEVC = {info:"#38bdf8", low:"#38bdf8", medium:"#f59e0b",
               high:"#f97316", critical:"#ef4444", warning:"#f59e0b"};
 
+/* Every state-changing request carries this start's API token, which the
+   router writes into this page when it serves it (server/api_guard.py), and
+   is sent as JSON: the router refuses anything else. */
+const API_TOKEN = (document.querySelector('meta[name="ai-paladin-token"]')||{}).content || "";
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  if((opts.method || "GET").toUpperCase() !== "GET"){
+    opts = Object.assign({}, opts, {headers: Object.assign({},
+      opts.headers || {}, {"Content-Type": "application/json",
+                           "X-AI-Paladin-Token": API_TOKEN})});
+  }
+  return _fetch(url, opts);
+};
+
 let CFG = null, MODE = "slow", CORPUS = "alpha-ip", SEQ = 0;
 let pending = null, activeTask = null, streamEl = null;
 let stats = {local:0, escalated:0, bytesOut:0, lastOn:0, lastBig:0};
@@ -715,10 +729,19 @@ function renderOnprem(st){
     ? "In effect now: " + st.internet_effective + " — " + st.internet_why : "";
 }
 
-async function postOnprem(body){
-  const r = await fetch("/api/onprem", {method:"POST",
+/* `confirmed` means the person already said yes in this page. The router
+   does not take that on trust: it answers with a single-use challenge for
+   this exact change, and the same request is repeated carrying it. */
+async function postOnprem(body, confirmed = false){
+  let r = await fetch("/api/onprem", {method:"POST",
     headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
-  const st = await r.json();
+  let st = await r.json();
+  if(r.status === 409 && st.confirm_challenge && confirmed){
+    r = await fetch("/api/onprem", {method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(Object.assign({}, body, {confirm: st.confirm_challenge}))});
+    st = await r.json();
+  }
   if(!r.ok){
     add("system", `<div class="route boot"><span class="ri">&#128274;</span><div>
       <b>On-prem change refused</b><div class="rr">${esc(st.error||"refused")}</div></div></div>`);
@@ -730,13 +753,14 @@ async function postOnprem(body){
 async function setToggle(id, on){
   const t = ((CFG.onprem||{}).method_toggles||[]).find(x => x.id === id) || {};
   const body = {toggles: {[id]: on}};
+  let confirmed = false;
   if(on && t.require_confirmation){
     const ok = confirm(`Enable ${t.label}?\n\nAdds: ${t.methods.join(", ")}\n\n`
       + (t.description||"").trim() + "\n\nThe change is written to the audit log.");
     if(!ok) return;
-    body.confirm = true;
+    confirmed = true;
   }
-  const st = await postOnprem(body);
+  const st = await postOnprem(body, confirmed);
   if(st){
     add("system", `<div class="route ${on && t.writes ? 'egress' : 'local'}"><span class="ri">&#127760;</span><div>
       <b>Method toggle ${esc(t.label||id)}: ${on ? "ON" : "off"}</b>
@@ -746,6 +770,7 @@ async function setToggle(id, on){
 
 async function setInternet(id){
   const body = {internet: id};
+  let confirmed = false;
   if(id === "readwrite"){
     const ok = confirm("Allow the on-prem model to WRITE to the internet?\n\n"
       + "It will be able to send POST, PUT, PATCH and DELETE requests, and "
@@ -753,9 +778,9 @@ async function setInternet(id){
       + "web_accounts.yaml in your settings folder. Every write is logged at critical severity. "
       + "Protected-IP tasks are still limited to read-only.");
     if(!ok) return;
-    body.confirm = true;
+    confirmed = true;
   }
-  const st = await postOnprem(body);
+  const st = await postOnprem(body, confirmed);
   if(st){
     const m = (st.internet_modes||[]).find(x => x.id === id) || {};
     add("system", `<div class="route ${id === 'readwrite' ? 'egress' : 'local'}"><span class="ri">&#127760;</span><div>
