@@ -23,8 +23,14 @@ version labels updated from v0.1.0 to v0.3.0.
   `USER_CONFIG_MANUAL.pdf` (renamed from `USER_CONFIG_DECK`). Frozen
   `v0.2/` still uses the older `USER_CONFIG_DECK` filenames.
 
-The v0.3.0 PDF was built on 2026-11-28 (16 pages, A4 landscape) and
-lives at `latest/USER_CONFIG_MANUAL.pdf`.
+- New slide 11, "One Ollama service, several models": loading and
+  unloading, the `OLLAMA_*` service settings, what fits on a 91 GiB
+  CPU-only machine. Later slides move up one; the cross-reference to
+  the hook slide now reads slide 15.
+
+The v0.3.0 PDF was first built on 2026-11-28 (16 pages, A4 landscape)
+and rebuilt with slide 11 (17 pages). It lives at
+`latest/USER_CONFIG_MANUAL.pdf`.
 
 ## v0.2
 
