@@ -14,48 +14,53 @@ the VS Code Marketplace.
 ## Current state
 
 - Repository: `https://github.com/cacherefresh/AI-Paladin`
-- Default branch: `sanctuary`.
+- Default branch: `sanctuary` (head `502a078`, "Add YouTube demo
+  section to README").
 - Integration branch for this work: `feature/distribution-init`
-  (protected). New work PRs into this branch until Rob creates
-  `DEVELOPMENT`.
+  (protected, head `6fee477`). It is a clean fast-forward of
+  sanctuary (35 commits on top of `502a078`). Rob rebased it onto
+  sanctuary on 2026-11-28 so the YouTube README section is included.
+  New work PRs into this branch until Rob creates `DEVELOPMENT`.
 - Snapshot branch: `feature/distribution-init-snapshot`, frozen at
   `cbc9355` ("Safe uninstall: hook removed everywhere before the
   package"), taken so a later PR that breaks working code can be
   compared against it. Do not treat it as the tip of distribution
   work.
-- Open PR: [#10](https://github.com/cacherefresh/AI-Paladin/pull/10),
-  branch `feature/versioning-v0.3` into `feature/distribution-init`.
-  It adds the root `VERSION` file (0.3.0), moves the pitch decks and
-  the configuration manual to
-  `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/` with `latest/` plus frozen
-  prior versions, and the notes in `AGENTS.md`, `CLAUDE.md` and this
-  file. Nothing from this PR has been merged yet.
-- Merged into `feature/distribution-init`:
+- Merged into `feature/distribution-init` on 2026-11-28:
   [PR #8](https://github.com/cacherefresh/AI-Paladin/pull/8)
-  (hook hardening, 2026-11-28) and
+  (hook hardening),
   [PR #9](https://github.com/cacherefresh/AI-Paladin/pull/9)
-  (uninstaller, 2026-11-28).
+  (uninstaller), and
+  [PR #10](https://github.com/cacherefresh/AI-Paladin/pull/10)
+  (versioning v0.3.0, docs consolidation, v0.3.0 manual PDF named
+  `USER_CONFIG_MANUAL`).
+- Next step: the TestPyPI dry run, then a merge of
+  `feature/distribution-init` into `sanctuary`. Rob confirmed
+  2026-11-28 to do the dry run first. Do not open a sanctuary merge
+  PR until that dry run is done.
 - [PR #4](https://github.com/cacherefresh/AI-Paladin/pull/4) is
-  do-not-merge. Leave it alone.
+  do-not-merge. Leave it alone. It is already open from
+  `feature/distribution-init` into `sanctuary` (head `6fee477`, base
+  `502a078`), so it now contains the full distribution work. GitHub
+  will not accept a second open PR with the same head and base. A
+  later sanctuary merge will need a new branch, or Rob's decision on
+  #4. Do not retitle, close, draft, or merge #4 unless Rob says so.
 - Branch names for new work: `feature/...` or `bugfix/...` only. Rob
   always merges, using the ruleset bypass checkbox when required.
+- Version: `0.3.0` (root `VERSION` file).
 
 ## Work queue (in order)
 
 ### (a) Build the v0.3.0 configuration manual PDF
 
-This is the next step, and the reason to run commands on a machine
-where Chrome finishes (headless Chrome hung in the environment that
-prepared PR #10, even on a one-line HTML file).
+**Done 2026-11-28.** The PDF was built on `feature/versioning-v0.3`
+(16 pages, A4 landscape) and merged in PR #10. Slide 15 ran off the
+page, so its layout was changed (CSS and card order only, no
+wording). `PITCH_DECK/` was not touched. The files in `latest/` are
+named `USER_CONFIG_MANUAL.html` and `USER_CONFIG_MANUAL.pdf`. Frozen
+`v0.2/` still uses `USER_CONFIG_DECK`.
 
-**Done 2026-11-28** on `feature/versioning-v0.3`: the PDF is built
-(16 pages, A4 landscape) and committed locally; Rob pushes it to PR #10.
-Slide 15 ran off the page, so its layout was changed (CSS and card
-order only, no wording). `PITCH_DECK/` was not touched. The steps
-below stay as the procedure for the next rebuild. The files in
-`latest/` are named `USER_CONFIG_MANUAL.html` and
-`USER_CONFIG_MANUAL.pdf`. Frozen `v0.2/` still uses
-`USER_CONFIG_DECK`.
+The steps below stay as the procedure for the next rebuild.
 
 **Prerequisites**
 
@@ -74,8 +79,8 @@ below stay as the procedure for the next rebuild. The files in
 
 **Safe command (manual only; does not touch a pitch deck)**
 
-From the repository root, on `feature/versioning-v0.3` if PR #10 is
-still open:
+From the repository root, on a `feature/` branch off
+`feature/distribution-init`:
 
 ```bash
 ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh --manual
@@ -107,17 +112,16 @@ changes; do not commit them. Pitch decks are never edited by agents.
 
 **Commit and PR**
 
-If PR #10 is still open, commit the PDF on `feature/versioning-v0.3`
-and push to that branch (no new PR). If #10 has already merged, open
-a new `feature/` branch from `feature/distribution-init` and a PR
-into `feature/distribution-init`. Rob reviews and merges.
+Open a new `feature/` branch from `feature/distribution-init` and a
+PR into `feature/distribution-init`. Rob reviews and merges.
 
 ### (b) TestPyPI dry run
 
-Do this after PR #10 (including the PDF, if you add it) is merged
-into `feature/distribution-init`, and before merging distribution
-into `sanctuary`. Only Rob can create the TestPyPI account and
-upload. Agents must not upload and must not be given the token.
+**This is the next step.** PR #10 (including the v0.3.0 manual PDF)
+is already merged into `feature/distribution-init`. Do this before
+merging distribution into `sanctuary`. Only Rob can create the
+TestPyPI account and upload. Agents must not upload and must not be
+given the token.
 
 There is not yet a GitHub Actions release workflow in this
 repository. Until there is, the dry run is a local build and a
@@ -163,9 +167,13 @@ section 3. That is not this step.
 ### (c) Merge `feature/distribution-init` into `sanctuary`
 
 After the TestPyPI dry run looks good, Rob opens (or accepts) a PR
-from `feature/distribution-init` into `sanctuary` and merges it
-himself, using the bypass checkbox if the ruleset requires it. Bots
-do not merge.
+from the distribution work into `sanctuary` and merges it himself,
+using the bypass checkbox if the ruleset requires it. Bots do not
+merge, and they must not open that PR until the dry run is done.
+
+See the PR #4 note in Current state: #4 already uses this head and
+base and is do-not-merge. Leave it alone. The merge PR will need a
+new branch, or Rob's decision on #4.
 
 ### (d) Rob creates the `DEVELOPMENT` branch
 
@@ -234,8 +242,8 @@ cd ai-paladin
 /tmp/ai-paladin-tests/bin/python -m unittest discover -s tests -v
 ```
 
-As of 2026-11-28, on `feature/versioning-v0.3`, that suite is **175
-passed, 2 skipped** (177 tests run). The skips are:
+As of 2026-11-28, on `feature/distribution-init` (`6fee477`), that
+suite is **175 passed, 2 skipped** (177 tests run). The skips are:
 
 - `test_debian_changelog_matches_when_present`, because there is no
   Ubuntu changelog in the tree yet.
