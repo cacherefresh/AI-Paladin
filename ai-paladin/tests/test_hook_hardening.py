@@ -181,6 +181,82 @@ class ShellWrites(_HookCase):
                 self.allowed(bash(c))
 
 
+class ShellWriteScopeSetting(_HookCase):
+    """hook.yaml shell_writes_enforce_allow: off by default (write_scope.deny
+    only for shell and script writes); on, write_scope.allow applies too."""
+
+    STRICT = {"shell_writes_enforce_allow": True}
+    OUTSIDE = ["echo x > /tmp/elsewhere.txt", "rm -rf ~/scratch/x",
+               "mkdir -p /opt/thing", "cp a /tmp/b",
+               "python3 -c \"open('/tmp/elsewhere.txt','w')\"",
+               "sh -c 'touch /tmp/elsewhere.txt'"]
+
+    def check(self, cmd, settings):
+        evaluate(bash(cmd), CMDS, PKGS, CRED, settings)
+
+    def test_default_is_deny_only(self):
+        self.assertFalse(hook.HOOK_SETTING_DEFAULTS["shell_writes_enforce_allow"])
+        for c in self.OUTSIDE:
+            with self.subTest(c=c):
+                self.check(c, dict(hook.HOOK_SETTING_DEFAULTS))
+        with self.assertRaises(Refused):                 # deny still applies
+            self.check("echo x > /etc/motd", dict(hook.HOOK_SETTING_DEFAULTS))
+
+    def test_enforce_allow_refuses_writes_outside_scope(self):
+        for c in self.OUTSIDE:
+            with self.subTest(c=c):
+                with self.assertRaises(Refused) as ctx:
+                    self.check(c, self.STRICT)
+                self.assertEqual(ctx.exception.rule, "out-of-scope-path")
+        with self.assertRaises(Refused):
+            self.check("echo x > /etc/motd", self.STRICT)
+
+    def test_enforce_allow_keeps_scope_and_non_files(self):
+        for c in ["echo x > out.txt", "rm -rf ./dist", "cd src && touch y",
+                  "echo x > /tmp/agent-hard/out.txt", "ls > /dev/null 2>&1",
+                  "make >&2", "python3 -c \"open('out.txt','w')\""]:
+            with self.subTest(c=c):
+                self.check(c, self.STRICT)
+
+    def test_settings_file(self):
+        from ai_paladin import paths
+        d = tempfile.mkdtemp(prefix="ai-paladin-cfg-")
+        f = os.path.join(d, "hook.yaml")
+        with mock.patch.object(paths, "CONFIG_DIR", d):
+            self.assertEqual(hook.load_hook_settings(),
+                             hook.HOOK_SETTING_DEFAULTS)    # no file
+            with open(f, "w") as fh:
+                fh.write("shell_writes_enforce_allow: true\n")
+            self.assertTrue(hook.load_hook_settings()["shell_writes_enforce_allow"])
+            with self.assertRaises(Refused):                # read by default
+                evaluate(bash("echo x > /tmp/elsewhere.txt"), CMDS, PKGS, CRED)
+            for bad in ["shell_writes_enforce_alow: true\n",
+                        "shell_writes_enforce_allow: 'yes'\n", "- true\n"]:
+                with open(f, "w") as fh:
+                    fh.write(bad)
+                with self.subTest(bad=bad):
+                    with self.assertRaises(ValueError):
+                        hook.load_hook_settings()
+            # an unreadable setting fails closed: the hook refuses the call
+            with open(f, "w") as fh:
+                fh.write("shell_writes_enforce_alow: true\n")
+            import io
+            with mock.patch.object(sys, "stdin", io.StringIO(
+                    '{"tool_name": "Bash", "tool_input": {"command": "ls"}, '
+                    '"session_id": "cfg", "cwd": "%s"}' % WS)), \
+                    mock.patch.object(sys, "stderr", io.StringIO()):
+                self.assertEqual(hook.main([]), 2)
+
+    def test_agent_cannot_change_the_setting(self):
+        from ai_paladin import paths
+        f = os.path.join(paths.CONFIG_DIR, "hook.yaml")
+        for c in [tool("Write", file_path=f, content="x"),
+                  bash("echo 'shell_writes_enforce_allow: false' > %s" % f),
+                  bash("rm ~/.config/ai-paladin/hook.yaml")]:
+            with self.subTest(c=c["tool_input"]):
+                self.refused(c, "hook-tamper")
+
+
 class Interpreters(_HookCase):
     """Code run by an interpreter - inline or a script the agent wrote - is
     checked for the files it writes and the commands it runs."""
