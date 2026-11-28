@@ -67,7 +67,7 @@ rules:
     desc: "an agent trying to switch off or edit the guard that restrains it"
     severity: critical
     action: block_and_flag
-    enforced: "hook: file-writing tools, MCP write tools, and Bash commands, interpreter code and scripts that write, move or delete are refused on Claude Code's settings.json / settings.local.json, AI-Paladin's config and log folders (configured and default locations) and AI-Paladin's policy files (router/keywords.yaml, router/policy.yaml, config/keywords.yaml, security/policies/, security/monitors/); Bash commands naming the settings files, or running ai-paladin-hook --release / --install / --uninstall, ai-paladin uninstall, or pip uninstall ai-paladin, are refused. Only a person turns the guard off. The hook reads commands, it does not run them: a hardened guardrail, not a sandbox."
+    enforced: "hook: file-writing tools, MCP write tools, and Bash commands, interpreter code and scripts that write, move or delete are refused on Claude Code's settings.json / settings.local.json, AI-Paladin's config and log folders (configured and default locations) and AI-Paladin's policy files (router/keywords.yaml, router/policy.yaml, config/keywords.yaml, security/policies/, security/monitors/) and the hook's own code (ai_paladin/hook.py and the modules it runs, hooks/pre_tool_use.py, the installed ai-paladin-hook command); Bash commands naming the settings files, or running ai-paladin-hook --release / --install / --uninstall, ai-paladin uninstall, or pip uninstall ai-paladin, are refused. Only a person turns the guard off. The hook reads commands, it does not run them: a hardened guardrail, not a sandbox."
 
 triage:
   # NOT ENFORCED in v0.1.0 - there is no scheduled anomaly summary yet.
