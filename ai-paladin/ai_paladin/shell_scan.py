@@ -353,6 +353,16 @@ def expand_word(word: str, env: Dict[str, str], cwd: str) -> List[str]:
             hits = []
         if hits:
             return hits
+        # Nothing matches the whole word (a file not created yet): resolve
+        # the folder part, so `> /e*c/new` is judged as `/etc/new`.
+        head, tail = os.path.split(pattern)
+        if any(c in head for c in "*?["):
+            try:
+                dirs = sorted(glob.glob(head))[:500]
+            except (OSError, re.error):
+                dirs = []
+            if dirs:
+                return [os.path.join(d, tail) for d in dirs]
     return [w]
 
 
