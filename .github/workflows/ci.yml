@@ -4,7 +4,7 @@ name: CI
 
 on:
   push:
-    branches: [sanctuary, "feature/**", "fix/**"]
+    branches: [sanctuary, development, "feature/**", "bugfix/**", "fix/**"]
   pull_request:
 
 permissions:
@@ -19,8 +19,8 @@ jobs:
       matrix:
         python: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Install (editable)
@@ -37,8 +37,8 @@ jobs:
       matrix:
         python: ["3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Install test dependency
