@@ -57,6 +57,31 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 READ_TOOLS = {"Read", "Grep", "Glob"}
 
 # A Bash command naming a credential location.
+# The two halves of _CRED_IN_SHELL: key folders, and .env files (which the
+# opt-in hook.yaml setting scripts_may_read_env_files lets script files name).
+_CRED_KEYS_IN_SHELL = re.compile(r"""(^|[\s'"=:/~])\.(ssh|aws)(/|\s|$|['"])""")
+_CRED_ENV_IN_SHELL = re.compile(r"""(^|[\s'"=/])\.env(\.[\w-]+)?(\s|$|['"])""")
+_ENV_FILE = re.compile(r"(^|/)\.env(\.[^/]+)?/?$")
+
+
+def _names_credential(text: str, env_ok: bool = False) -> bool:
+    return bool(_CRED_KEYS_IN_SHELL.search(text) or
+                (not env_ok and _CRED_ENV_IN_SHELL.search(text)))
+
+
+def _credential(path: str, cwd: str, globs: list, env_ok: bool = False) -> bool:
+    """Is `path` (as written, or resolved) a credential path? With env_ok, a
+    .env / .env.* file outside .ssh and .aws is not."""
+    from ai_paladin.security.monitors import is_credential_path
+    real = _real(path, cwd)
+    if not (is_credential_path(path, globs) or is_credential_path(real, globs)):
+        return False
+    if env_ok and all(_ENV_FILE.search(p) and not _CRED_KEYS_IN_SHELL.search(p)
+                      for p in (path, real)):
+        return False
+    return True
+
+
 _CRED_IN_SHELL = re.compile(
     r"""(^|[\s'"=:/~])\.(ssh|aws)(/|\s|$|['"])"""
     r"""|(^|[\s'"=/])\.env(\.[\w-]+)?(\s|$|['"])""")
@@ -316,7 +341,8 @@ MAX_SHELL_DEPTH = 6
 
 def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
                 cwd: str, workspace: str, session: str, depth: int = 0,
-                strict: bool = False):
+                strict: bool = False, env_ok: bool = False,
+                scripts_env: bool = False):
     """
     Apply the Bash rules to a command and to every command nested in it.
     `sh -c '...'`, `bash -c "..."`, eval, $(...), backticks and a here-doc
@@ -336,10 +362,9 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
         raise Refused("hook-tamper", "command would change or switch off "
                       "AI-Paladin's guard or its settings - only a person "
                       "may do that")
-    if _CRED_IN_SHELL.search(command):
+    if _names_credential(command, env_ok):
         raise Refused("credential-path-access", "command names a "
                       "credential location (.ssh, .aws or .env)")
-    from ai_paladin.security.monitors import is_credential_path
 
     sc = shell_scan.scan(command)
     # The same text with the shell's quoting removed: `~/.ss''h` and
@@ -350,7 +375,7 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
         raise Refused("hook-tamper", "command would change or switch off "
                       "AI-Paladin's guard or its settings - only a person "
                       "may do that")
-    if _CRED_IN_SHELL.search(flat):
+    if _names_credential(flat, env_ok):
         raise Refused("credential-path-access", "command names a "
                       "credential location (.ssh, .aws or .env)")
     env = dict(os.environ)
@@ -359,8 +384,7 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
         env.update(seg.assigns)
         for word in seg.words + [t for _, t in seg.redirects]:
             for p in shell_scan.word_paths(word, env, here):
-                if is_credential_path(p, cred_globs) or \
-                        is_credential_path(_real(p, here), cred_globs):
+                if _credential(p, here, cred_globs, env_ok):
                     raise Refused("credential-path-access", "%r resolves to "
                                   "a credential path (%s)" % (word, p))
         inst = _install_args(seg.words)
@@ -372,26 +396,32 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
                                    strict)
         for inner in seg.inner:
             _check_bash(inner, cmds, pkgs, cred_globs, here, workspace,
-                        session, depth + 1, strict)
-        for lang, source in shell_scan.programs(seg, env, here):
+                        session, depth + 1, strict, env_ok)
+        for lang, source, from_file in shell_scan.programs(seg, env, here):
+            # a script file may name .env files only if hook.yaml says so;
+            # inline code (-c, -e, here-docs) is the same as typing it
+            ok = env_ok or (from_file and scripts_env)
             if lang == "shell":
                 _check_bash(source, cmds, pkgs, cred_globs, here, workspace,
-                            session, depth + 1, strict)
+                            session, depth + 1, strict, ok,
+                            scripts_env=scripts_env)
             else:
                 _check_code(source, lang, cmds, pkgs, cred_globs, here,
-                            workspace, session, depth + 1, strict)
+                            workspace, session, depth + 1, strict, ok,
+                            scripts_env=scripts_env)
         if seg.name in ("cd", "pushd"):          # later segments run there
             dest = seg.words[1] if len(seg.words) > 1 else "~"
             if dest != "-":
                 here = _real(shell_scan.expand_word(dest, env, here)[0], here)
     for inner in sc.substitutions:
         _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
-                    depth + 1, strict)
+                    depth + 1, strict, env_ok, scripts_env=scripts_env)
 
 
 def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
                 cred_globs: list, cwd: str, workspace: str, session: str,
-                depth: int, strict: bool = False):
+                depth: int, strict: bool = False, env_ok: bool = False,
+                scripts_env: bool = False):
     """
     Code handed to an interpreter (python3 -c, a script the agent wrote,
     perl -e, ...): the files it writes get the same checks as a Bash write,
@@ -399,7 +429,6 @@ def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
     (os.system, subprocess) every Bash rule (ai_paladin/code_scan.py).
     """
     from ai_paladin import code_scan, shell_scan
-    from ai_paladin.security.monitors import is_credential_path
 
     if depth > MAX_SHELL_DEPTH:
         raise Refused("commands.yaml", "code nests more than %d levels deep "
@@ -410,19 +439,21 @@ def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
         s = code_scan.strip_mode(s)
         if not s or len(s) > 4096 or any(ch.isspace() for ch in s):
             continue                     # prose, not a path
-        if _CRED_IN_SHELL.search(" " + s + " ") or any(
-                is_credential_path(p, cred_globs) or
-                is_credential_path(_real(p, cwd), cred_globs)
+        if _names_credential(" " + s + " ", env_ok) or any(
+                _credential(p, cwd, cred_globs, env_ok)
                 for p in shell_scan.expand_word(s, env, cwd)):
             raise Refused("credential-path-access", "%s code names a "
                           "credential path (%s)" % (lang, s))
     for target, kind in writes:
         for p in shell_scan.expand_word(code_scan.strip_mode(target), env, cwd):
+            if _credential(p, cwd, cred_globs):     # writing one: never
+                raise Refused("credential-path-access", "%s code writes a "
+                              "credential path (%s)" % (lang, p))
             _check_shell_write(p, kind, cwd, cmds, workspace, session,
                                strict)
     for command in shells:
         _check_bash(command, cmds, pkgs, cred_globs, cwd, workspace, session,
-                    depth + 1, strict)
+                    depth + 1, strict, env_ok, scripts_env=scripts_env)
 
 
 # Not files: writing here goes to a terminal or nowhere.
@@ -467,6 +498,11 @@ HOOK_SETTING_DEFAULTS = {
     # commands.yaml write_scope.allow (default-deny outside the allowed
     # folders), not only to write_scope.deny. Off by default.
     "shell_writes_enforce_allow": False,
+    # Let a script FILE the agent runs (python3 app.py, ./run.sh, source x)
+    # name .env / .env.* files - e.g. load_dotenv(".env") - instead of the
+    # whole call being refused. Never .ssh or .aws, never writing a .env,
+    # never inline code or a typed command (cat .env). Off by default.
+    "scripts_may_read_env_files": False,
 }
 
 
@@ -538,7 +574,8 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list,
             settings = load_hook_settings()
         _check_bash(str(ti.get("command", "")), cmds, pkgs, cred_globs,
                     cwd, os.path.realpath(workspace), session,
-                    strict=bool(settings.get("shell_writes_enforce_allow")))
+                    strict=bool(settings.get("shell_writes_enforce_allow")),
+                    scripts_env=bool(settings.get("scripts_may_read_env_files")))
         return
 
     paths = [ti.get(k) for k in ("file_path", "notebook_path", "path")
@@ -909,6 +946,10 @@ def main(argv=None) -> int:
             print("shell writes   %s" % (
                 "write_scope deny + allow (shell_writes_enforce_allow: true)"
                 if strict else "write_scope deny only (default)"))
+            print("script .env    %s" % (
+                "script files may name .env files (scripts_may_read_env_files: true)"
+                if load_hook_settings()["scripts_may_read_env_files"]
+                else "refused (default)"))
         except (OSError, ValueError) as exc:
             print("shell writes   hook.yaml unreadable - every call is "
                   "refused: %s" % exc)

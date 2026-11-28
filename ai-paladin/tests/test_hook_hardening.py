@@ -257,6 +257,69 @@ class ShellWriteScopeSetting(_HookCase):
                 self.refused(c, "hook-tamper")
 
 
+class ScriptEnvFilesSetting(_HookCase):
+    """hook.yaml scripts_may_read_env_files: off by default (a script that
+    names .env is refused); on, a script FILE may name .env / .env.* - but
+    never .ssh / .aws, never write one, and never inline or typed."""
+
+    ON = {"scripts_may_read_env_files": True}
+    OFF = {"scripts_may_read_env_files": False}
+
+    def script(self, name, text):
+        with open(os.path.join(WS, name), "w") as fh:
+            fh.write(text)
+        os.chmod(os.path.join(WS, name), 0o755)
+
+    def check(self, cmd, settings):
+        evaluate(bash(cmd), CMDS, PKGS, CRED, settings)
+
+    def test_default_refuses_env_in_scripts(self):
+        self.assertFalse(hook.HOOK_SETTING_DEFAULTS["scripts_may_read_env_files"])
+        self.script("dot1.py", "from dotenv import load_dotenv\n"
+                               "load_dotenv('.env')\n")
+        self.script("dot2.sh", "#!/bin/sh\nset -a; . ./.env.local; set +a\n")
+        for c in ["python3 dot1.py", "./dot2.sh"]:
+            with self.subTest(c=c):
+                with self.assertRaises(Refused) as ctx:
+                    self.check(c, self.OFF)
+                self.assertEqual(ctx.exception.rule, "credential-path-access")
+
+    def test_opt_in_allows_env_in_script_files(self):
+        self.script("dot1.py", "from dotenv import load_dotenv\n"
+                               "load_dotenv('.env')\n")
+        self.script("dot2.sh", "#!/bin/sh\nset -a; . ./.env.local; set +a\n"
+                               "python3 -c 'print(1)'\n")
+        self.script("dot3.py", "import os\nos.system('cat .env.production')\n")
+        for c in ["python3 dot1.py", "./dot2.sh", "bash dot2.sh",
+                  "python3 dot3.py"]:
+            with self.subTest(c=c):
+                self.check(c, self.ON)
+
+    def test_opt_in_keeps_everything_else(self):
+        self.script("key1.py", "print(open('/root/.ssh/id_rsa').read())\n")
+        self.script("key2.sh", "#!/bin/sh\ncat ~/.aws/credentials\n")
+        self.script("envw.py", "open('.env', 'w').write('X=1')\n")
+        for c in ["python3 key1.py", "./key2.sh", "python3 envw.py",
+                  "cat .env", "source .env",
+                  "python3 -c \"print(open('.env').read())\"",
+                  "python3 - <<'EOF'\nopen('.env').read()\nEOF"]:
+            with self.subTest(c=c):
+                with self.assertRaises(Refused) as ctx:
+                    self.check(c, self.ON)
+                self.assertEqual(ctx.exception.rule, "credential-path-access")
+        self.refused(tool("Read", file_path=".env"), "credential-path-access")
+
+    def test_settings_file_accepts_it(self):
+        from ai_paladin import paths
+        d = tempfile.mkdtemp(prefix="ai-paladin-cfg-")
+        with open(os.path.join(d, "hook.yaml"), "w") as fh:
+            fh.write("scripts_may_read_env_files: true\n")
+        self.script("dot1.py", "load_dotenv('.env')\n")
+        with mock.patch.object(paths, "CONFIG_DIR", d):
+            self.assertTrue(hook.load_hook_settings()["scripts_may_read_env_files"])
+            evaluate(bash("python3 dot1.py"), CMDS, PKGS, CRED)
+
+
 class Interpreters(_HookCase):
     """Code run by an interpreter - inline or a script the agent wrote - is
     checked for the files it writes and the commands it runs."""
