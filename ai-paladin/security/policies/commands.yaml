@@ -10,17 +10,18 @@
 # The hook blocks a tool call by exiting 2 before the tool runs; Claude Code
 # then refuses the call and shows the reason to the agent.
 #
-# LIMIT: matching a shell command against patterns is a tripwire, not a
-# sandbox. Variables, aliases, encodings and scripts can hide a command from
-# any pattern. It stops careless and manipulated agents taking the obvious
-# route; it does not contain a determined one. For containment, run the agent
-# in a sandbox as well (security/sandbox.md).
+# LIMIT: the hook parses a shell command (quotes, nested sh -c / eval /
+# $(...), cd, variables set on the line, scripts it runs) but does not run
+# it, so anything decided at run time - a variable from another program, an
+# alias, an encoded string, a computed path - is not seen. It is a hardened
+# guardrail, not a sandbox: it does not contain a determined agent. For
+# containment, run the agent in a sandbox as well (security/sandbox.md).
 #
 # A copy of this file in your settings folder replaces it whole.
 # =============================================================================
 
 # Bash commands matching any pattern (a Python regular expression, searched
-# anywhere in the command) are refused.
+# anywhere in the command, and in every command nested in it) are refused.
 block:
   - pattern: "rm\\s+-[a-zA-Z]*\\s+/(\\s|\\*|$)"      # rm -rf / (the root, not /tmp/x)
   - pattern: "rm\\s+-[a-zA-Z]*\\s+~/?(\\s|\\*|$)"    # rm -rf ~ (the home folder itself)
@@ -34,8 +35,12 @@ block:
 # Where the agent's Write / Edit / MultiEdit / NotebookEdit tools may write.
 # deny wins over allow. ${TASK_WORKSPACE} is the project folder Claude Code
 # is working in; ${TASK_ID} is the Claude Code session id.
-# LIMIT: applies to the file-writing tools only. A Bash command that writes a
-# file (echo > x, cp, mv) is not checked against this scope.
+# Write/Edit/MultiEdit/NotebookEdit and MCP write tools: allow and deny.
+# Files written by Bash commands (>, tee, cp, mv, rm, sed -i, dd of=, ...)
+# and by interpreter code or scripts the agent runs: deny only, unless
+# shell_writes_enforce_allow: true in hook.yaml (user settings folder).
+# LIMIT: a program that writes files on its own terms (make, git checkout)
+# or a path computed at run time is not seen.
 write_scope:
   allow: ["${TASK_WORKSPACE}", "/tmp/agent-${TASK_ID}"]
   deny:  ["/etc", "/usr", "~/.ssh", "~/.aws", "**/backup/**", "**/.git/objects/**"]
