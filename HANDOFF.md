@@ -246,5 +246,5 @@ AI_PALADIN_WHEEL_TEST=1 /tmp/ai-paladin-tests/bin/python   -m unittest tests.tes
 ```
 
 CI workflows are in `.github/workflows/ci.yml`, triggered on
-`sanctuary`, `development`, `feature/**`, `bugfix/**`, `fix/**`,
+`sanctuary`, `development`, `feature/**`, `bugfix/**`,
 and on pull requests.
