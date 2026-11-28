@@ -48,7 +48,11 @@ This is the next step, and the reason to run commands on a machine
 where Chrome finishes (headless Chrome hung in the environment that
 prepared PR #10, even on a one-line HTML file).
 
-The HTML is already in the tree. The PDF is not.
+**Done 2026-11-28** on `feature/versioning-v0.3`: the PDF is built
+(16 pages, A4 landscape) and committed locally; Rob pushes it to PR #10.
+Slide 15 ran off the page, so its layout was changed (CSS and card
+order only, no wording). `PITCH_DECK/` was not touched. The steps
+below stay as the procedure for the next rebuild.
 
 **Prerequisites**
 

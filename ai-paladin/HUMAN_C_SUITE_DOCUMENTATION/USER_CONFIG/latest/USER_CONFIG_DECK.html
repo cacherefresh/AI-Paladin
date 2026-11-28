@@ -65,6 +65,8 @@ pre .k{color:#9cc8ff}
 .g4{grid-template-columns:repeat(4,1fr)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .card p{font-size:12px;margin:0 0 6px} .card p:last-child{margin:0}
+.slide.tight .card p{font-size:11px;line-height:1.42} .slide.tight .card{padding:9px 12px} .slide.tight .card h3{font-size:13px;margin-bottom:4px}
+.slide.tight pre{font-size:9.5px;line-height:1.38;white-space:pre-wrap;padding:9px 12px} .slide.tight .card.warn p{max-width:none}
 .card.warn{background:#fdf5ec;border-color:#efd3b1}
 .card.ok{background:#eff9f2;border-color:#bfe2cc}
 .card.bad{background:#fcefee;border-color:#efc4c0}
@@ -367,7 +369,7 @@ protected      23 terms in 4 groups, 4 paths
         <p>6 web calls per task &middot; 600,000 bytes read per response &middot; 5,000 characters handed back per
         call &middot; 300-character queries &middot; 4,000-character request bodies &middot; 15 s timeout. Ports 80
         and 443 on public addresses only &mdash; never loopback, the LAN or link-local.</p></div>
-      <div class="card warn" style="margin-top:10px"><h3>Domain allowlist &middot; <code>internet_access.allow_domains</code></h3>
+      <div class="card warn" style="margin-top:8px"><h3>Domain allowlist &middot; <code>internet_access.allow_domains</code></h3>
         <p><strong>Empty (the default): any public website.</strong> List domains and <em>only</em> those
         &mdash; and their subdomains &mdash; can be reached; anything else is refused and logged. Include
         <code>lite.duckduckgo.com</code> or web search stops.</p></div>
@@ -523,10 +525,10 @@ protected      23 terms in 4 groups, 4 paths
 </section>
 
 <!-- 15: hook on/off -->
-<section class="slide">
+<section class="slide tight">
   <div class="kicker">Coding agents &middot; turning the hook on and off</div>
   <h2>A person turns it on. A person turns it off.</h2>
-  <div class="grid g2" style="grid-template-columns:1.05fr .95fr">
+  <div class="grid g2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
     <div>
       <table class="dense">
         <tr><th></th><th>Router</th><th>Claude Code hook</th></tr>
@@ -562,7 +564,18 @@ protected      23 terms in 4 groups, 4 paths
         <code>~/.claude/settings.json</code> &mdash; every project. Your other settings are kept, the old file is
         saved as <code>.bak</code>, installing twice never adds a second entry, and an unreadable settings file
         is left untouched.</p></div>
-      <div class="card warn" style="margin-bottom:9px"><span class="tag lim">order matters</span>
+      <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
+        Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
+        <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --uninstall</code> (add
+        <code>--user</code> if you installed it for every project). Folder gone too? Delete the
+        <code>pre_tool_use.py</code> entry under <code>hooks.PreToolUse</code> in the settings file by hand.</p></div>
+      <div class="card ok"><h3>Why stopping the router does not switch it off</h3><p>If it did, stopping the
+        router would be the way past every rule &mdash; and an agent can stop a process. The hook also refuses an
+        agent that runs <code>--uninstall</code> or <code>--release</code>, edits Claude Code's settings or
+        AI-Paladin's config, or runs <code>pip uninstall ai-paladin</code> (rule <code>hook-tamper</code>).</p></div>
+    </div>
+  </div>
+  <div class="card warn" style="margin-top:8px"><span class="tag lim">order matters</span>
         <h3>Why not a plain pip uninstall?</h3><p>pip runs nothing while removing a package, so it cannot take
         the hook out or warn you. A hook that cannot start <strong>refuses</strong> the call, so a leftover entry
         makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
@@ -575,17 +588,6 @@ protected      23 terms in 4 groups, 4 paths
         is flagged <strong>MODIFIED</strong> and kept unless you say otherwise. <code>--dry-run</code> lists
         without changing anything; <code>--yes</code> skips the question. It stops without changing anything if a
         settings file cannot be read.</p></div>
-      <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
-        Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
-        <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --uninstall</code> (add
-        <code>--user</code> if you installed it for every project). Folder gone too? Delete the
-        <code>pre_tool_use.py</code> entry under <code>hooks.PreToolUse</code> in the settings file by hand.</p></div>
-      <div class="card ok"><h3>Why stopping the router does not switch it off</h3><p>If it did, stopping the
-        router would be the way past every rule &mdash; and an agent can stop a process. The hook also refuses an
-        agent that runs <code>--uninstall</code> or <code>--release</code>, edits Claude Code's settings or
-        AI-Paladin's config, or runs <code>pip uninstall ai-paladin</code> (rule <code>hook-tamper</code>).</p></div>
-    </div>
-  </div>
 </section>
 
 <!-- 16: limits -->
