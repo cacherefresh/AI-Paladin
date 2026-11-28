@@ -27,13 +27,21 @@ What it enforces (each rule's `enforced:` line in the YAML says the same):
                   versions, nothing from URLs, paths or requirement files
   behavioral_rules.yaml
                   credential-path-access, out-of-scope-path, backup-tamper,
-                  mass-file-touch, fence-probing
+                  mass-file-touch, fence-probing, hook-tamper (including
+                  AI-Paladin's own policy files)
+
+Bash commands are parsed (ai_paladin/shell_scan.py) and code handed to an
+interpreter is read (ai_paladin/code_scan.py), so the rules apply to
+commands nested in sh -c / eval / $(...), to paths however they are spelled,
+and to the files a command or an agent-written script writes.
 
 It FAILS CLOSED: if the hook itself errors, the tool call is refused. A gate
 that opens when it breaks is not a gate.
 
-LIMIT: this inspects tool calls, not what a shell command does once it runs.
-It is a tripwire for careless or manipulated agents, not a sandbox.
+LIMIT: this reads tool calls and the code they would run; it does not run
+them. Anything decided at run time (a computed path, a decoded string, an
+imported module) is not seen. It is a hardened guardrail, not a sandbox or
+a security boundary (docs/ROADMAP.md, section 9).
 """
 
 import fnmatch
@@ -49,10 +57,34 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 READ_TOOLS = {"Read", "Grep", "Glob"}
 
 # A Bash command naming a credential location.
+# The two halves of _CRED_IN_SHELL: key folders, and .env files (which the
+# opt-in hook.yaml setting scripts_may_read_env_files lets script files name).
+_CRED_KEYS_IN_SHELL = re.compile(r"""(^|[\s'"=:/~])\.(ssh|aws)(/|\s|$|['"])""")
+_CRED_ENV_IN_SHELL = re.compile(r"""(^|[\s'"=/])\.env(\.[\w-]+)?(\s|$|['"])""")
+_ENV_FILE = re.compile(r"(^|/)\.env(\.[^/]+)?/?$")
+
+
+def _names_credential(text: str, env_ok: bool = False) -> bool:
+    return bool(_CRED_KEYS_IN_SHELL.search(text) or
+                (not env_ok and _CRED_ENV_IN_SHELL.search(text)))
+
+
+def _credential(path: str, cwd: str, globs: list, env_ok: bool = False) -> bool:
+    """Is `path` (as written, or resolved) a credential path? With env_ok, a
+    .env / .env.* file outside .ssh and .aws is not."""
+    from ai_paladin.security.monitors import is_credential_path
+    real = _real(path, cwd)
+    if not (is_credential_path(path, globs) or is_credential_path(real, globs)):
+        return False
+    if env_ok and all(_ENV_FILE.search(p) and not _CRED_KEYS_IN_SHELL.search(p)
+                      for p in (path, real)):
+        return False
+    return True
+
+
 _CRED_IN_SHELL = re.compile(
     r"""(^|[\s'"=:/~])\.(ssh|aws)(/|\s|$|['"])"""
     r"""|(^|[\s'"=/])\.env(\.[\w-]+)?(\s|$|['"])""")
-_SEGMENT_SPLIT = re.compile(r"&&|\|\||[;|\n]")
 # A Bash command that would switch the guard off or edit what it enforces.
 _TAMPER_IN_SHELL = re.compile(
     r"ai-paladin-hook\s+--(release|uninstall|install)"
@@ -99,7 +131,10 @@ def _matches(path: str, entry: str) -> bool:
     return _under(path, entry)
 
 
-def check_write_path(path: str, cmds: dict, workspace: str, session: str):
+def check_write_path(path: str, cmds: dict, workspace: str, session: str,
+                     use_allow: bool = True):
+    """Refuse a write to `path` outside commands.yaml write_scope. With
+    use_allow=False only `deny` applies (used for Bash commands)."""
     scope = cmds.get("write_scope") or {}
     for d in scope.get("deny") or []:
         if _matches(path, _expand(d, workspace, session)):
@@ -107,6 +142,8 @@ def check_write_path(path: str, cmds: dict, workspace: str, session: str):
                     else "out-of-scope-path")
             raise Refused(rule, "writing to %s is denied (write_scope.deny: %s)"
                           % (path, d))
+    if not use_allow:
+        return
     allow = [_expand(a, workspace, session) for a in scope.get("allow") or []]
     if allow and not any(_matches(path, a) for a in allow):
         raise Refused("out-of-scope-path",
@@ -114,32 +151,156 @@ def check_write_path(path: str, cmds: dict, workspace: str, session: str):
                       % (path, ", ".join(allow)))
 
 
-def _protected(real: str) -> bool:
-    """Files an agent must not edit: they decide what the guard enforces."""
+def _guard_dirs() -> list:
+    """AI-Paladin's config and log folders: the ones in use, and the default
+    XDG locations too, so pointing AI_PALADIN_*_DIR elsewhere does not leave
+    the usual copies open to an agent."""
     from ai_paladin import paths as ap
-    if _under(real, ap.CONFIG_DIR) or _under(real, ap.LOG_DIR):
+    home = os.path.expanduser("~")
+    xdg_config = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
+    xdg_state = (os.environ.get("XDG_STATE_HOME")
+                 or os.path.join(home, ".local", "state"))
+    dirs = [ap.CONFIG_DIR, ap.LOG_DIR,
+            os.path.join(xdg_config, "ai-paladin"),
+            os.path.join(xdg_state, "ai-paladin"),
+            os.path.join(home, ".config", "ai-paladin"),
+            os.path.join(home, ".local", "state", "ai-paladin")]
+    return sorted({os.path.realpath(d) for d in dirs})
+
+
+# The enforcement files of an AI-Paladin tree (AGENTS.md: "the gates are
+# data, not prose"). Relative to the tree's root - ai-paladin/ in the
+# repository, ai_paladin/_shipped/ in a wheel.
+POLICY_FILES = ("router/keywords.yaml", "router/policy.yaml",
+                "config/keywords.yaml")
+POLICY_DIRS = ("security/policies", "security/monitors")
+
+
+def _paladin_root(root: str) -> bool:
+    """Is `root` an AI-Paladin tree: the one this hook runs from, or a
+    checkout of it (the ai_paladin package or hooks/ wrapper beside it)?"""
+    from ai_paladin import paths as ap
+    r = os.path.realpath(root or "/")
+    return (r == os.path.realpath(ap.BASE)
+            or os.path.isfile(os.path.join(r, "ai_paladin", "hook.py"))
+            or os.path.isfile(os.path.join(r, "hooks", "pre_tool_use.py")))
+
+
+def _policy_file(real: str) -> bool:
+    for rel in POLICY_FILES:
+        if real.endswith("/" + rel) and _paladin_root(real[:-len(rel) - 1]):
+            return True
+    for d in POLICY_DIRS:
+        i = real.find("/" + d)
+        while i >= 0:
+            end = i + 1 + len(d)
+            if (end == len(real) or real[end] == "/") and _paladin_root(real[:i]):
+                return True
+            i = real.find("/" + d, i + 1)
+    return False
+
+
+def _policy_locations(workspace: str) -> list:
+    """The enforcement files of every AI-Paladin tree the hook knows of: its
+    own, and the project's if the project is (or contains) a checkout."""
+    from ai_paladin import paths as ap
+    roots = {os.path.realpath(r) for r in
+             (ap.BASE, workspace, os.path.join(workspace, "ai-paladin"))
+             if _paladin_root(r)}
+    return [os.path.join(r, rel) for r in sorted(roots)
+            for rel in POLICY_FILES + POLICY_DIRS]
+
+
+# The hook's own code: the modules it runs, relative to the folder that holds
+# the ai_paladin package, and its wrapper script relative to an AI-Paladin
+# tree. Editing any of them would switch the guard off without touching a
+# setting.
+HOOK_CODE = ("ai_paladin/__init__.py", "ai_paladin/hook.py",
+             "ai_paladin/shell_scan.py", "ai_paladin/code_scan.py",
+             "ai_paladin/config_layers.py", "ai_paladin/paths.py",
+             "ai_paladin/security/__init__.py",
+             "ai_paladin/security/monitors.py")
+HOOK_WRAPPER = "hooks/pre_tool_use.py"
+
+
+def _hook_code_file(real: str) -> bool:
+    for rel in HOOK_CODE:
+        if real.endswith("/" + rel):
+            root = real[:-len(rel) - 1]
+            if os.path.isfile(os.path.join(root, "ai_paladin", "hook.py")):
+                return True
+    if real.endswith("/" + HOOK_WRAPPER) and \
+            _paladin_root(real[:-len(HOOK_WRAPPER) - 1]):
+        return True
+    return False
+
+
+def _hook_code_locations(workspace: str) -> list:
+    """The hook files this hook runs from (source checkout or installed
+    package), the `ai-paladin-hook` command, and the project's own copy if
+    the project is an AI-Paladin checkout."""
+    import shutil
+    from ai_paladin import paths as ap
+    pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = [os.path.join(pkg_parent, rel) for rel in HOOK_CODE]
+    out.append(os.path.join(ap.BASE, HOOK_WRAPPER))
+    for r in (workspace, os.path.join(workspace, "ai-paladin")):
+        if os.path.isfile(os.path.join(r, "ai_paladin", "hook.py")):
+            out += [os.path.join(r, rel) for rel in HOOK_CODE]
+        if _paladin_root(r):
+            out.append(os.path.join(r, HOOK_WRAPPER))
+    cmd = shutil.which("ai-paladin-hook")
+    if cmd:
+        out.append(cmd)
+    return sorted({os.path.realpath(p) for p in out})
+
+
+def _protected(real: str) -> bool:
+    """Files an agent must not edit: they decide what the guard enforces -
+    AI-Paladin's config and log folders, Claude Code's settings, the policy
+    files of an AI-Paladin tree, and the hook's own code."""
+    if any(_under(real, d) for d in _guard_dirs()):
+        return True
+    if _policy_file(real) or _hook_code_file(real):
+        return True
+    if real in _hook_code_locations(os.environ.get("CLAUDE_PROJECT_DIR")
+                                    or os.getcwd()):
         return True
     parent, name = os.path.split(real)
     return (os.path.basename(parent) == ".claude"
             and name in ("settings.json", "settings.local.json"))
 
 
+def _holds_protected(real: str, workspace: str) -> bool:
+    """True if deleting or moving `real` would take protected files with it
+    (`rm -rf ~/.config`, `mv .claude elsewhere`)."""
+    held = (_guard_dirs() + _policy_locations(workspace)
+            + _hook_code_locations(workspace)
+            + [os.path.join(workspace, ".claude"),
+               os.path.join(os.path.expanduser("~"), ".claude")])
+    if any(_under(os.path.realpath(h), real) for h in held):
+        return True
+    # any other copy of the hook's code inside the folder (rm -rf of an
+    # installed site-packages/ai_paladin, or of a checkout's package)
+    for rel in HOOK_CODE + (HOOK_WRAPPER,):
+        parts = rel.split("/")
+        for k in range(len(parts)):
+            head = "/".join(parts[:k])
+            if k and not real.endswith("/" + head):
+                continue
+            cand = os.path.join(real, *parts[k:])
+            if os.path.isfile(cand) and _hook_code_file(cand):
+                return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # package installs
 # ---------------------------------------------------------------------------
 
-def _tokens(segment: str) -> list:
-    try:
-        toks = shlex.split(segment)
-    except ValueError:
-        toks = segment.split()
-    while toks and (re.match(r"^\w+=", toks[0]) or toks[0] in ("sudo", "env")):
-        toks.pop(0)
-    return toks
-
-
 def _install_args(toks: list):
-    """(ecosystem, args after the install verb) or None."""
+    """(ecosystem, args after the install verb) or None. `toks` are a
+    command's words with wrappers (sudo, env, VAR=...) already removed."""
     if not toks:
         return None
     t = [os.path.basename(toks[0])] + toks[1:]
@@ -234,9 +395,234 @@ def check_install(eco: str, args: list, pkgs: dict):
 # the decision
 # ---------------------------------------------------------------------------
 
-def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
-    """Raise Refused if the call breaks a rule. Pure: no state, no I/O
-    beyond resolving paths."""
+# How deep sh -c 'bash -c "eval ..."' may nest before the hook stops reading
+# and refuses: a real command rarely nests more than twice.
+MAX_SHELL_DEPTH = 6
+
+
+def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
+                cwd: str, workspace: str, session: str, depth: int = 0,
+                strict: bool = False, env_ok: bool = False,
+                scripts_env: bool = False):
+    """
+    Apply the Bash rules to a command and to every command nested in it.
+    `sh -c '...'`, `bash -c "..."`, eval, $(...), backticks and a here-doc
+    fed to a shell are unwrapped (ai_paladin/shell_scan.py) and checked as
+    if the agent had typed them directly.
+    """
+    from ai_paladin import shell_scan
+
+    if depth > MAX_SHELL_DEPTH:
+        raise Refused("commands.yaml", "command nests shells more than %d "
+                      "deep - too deep to inspect" % MAX_SHELL_DEPTH)
+    for b in cmds.get("block") or []:
+        if re.search(b["pattern"], command):
+            raise Refused("commands.yaml", "command matches blocked "
+                          "pattern %r" % b["pattern"])
+    if _TAMPER_IN_SHELL.search(command):
+        raise Refused("hook-tamper", "command would change or switch off "
+                      "AI-Paladin's guard or its settings - only a person "
+                      "may do that")
+    if _names_credential(command, env_ok):
+        raise Refused("credential-path-access", "command names a "
+                      "credential location (.ssh, .aws or .env)")
+
+    sc = shell_scan.scan(command)
+    # The same text with the shell's quoting removed: `~/.ss''h` and
+    # `--rel""ease` read as what bash will actually run.
+    flat = " ".join(sc.words + [t for s in sc.segments
+                                for _, t in s.redirects])
+    if _TAMPER_IN_SHELL.search(flat):
+        raise Refused("hook-tamper", "command would change or switch off "
+                      "AI-Paladin's guard or its settings - only a person "
+                      "may do that")
+    if _names_credential(flat, env_ok):
+        raise Refused("credential-path-access", "command names a "
+                      "credential location (.ssh, .aws or .env)")
+    env = dict(os.environ)
+    here = cwd
+    for seg in sc.segments:
+        env.update(seg.assigns)
+        for word in seg.words + [t for _, t in seg.redirects]:
+            for p in shell_scan.word_paths(word, env, here):
+                if _credential(p, here, cred_globs, env_ok):
+                    raise Refused("credential-path-access", "%r resolves to "
+                                  "a credential path (%s)" % (word, p))
+        inst = _install_args(seg.words)
+        if inst:
+            check_install(inst[0], inst[1], pkgs)
+        for word, kind in shell_scan.write_targets(seg):
+            for p in shell_scan.expand_word(word, env, here):
+                _check_shell_write(p, kind, here, cmds, workspace, session,
+                                   strict)
+        for inner in seg.inner:
+            _check_bash(inner, cmds, pkgs, cred_globs, here, workspace,
+                        session, depth + 1, strict, env_ok)
+        for lang, source, from_file in shell_scan.programs(seg, env, here):
+            # a script file may name .env files only if hook.yaml says so;
+            # inline code (-c, -e, here-docs) is the same as typing it
+            ok = env_ok or (from_file and scripts_env)
+            if lang == "shell":
+                _check_bash(source, cmds, pkgs, cred_globs, here, workspace,
+                            session, depth + 1, strict, ok,
+                            scripts_env=scripts_env)
+            else:
+                _check_code(source, lang, cmds, pkgs, cred_globs, here,
+                            workspace, session, depth + 1, strict, ok,
+                            scripts_env=scripts_env)
+        if seg.name in ("cd", "pushd"):          # later segments run there
+            dest = seg.words[1] if len(seg.words) > 1 else "~"
+            if dest != "-":
+                here = _real(shell_scan.expand_word(dest, env, here)[0], here)
+    for inner in sc.substitutions:
+        _check_bash(inner, cmds, pkgs, cred_globs, cwd, workspace, session,
+                    depth + 1, strict, env_ok, scripts_env=scripts_env)
+
+
+def _check_code(source: str, lang: str, cmds: dict, pkgs: dict,
+                cred_globs: list, cwd: str, workspace: str, session: str,
+                depth: int, strict: bool = False, env_ok: bool = False,
+                scripts_env: bool = False):
+    """
+    Code handed to an interpreter (python3 -c, a script the agent wrote,
+    perl -e, ...): the files it writes get the same checks as a Bash write,
+    the paths it names the credential check, and the shell commands it runs
+    (os.system, subprocess) every Bash rule (ai_paladin/code_scan.py).
+    """
+    from ai_paladin import code_scan, shell_scan
+
+    if depth > MAX_SHELL_DEPTH:
+        raise Refused("commands.yaml", "code nests more than %d levels deep "
+                      "- too deep to inspect" % MAX_SHELL_DEPTH)
+    writes, shells, strings = code_scan.effects(source, lang)
+    env = dict(os.environ)
+    for s in strings:
+        s = code_scan.strip_mode(s)
+        if not s or len(s) > 4096 or any(ch.isspace() for ch in s):
+            continue                     # prose, not a path
+        if _names_credential(" " + s + " ", env_ok) or any(
+                _credential(p, cwd, cred_globs, env_ok)
+                for p in shell_scan.expand_word(s, env, cwd)):
+            raise Refused("credential-path-access", "%s code names a "
+                          "credential path (%s)" % (lang, s))
+    for target, kind in writes:
+        for p in shell_scan.expand_word(code_scan.strip_mode(target), env, cwd):
+            if _credential(p, cwd, cred_globs):     # writing one: never
+                raise Refused("credential-path-access", "%s code writes a "
+                              "credential path (%s)" % (lang, p))
+            _check_shell_write(p, kind, cwd, cmds, workspace, session,
+                               strict)
+    for command in shells:
+        _check_bash(command, cmds, pkgs, cred_globs, cwd, workspace, session,
+                    depth + 1, strict, env_ok, scripts_env=scripts_env)
+
+
+# Not files: writing here goes to a terminal or nowhere.
+_NOT_FILES = re.compile(r"^/dev/(null|zero|stdout|stderr|stdin|tty|fd/\d+)$"
+                        r"|^/proc/self/fd/\d+$")
+
+
+def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
+                       workspace: str, session: str, strict: bool = False):
+    """A file a Bash command or interpreter code writes (>, tee, cp, mv, rm,
+    sed -i, dd of=, open(..., 'w'), ...). Protected files and
+    write_scope.deny always apply, as for the Write tool.
+
+    write_scope.allow applies only when `strict` - the opt-in
+    shell_writes_enforce_allow setting in hook.yaml (load_hook_settings).
+    By default it does not: ordinary shell work (rm -rf /tmp/build, a cache
+    in ~) writes outside the project."""
+    if _NOT_FILES.match(path):
+        return
+    real = _real(path, cwd)
+    if _protected(real) or (kind == "destroy"
+                            and _holds_protected(real, workspace)):
+        raise Refused("hook-tamper", "command would write, move or delete %s, "
+                      "which holds AI-Paladin's policy, settings, audit log or "
+                      "hook code, or Claude Code's settings - only a person "
+                      "may do that"
+                      % path)
+    check_write_path(real, cmds, workspace, session, use_allow=strict)
+    if kind == "destroy":
+        # deleting a folder deletes what is in it: `rm -rf backup` is a
+        # write to backup/** as much as `rm backup/db` is
+        check_write_path(os.path.join(real, "_"), cmds, workspace, session,
+                         use_allow=strict)
+
+
+# ---------------------------------------------------------------------------
+# the hook's own settings: hook.yaml in the user's settings folder
+# ---------------------------------------------------------------------------
+
+HOOK_SETTINGS = "hook.yaml"
+HOOK_SETTING_DEFAULTS = {
+    # Also hold files written by Bash commands and interpreter code to
+    # commands.yaml write_scope.allow (default-deny outside the allowed
+    # folders), not only to write_scope.deny. Off by default.
+    "shell_writes_enforce_allow": False,
+    # Let a script FILE the agent runs (python3 app.py, ./run.sh, source x)
+    # name .env / .env.* files - e.g. load_dotenv(".env") - instead of the
+    # whole call being refused. Never .ssh or .aws, never writing a .env,
+    # never inline code or a typed command (cat .env). Off by default.
+    "scripts_may_read_env_files": False,
+}
+
+
+def load_hook_settings() -> dict:
+    """
+    ~/.config/ai-paladin/hook.yaml (AI_PALADIN_CONFIG_DIR/hook.yaml), over
+    HOOK_SETTING_DEFAULTS. No file means the defaults. The file lives in the
+    config folder the hook-tamper rule keeps agents out of, so only a person
+    can change it. An unknown key or a non-boolean value raises ValueError:
+    the hook then refuses every call (fail closed) rather than silently run
+    without a setting the user meant to turn on.
+    """
+    import yaml
+    from ai_paladin import paths
+    out = dict(HOOK_SETTING_DEFAULTS)
+    p = paths.user_config(HOOK_SETTINGS)
+    if not os.path.exists(p):
+        return out
+    with open(p, "r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)
+    if data is None:
+        return out
+    if not isinstance(data, dict):
+        raise ValueError("%s: top level must be a mapping" % p)
+    unknown = sorted(set(data) - set(HOOK_SETTING_DEFAULTS))
+    if unknown:
+        raise ValueError("%s: unknown setting(s) %s - known: %s" % (
+            p, ", ".join(map(str, unknown)),
+            ", ".join(sorted(HOOK_SETTING_DEFAULTS))))
+    for k, v in data.items():
+        if not isinstance(v, bool):
+            raise ValueError("%s: %s must be true or false, not %r" % (p, k, v))
+        out[k] = v
+    return out
+
+
+_MCP_PATH_KEY = re.compile(r"(path|file|filename|dir|directory|dest|"
+                           r"destination|source|target)s?$", re.I)
+_MCP_WRITE_TOOL = re.compile(r"write|edit|create|delete|remove|move|rename|"
+                             r"mkdir|upload|save|append|patch|put|copy", re.I)
+
+
+def _mcp_paths(ti: dict) -> list:
+    out = []
+    for k, v in ti.items():
+        if not _MCP_PATH_KEY.search(str(k)):
+            continue
+        for item in (v if isinstance(v, list) else [v]):
+            if isinstance(item, str) and item and "://" not in item:
+                out.append(item)
+    return out
+
+
+def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list,
+             settings: dict = None):
+    """Raise Refused if the call breaks a rule. No state; the only I/O is
+    resolving paths, reading a script a Bash command would run, and reading
+    hook.yaml when `settings` is not given (load_hook_settings)."""
     from ai_paladin.security.monitors import is_credential_path
 
     tool = call.get("tool_name", "")
@@ -246,26 +632,26 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     session = str(call.get("session_id") or "unknown")
 
     if tool == "Bash":
-        command = str(ti.get("command", ""))
-        for b in cmds.get("block") or []:
-            if re.search(b["pattern"], command):
-                raise Refused("commands.yaml", "command matches blocked "
-                              "pattern %r" % b["pattern"])
-        if _TAMPER_IN_SHELL.search(command):
-            raise Refused("hook-tamper", "command would change or switch off "
-                          "AI-Paladin's guard or its settings - only a person "
-                          "may do that")
-        if _CRED_IN_SHELL.search(command):
-            raise Refused("credential-path-access", "command names a "
-                          "credential location (.ssh, .aws or .env)")
-        for seg in _SEGMENT_SPLIT.split(command):
-            inst = _install_args(_tokens(seg))
-            if inst:
-                check_install(inst[0], inst[1], pkgs)
+        if settings is None:
+            settings = load_hook_settings()
+        _check_bash(str(ti.get("command", "")), cmds, pkgs, cred_globs,
+                    cwd, os.path.realpath(workspace), session,
+                    strict=bool(settings.get("shell_writes_enforce_allow")),
+                    scripts_env=bool(settings.get("scripts_may_read_env_files")))
         return
 
     paths = [ti.get(k) for k in ("file_path", "notebook_path", "path")
              if ti.get(k)]
+    writes = tool in WRITE_TOOLS
+    if tool == "WebFetch":
+        url = str(ti.get("url", ""))
+        if url.lower().startswith("file:"):      # a local file, by URL
+            paths = [re.sub(r"^file:(//[^/]*)?", "", url, flags=re.I)]
+    elif tool.startswith("mcp__"):
+        # An MCP server's tool: any argument that names a file is checked
+        # like Read's path; a tool whose name says it writes, like Write's.
+        paths = _mcp_paths(ti)
+        writes = bool(_MCP_WRITE_TOOL.search(tool.split("__")[-1]))
     for p in paths:
         real = _real(p, cwd)
         if is_credential_path(real, cred_globs) or is_credential_path(p, cred_globs):
@@ -273,12 +659,13 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list):
     if tool == "Glob" and _CRED_IN_SHELL.search(" " + str(ti.get("pattern", ""))):
         raise Refused("credential-path-access", "glob pattern targets a "
                       "credential location")
-    if tool in WRITE_TOOLS:
+    if writes:
         for p in paths:
             real = _real(p, cwd)
             if _protected(real):
-                raise Refused("hook-tamper", "%s holds AI-Paladin's or Claude "
-                              "Code's settings - only a person may edit it" % p)
+                raise Refused("hook-tamper", "%s is one of AI-Paladin's policy, "
+                              "settings, log or hook files, or Claude Code's "
+                              "settings - only a person may edit it" % p)
             check_write_path(real, cmds, os.path.realpath(workspace), session)
 
 
@@ -333,7 +720,8 @@ def decide(call: dict) -> tuple:
     ti = call.get("tool_input") or {}
     detail = str(ti.get("command") or ti.get("file_path") or
                  ti.get("notebook_path") or ti.get("path") or
-                 ti.get("pattern") or "")[:300]
+                 ti.get("pattern") or ti.get("url") or ti.get("query") or
+                 ti.get("description") or "")[:300]
     state = _load_state(session)
     rule, reason = None, None
 
@@ -378,7 +766,13 @@ def decide(call: dict) -> tuple:
 # turning it on and off: Claude Code's settings
 # ---------------------------------------------------------------------------
 
-MATCHER = "Bash|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob"
+# Claude Code calls the hook only for tools this matches (a regex). Beyond the
+# file and shell tools: WebFetch / WebSearch, Task / Agent (subagents) and
+# every MCP tool, so each is logged, counts toward fence-probing, stops when
+# a session is paused, and has its paths checked. An install made before
+# this list grew keeps its old matcher until `--install` is run again.
+MATCHER = ("Bash|Write|Edit|MultiEdit|NotebookEdit|Read|Grep|Glob"
+           "|WebFetch|WebSearch|Task|Agent|mcp__.*")
 
 
 def settings_file(user: bool) -> str:
@@ -609,6 +1003,18 @@ def main(argv=None) -> int:
         print("installed in   %s" % ("\n               ".join(places)
                                      if places else "nowhere AI-Paladin "
                                      "knows of - run --install"))
+        try:
+            strict = load_hook_settings()["shell_writes_enforce_allow"]
+            print("shell writes   %s" % (
+                "write_scope deny + allow (shell_writes_enforce_allow: true)"
+                if strict else "write_scope deny only (default)"))
+            print("script .env    %s" % (
+                "script files may name .env files (scripts_may_read_env_files: true)"
+                if load_hook_settings()["scripts_may_read_env_files"]
+                else "refused (default)"))
+        except (OSError, ValueError) as exc:
+            print("shell writes   hook.yaml unreadable - every call is "
+                  "refused: %s" % exc)
         d = os.path.join(paths.LOG_DIR, "hook-state")
         for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
             try:

@@ -497,9 +497,9 @@ protected      23 terms in 4 groups, 4 paths
     <table class="dense">
       <tr><th>Rule</th><th>File</th><th>Refuses</th></tr>
       <tr><td>Blocked commands</td><td><code>commands.yaml</code></td><td><code>rm -rf /</code>, <code>curl … | bash</code>, <code>nc -l</code>, <code>history -c</code>, encryption tools</td></tr>
-      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code></td></tr>
+      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File-tool writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code>. Shell and script writes: the deny list only, unless <code>shell_writes_enforce_allow: true</code> in <code>hook.yaml</code> (opt-in)</td></tr>
       <tr><td>Packages</td><td><code>packages.yaml</code></td><td>Installs not on the allowlist, unpinned, or from URLs / files</td></tr>
-      <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code></td></tr>
+      <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code> &mdash; also in scripts the agent runs; <code>scripts_may_read_env_files: true</code> in <code>hook.yaml</code> lets script files name <code>.env</code> (opt-in)</td></tr>
       <tr><td>mass-file-touch</td><td><code>behavioral_rules.yaml</code></td><td>Writes past 200 in 60 s</td></tr>
       <tr><td>fence-probing</td><td><code>behavioral_rules.yaml</code></td><td><strong>Everything</strong>, after more than 3 refusals, until a person releases the session</td></tr>
       <tr><td>hook-tamper</td><td><code>behavioral_rules.yaml</code></td><td>The agent switching the guard off: editing Claude's settings or AI-Paladin's config, <code>--release</code>, <code>--uninstall</code></td></tr>
