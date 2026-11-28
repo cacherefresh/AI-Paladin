@@ -79,3 +79,60 @@ package-spoofing attack - so the symbols never go in an identifier. Where a
 display name uses them, also list `cacherefresh` as a search keyword so
 people who type it in ASCII still find us.
 
+## Versioning
+
+The file `VERSION` at the repository root is the single source for the
+project version (currently 0.3.0; distribution ships as v0.3). pip, the
+VS Code extension and the Ubuntu package must all use that same number.
+
+- `pyproject.toml` reads `VERSION` (`[tool.setuptools.dynamic] version = {file = "VERSION"}`).
+- `ai_paladin.__version__` reads the same file in a checkout, or the
+  installed package metadata in a wheel.
+- `vscode/ai-paladin/package.json` `"version"` must be edited to match
+  when `VERSION` changes.
+- Ubuntu/Debian packaging is not in the tree yet. When it is added, the
+  first entry in `debian/changelog` (or `packaging/debian/changelog`,
+  `DISTRIBUTION/debian/changelog`, `ubuntu/debian/changelog`) must match
+  `VERSION`.
+- `ai-paladin/tests/test_version.py` fails if any of the above drift.
+
+Do not hard-code a second project version in `pyproject.toml` or
+`ai_paladin/__init__.py`.
+
+Software changes go in the root `CHANGELOG.md`.
+
+## Documentation home and frozen versions
+
+All human-facing decks and manuals live in **one** place:
+
+`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/`
+
+with two subfolders, `PITCH_DECK/` and `USER_CONFIG/`. Each has:
+
+- `latest/` — the newest version itself, not a copy. A `latest/VERSION`
+  marker states which version it is (the pitch deck's latest is v0.2
+  until a v0.3 deck is written; the configuration manual's latest is
+  v0.3.0).
+- Frozen prior-version folders (`v0.1/`, `v0.2/`, …) — never edited.
+- `CHANGES.md` — what changed as versions increment.
+
+There is exactly one copy of each version. Do not keep a second tree
+under `USER_CONFIG/` at the repo root, or a `v0.2/` folder alongside
+`latest/` while latest is still v0.2.
+
+When incrementing a document set:
+
+1. `git mv latest vX.Y` (the version that *was* current).
+2. Create a new `latest/` with the new files and a `latest/VERSION` marker.
+3. Add an entry to that set's `CHANGES.md` and, for a software version
+   bump, to the root `CHANGELOG.md` and the root `VERSION` file. Update
+   `vscode/ai-paladin/package.json` to match. Run the version test.
+
+Rebuild only `latest/` PDFs, with
+`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh`. Frozen PDFs are
+never overwritten.
+
+**Pitch decks are never edited by agents.** Do not change the HTML, PDF
+or screenshots of any pitch deck version, including the one in `latest/`.
+A new pitch deck is a new version folder, created only when Rob asks for
+one.
