@@ -211,13 +211,60 @@ def _policy_locations(workspace: str) -> list:
             for rel in POLICY_FILES + POLICY_DIRS]
 
 
+# The hook's own code: the modules it runs, relative to the folder that holds
+# the ai_paladin package, and its wrapper script relative to an AI-Paladin
+# tree. Editing any of them would switch the guard off without touching a
+# setting.
+HOOK_CODE = ("ai_paladin/__init__.py", "ai_paladin/hook.py",
+             "ai_paladin/shell_scan.py", "ai_paladin/code_scan.py",
+             "ai_paladin/config_layers.py", "ai_paladin/paths.py",
+             "ai_paladin/security/__init__.py",
+             "ai_paladin/security/monitors.py")
+HOOK_WRAPPER = "hooks/pre_tool_use.py"
+
+
+def _hook_code_file(real: str) -> bool:
+    for rel in HOOK_CODE:
+        if real.endswith("/" + rel):
+            root = real[:-len(rel) - 1]
+            if os.path.isfile(os.path.join(root, "ai_paladin", "hook.py")):
+                return True
+    if real.endswith("/" + HOOK_WRAPPER) and \
+            _paladin_root(real[:-len(HOOK_WRAPPER) - 1]):
+        return True
+    return False
+
+
+def _hook_code_locations(workspace: str) -> list:
+    """The hook files this hook runs from (source checkout or installed
+    package), the `ai-paladin-hook` command, and the project's own copy if
+    the project is an AI-Paladin checkout."""
+    import shutil
+    from ai_paladin import paths as ap
+    pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = [os.path.join(pkg_parent, rel) for rel in HOOK_CODE]
+    out.append(os.path.join(ap.BASE, HOOK_WRAPPER))
+    for r in (workspace, os.path.join(workspace, "ai-paladin")):
+        if os.path.isfile(os.path.join(r, "ai_paladin", "hook.py")):
+            out += [os.path.join(r, rel) for rel in HOOK_CODE]
+        if _paladin_root(r):
+            out.append(os.path.join(r, HOOK_WRAPPER))
+    cmd = shutil.which("ai-paladin-hook")
+    if cmd:
+        out.append(cmd)
+    return sorted({os.path.realpath(p) for p in out})
+
+
 def _protected(real: str) -> bool:
     """Files an agent must not edit: they decide what the guard enforces -
-    AI-Paladin's config and log folders, Claude Code's settings, and the
-    policy files of an AI-Paladin tree."""
+    AI-Paladin's config and log folders, Claude Code's settings, the policy
+    files of an AI-Paladin tree, and the hook's own code."""
     if any(_under(real, d) for d in _guard_dirs()):
         return True
-    if _policy_file(real):
+    if _policy_file(real) or _hook_code_file(real):
+        return True
+    if real in _hook_code_locations(os.environ.get("CLAUDE_PROJECT_DIR")
+                                    or os.getcwd()):
         return True
     parent, name = os.path.split(real)
     return (os.path.basename(parent) == ".claude"
@@ -228,9 +275,23 @@ def _holds_protected(real: str, workspace: str) -> bool:
     """True if deleting or moving `real` would take protected files with it
     (`rm -rf ~/.config`, `mv .claude elsewhere`)."""
     held = (_guard_dirs() + _policy_locations(workspace)
+            + _hook_code_locations(workspace)
             + [os.path.join(workspace, ".claude"),
                os.path.join(os.path.expanduser("~"), ".claude")])
-    return any(_under(os.path.realpath(h), real) for h in held)
+    if any(_under(os.path.realpath(h), real) for h in held):
+        return True
+    # any other copy of the hook's code inside the folder (rm -rf of an
+    # installed site-packages/ai_paladin, or of a checkout's package)
+    for rel in HOOK_CODE + (HOOK_WRAPPER,):
+        parts = rel.split("/")
+        for k in range(len(parts)):
+            head = "/".join(parts[:k])
+            if k and not real.endswith("/" + head):
+                continue
+            cand = os.path.join(real, *parts[k:])
+            if os.path.isfile(cand) and _hook_code_file(cand):
+                return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -477,8 +538,9 @@ def _check_shell_write(path: str, kind: str, cwd: str, cmds: dict,
     if _protected(real) or (kind == "destroy"
                             and _holds_protected(real, workspace)):
         raise Refused("hook-tamper", "command would write, move or delete %s, "
-                      "which holds AI-Paladin's policy, settings or audit log "
-                      "or Claude Code's settings - only a person may do that"
+                      "which holds AI-Paladin's policy, settings, audit log or "
+                      "hook code, or Claude Code's settings - only a person "
+                      "may do that"
                       % path)
     check_write_path(real, cmds, workspace, session, use_allow=strict)
     if kind == "destroy":
@@ -602,7 +664,7 @@ def evaluate(call: dict, cmds: dict, pkgs: dict, cred_globs: list,
             real = _real(p, cwd)
             if _protected(real):
                 raise Refused("hook-tamper", "%s is one of AI-Paladin's policy, "
-                              "settings or log files, or Claude Code's "
+                              "settings, log or hook files, or Claude Code's "
                               "settings - only a person may edit it" % p)
             check_write_path(real, cmds, os.path.realpath(workspace), session)
 

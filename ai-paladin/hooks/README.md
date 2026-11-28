@@ -35,7 +35,7 @@ roadmap goal (`docs/ROADMAP.md`, section 9).
 | credential-path-access | `behavioral_rules.yaml` | Read / Grep / Glob / Write / Edit / MCP tools / `file:` WebFetch on `.ssh`, `.aws`, `.env`, `.env.*`, and Bash commands or interpreter code naming them (after quote removal and path resolution), refused |
 | mass-file-touch | `behavioral_rules.yaml` | More than 200 file-tool writes in 60 s: further writes refused |
 | fence-probing | `behavioral_rules.yaml` | More than 3 refusals in one session: **every** tool call refused until a person releases it |
-| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders (configured and default locations), AI-Paladin's policy files (`router/keywords.yaml`, `router/policy.yaml`, `config/keywords.yaml`, `security/policies/`, `security/monitors/` in any AI-Paladin tree), by any route the hook inspects; `ai-paladin-hook --release/--install/--uninstall`, `ai-paladin uninstall`, `pip uninstall ai-paladin` |
+| hook-tamper | `behavioral_rules.yaml` | An agent switching off or editing the guard: Claude Code settings files, AI-Paladin's config and log folders (configured and default locations), AI-Paladin's policy files (`router/keywords.yaml`, `router/policy.yaml`, `config/keywords.yaml`, `security/policies/`, `security/monitors/` in any AI-Paladin tree), the hook's own code (`ai_paladin/hook.py` and the modules it runs, `hooks/pre_tool_use.py`, the installed `ai-paladin-hook` command), by any route the hook inspects; `ai-paladin-hook --release/--install/--uninstall`, `ai-paladin uninstall`, `pip uninstall ai-paladin` |
 
 Tools covered: Bash, Write, Edit, MultiEdit, NotebookEdit, Read, Grep,
 Glob, WebFetch, WebSearch, Task / Agent and every MCP tool (`mcp__.*`).
@@ -163,6 +163,11 @@ ai-paladin-hook --release SESSION_ID  # a person lifts the pause
 - It does not gate Claude Code's own network use: WebFetch and WebSearch
   reach the hook (logged, paused with the session, `file:` URLs checked),
   but no domain allowlist is applied to them.
+- **Working on AI-Paladin itself with the hook installed:** an agent cannot
+  edit the hook's code (`ai_paladin/hook.py`, `shell_scan.py`,
+  `code_scan.py`, `config_layers.py`, `paths.py`, `security/monitors.py`,
+  `hooks/pre_tool_use.py`) or the policy files. A person makes those
+  changes, or runs that agent without the hook.
 - `hook-tamper` matches what a command names or resolves to. It also
   refuses harmless commands that merely mention those files
   (`cat .claude/settings.json`), and a program that changes them with a
