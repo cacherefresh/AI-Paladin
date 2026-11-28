@@ -108,7 +108,7 @@ entry it recorded before. The manifest lives in the config folder, which the
 Lists every recorded entry (file and hook entry), asks
 
 ```text
-DO you want me to remove the hooks I added outside of python?(Y/n)
+Do you want me to remove the hooks I added outside of python?(Y/n)
 ```
 
 (default Yes), removes the entries whose fingerprint still matches, and ends

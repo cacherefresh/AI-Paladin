@@ -282,7 +282,7 @@ What it does, step by step:
    the default:
 
    ```text
-   DO you want me to remove the hooks I added outside of python?(Y/n)
+   Do you want me to remove the hooks I added outside of python?(Y/n)
    ```
 
 3. **Removes only what it recorded adding.** This is not a snapshot revert:
