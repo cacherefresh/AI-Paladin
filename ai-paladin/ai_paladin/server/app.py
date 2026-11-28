@@ -2,7 +2,7 @@
 AI-Paladin demo server. Python standard library only - no venv, no pip, no
 build step. Run it, open the browser, demo.
 
-    python3 -m server.app          # from ai-org-router/
+    python3 -m server.app          # from ai-paladin/
 
 Endpoints
     GET  /                      the chat UI

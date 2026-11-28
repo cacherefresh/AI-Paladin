@@ -27,8 +27,8 @@ settings (LLM, RAG, bot), and the HTTP method classes and switches.
 
 ## The principle
 
-A prompt is a suggestion. A hook is a wall. A driver is the foundation the
-wall stands on. Each layer down removes one more thing an agent - or the
+A prompt is a suggestion. A hook is a guardrail: advisory today, a tripwire
+rather than a boundary. A driver is the foundation a real wall would stand on. Each layer down removes one more thing an agent - or the
 person driving it - can talk its way past.
 
 ## The prompt
@@ -37,7 +37,7 @@ Paste this to an AI coding agent to start the work:
 
 ```text
 Build an AI firewall that enforces the AI-Paladin policy
-(ai-org-router/router/policy.yaml and router/keywords.yaml) below the
+(ai-paladin/router/policy.yaml and router/keywords.yaml) below the
 application layer. along with all AI-Paladin's intended features and settings.
 make it easy for the user to use, understand based on this code base.
 we want it as efficient and robust as possible without compromising anything.
@@ -55,7 +55,7 @@ Per AI agent process (identified by cgroup, PID tree, or code signature):
 3. Enforce internet access: off = no external network; read = HTTP read
    methods only; readwrite = read and write methods. TRACE, CONNECT and
    PRI are never allowed. Use the method classes in
-   ai-org-router/ai_paladin/nodes/web_tools.py.
+   ai-paladin/ai_paladin/nodes/web_tools.py.
 4. Log every allow and deny to an append-only audit log.
 
 HTTPS hides methods and content from a packet filter. Steps 1 and 3 need

@@ -13,7 +13,7 @@ The `ai-paladin` command.
                                pip cannot run anything at uninstall time, so
                                it cannot remove the hook or warn you.
 
-Also runnable without installing: `python3 -m ai_paladin` from ai-org-router/.
+Also runnable without installing: `python3 -m ai_paladin` from ai-paladin/.
 
 The folders are chosen here, in the environment, BEFORE any other ai_paladin
 module is imported - ai_paladin.paths reads them once, at import.

@@ -26,7 +26,7 @@ jobs:
       - name: Install (editable)
         run: python -m pip install -e .
       - name: Unit tests
-        working-directory: ai-org-router
+        working-directory: ai-paladin
         run: python -m unittest discover -s tests -v
 
   wheel:
@@ -44,7 +44,7 @@ jobs:
       - name: Install test dependency
         run: python -m pip install "PyYAML>=6"
       - name: Build, install and boot the wheel
-        working-directory: ai-org-router
+        working-directory: ai-paladin
         env:
           AI_PALADIN_WHEEL_TEST: "1"
         run: python -m unittest tests.test_wheel_install -v

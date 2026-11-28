@@ -2,7 +2,7 @@
 Router HTTP API: Host, Origin, Content-Type and token checks, and
 server-issued confirmation challenges (ai_paladin/server/api_guard.py).
 
-Run from ai-org-router/:  python3 -m unittest tests.test_api_guard -v
+Run from ai-paladin/:  python3 -m unittest tests.test_api_guard -v
 
 Each test talks to a real Handler on an ephemeral loopback port. No Ollama
 is needed: none of these requests reaches a model.

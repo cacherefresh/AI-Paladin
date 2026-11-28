@@ -4,7 +4,7 @@ Where AI-Paladin's files live.
 Three places, never mixed:
 
   BASE        shipped, read-only. In a source checkout, the project folder
-              (ai-org-router/); in an installed wheel, ai_paladin/_shipped/.
+              (ai-paladin/); in an installed wheel, ai_paladin/_shipped/.
               Holds the defaults: router/, agents/, models/, security/,
               ui/, demo/, hooks/. Nothing here is written at run time.
   CONFIG_DIR  this user's settings and overrides. Written by the dashboard
@@ -16,7 +16,7 @@ Three places, never mixed:
 
 The defaults follow the XDG base-directory convention. AI_PALADIN_CONFIG_DIR
 and AI_PALADIN_LOG_DIR override them; `ai-paladin --demo` (and run_demo.sh)
-point them at ai-org-router/config and ai-org-router/logs so the demo keeps
+point them at ai-paladin/config and ai-paladin/logs so the demo keeps
 everything inside the repo.
 
 These are read once, at import. Set the environment before importing any
@@ -27,9 +27,9 @@ import os
 
 _PKG = os.path.dirname(os.path.abspath(__file__))
 # An installed wheel carries the shipped defaults inside the package, under
-# ai_paladin/_shipped/ (pyproject.toml maps ai-org-router/ there). A source
+# ai_paladin/_shipped/ (pyproject.toml maps ai-paladin/ there). A source
 # checkout or an editable install has no such folder and reads them from
-# ai-org-router/ itself.
+# ai-paladin/ itself.
 _BUNDLED = os.path.join(_PKG, "_shipped")
 BASE = (_BUNDLED if os.path.isfile(os.path.join(_BUNDLED, "router", "policy.yaml"))
         else os.path.dirname(_PKG))

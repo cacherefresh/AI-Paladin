@@ -101,7 +101,7 @@ everything else in the room. One who is told up front will credit the rest.
 ## Regenerating
 
 Screenshots and PDF are produced by driving the live prototype in a headless
-browser. Start the demo first (`./run_demo.sh` in `ai-org-router/`), then
+browser. Start the demo first (`./run_demo.sh` in `ai-paladin/`), then
 re-run the capture into the version folder you are editing. After editing that
 version's `PITCH_DECK.html`, re-export its PDF into the same folder via
 your browser's Print → Save as PDF (A4, landscape, background graphics on).

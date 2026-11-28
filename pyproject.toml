@@ -4,7 +4,7 @@
 # a wheel (python3 -m build, or pip wheel .). The wheel carries the shipped
 # defaults - router/*.yaml, agents/, models/, security/policies/,
 # security/monitors/, ui/, demo/, hooks/ - as package data under
-# ai_paladin/_shipped/, mapped from ai-org-router/ below, so the gate files
+# ai_paladin/_shipped/, mapped from ai-paladin/ below, so the gate files
 # stay where they are in the repository. ai_paladin.paths finds them in
 # either layout. tests/wheel_smoke.py builds the wheel, installs it into a
 # clean virtual environment and boots the router from it.
@@ -40,12 +40,12 @@ ai-paladin-hook = "ai_paladin.hook:main"
 version = {attr = "ai_paladin.__version__"}
 
 # Listed rather than discovered, because ai_paladin._shipped is not a code
-# package: it is ai-org-router/ itself, mapped in so its data files can be
+# package: it is ai-paladin/ itself, mapped in so its data files can be
 # named as package data. Add a new code subpackage here when you create one
 # (tests/wheel_smoke.py fails if one is missing from the wheel).
 [tool.setuptools.package-dir]
-"" = "ai-org-router"
-"ai_paladin._shipped" = "ai-org-router"
+"" = "ai-paladin"
+"ai_paladin._shipped" = "ai-paladin"
 
 [tool.setuptools]
 license-files = ["LICENSE", "NOTICE"]

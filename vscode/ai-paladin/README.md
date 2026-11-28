@@ -42,11 +42,11 @@ in your editor's status bar:
 A green shield in the status bar means *the router cannot reach anything but
 this machine.* It does not mean the machine is sealed. For that you want a host
 firewall or a network namespace with no default route — see
-[`docs/ROADMAP.md` §5](../../ai-org-router/docs/ROADMAP.md).
+[`docs/ROADMAP.md` §5](../../ai-paladin/docs/ROADMAP.md).
 
 If you are running a demo where "nothing left the machine" is the claim, harden
 VS Code as well — the table in
-[`docs/DEMO_SOVEREIGN_MIXXX.md`](../../ai-org-router/docs/DEMO_SOVEREIGN_MIXXX.md) lists the
+[`docs/DEMO_SOVEREIGN_MIXXX.md`](../../ai-paladin/docs/DEMO_SOVEREIGN_MIXXX.md) lists the
 settings.
 
 ## Install
@@ -97,4 +97,4 @@ Splitting into `ai-paladin-core` / `ai-paladin-client` /
 `ai-paladin-standalone` / `ai-paladin-vscode` packages is the right eventual
 shape for shipping, and is deliberately deferred — it adds a build step and
 changes nothing about where the perimeter sits. See
-[`docs/ROADMAP.md` §5](../../ai-org-router/docs/ROADMAP.md), *Client shape*.
+[`docs/ROADMAP.md` §5](../../ai-paladin/docs/ROADMAP.md), *Client shape*.

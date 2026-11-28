@@ -1,7 +1,7 @@
 """
 Shipped defaults plus the user's settings (ai_paladin/config_layers.py).
 
-Run from ai-org-router/:  python3 -m unittest tests.test_config_layers -v
+Run from ai-paladin/:  python3 -m unittest tests.test_config_layers -v
 
 What must hold:
   * an overlay can add groups, terms and paths;

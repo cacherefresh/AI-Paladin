@@ -544,9 +544,11 @@ that classifier with a routing rule attached to its output.
 The integration seam is the one this repository's own README already argues
 for:
 
-> *A prompt is a suggestion; a hook is a wall. A manipulated or misbehaving
-> agent can ignore "please don't delete files"; it cannot ignore PreToolUse
-> script exit 2.*
+> *A prompt is a suggestion; a hook is a guardrail. A manipulated or
+> misbehaving agent can ignore "please don't delete files"; it cannot ignore
+> a PreToolUse script exit 2.*
+
+(Guardrail, not wall: the hook is advisory today - see section 9.)
 
 A Claude Code hook is therefore the honest place to intercept — no proxy, no
 man-in-the-middle, and it is the same deterministic enforcement primitive the
@@ -714,9 +716,46 @@ go-ahead.
 
 ---
 
+## 9. The hook as a true security boundary
+
+**Decision (Rob, 2026-11-28):** the Claude Code PreToolUse hook
+(`ai_paladin/hook.py`) is **advisory for now**: a guardrail and tripwire that
+stops careless and manipulated agents on the obvious route. It is not a
+security boundary, and no doc, deck or comment should call it a wall. Making it
+one is a goal, recorded here as design intent.
+
+### Where it stands
+
+- 11 known bypasses are pinned as expected failures in
+  `tests/test_hook_bypasses.py`. They are documented known limits; each states
+  what the hook *should* refuse and passes today only as an `expectedFailure`.
+- The hook matches what a tool call or shell command *names*, not what it
+  *does*. Variables, aliases, encodings, scripts that write protected files
+  without naming them, and Bash file writes outside the write scope get through.
+- An app-level hook runs in the same user space as the thing it guards, so
+  hardening it can shrink the gap but cannot close it.
+
+### The goal, in two stages
+
+1. **Harden the hook.** Close every known bypass in its own `bugfix/` PR, before
+   the distribution branch merges. Resolve where a command actually lands
+   rather than how it is spelled, and refuse agent-written scripts that touch
+   protected paths. Each fix turns an `expectedFailure` into a passing test, so
+   the gap shrinks visibly in CI. Afterwards the hook is described as a
+   *hardened guardrail*, not a boundary.
+2. **Enforce below the application.** The real boundary is OS-level and
+   network-level control (filesystem permissions, a separate user, a host
+   firewall), as in `README_ENDEAVORS.md`. That is its own milestone, well
+   beyond a distribution release.
+
+Until stage 2 exists, wording must say what is enforced, its scope and its
+limit in the same sentence (`AGENTS.md`).
+
+---
+
 ## Scope note
 
-Sections 1–4 and 6–8 are **roadmap, not product**, and section 5 is half of each — the sovereign posture ships and is enforced; the LAN-scoped ring inside it does not. Section 7 is the one item here that produces evidence rather than capability, and it is the only one that can start today. They do appear in the investor deck,
+Sections 1–4 and 6–9 are **roadmap, not product**, and section 5 is half of each — the sovereign posture ships and is enforced; the LAN-scoped ring inside it does not. Section 7 is the one item here that produces evidence rather than capability, and it is the only one that can start today. They do appear in the investor deck,
 but only as a clearly-badged *Future endeavour* block placed **after** "The
 honest inventory" — never interleaved with the proof slides.
 
