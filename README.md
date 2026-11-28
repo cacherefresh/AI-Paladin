@@ -3,7 +3,7 @@
 > The project folder was formerly `ai-org-router/`; it is now `ai-paladin/`. Older
 > links, notes and clones that mention `ai-org-router/` mean the same code.
 
-Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:a prompt is a suggestion; a hook is a guardrail. A manipulated or misbehaving agent can ignore "please don't delete files"; it cannot ignore a PreToolUse script exit 2 - but the hook is advisory today, a tripwire that catches careless and manipulated agents, not a security boundary a determined agent cannot route around ([known bypasses](ai-paladin/hooks/README.md#limits); making it a real boundary is a [roadmap goal](ai-paladin/docs/ROADMAP.md)). security-focused repo
+Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:a prompt is a suggestion; a hook is a guardrail. A manipulated or misbehaving agent can ignore "please don't delete files"; it cannot ignore a PreToolUse script exit 2 - the hook is a hardened guardrail: it resolves what a tool call or shell command would actually touch, but it reads commands rather than running them and shares the agent's user space, so it is not a security boundary a determined agent cannot route around ([limits](ai-paladin/hooks/README.md#limits); making it a real boundary is a [roadmap goal](ai-paladin/docs/ROADMAP.md)). security-focused repo
 
 ## Run it
 
