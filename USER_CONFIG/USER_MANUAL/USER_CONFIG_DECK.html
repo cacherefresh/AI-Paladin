@@ -510,7 +510,8 @@ protected      23 terms in 4 groups, 4 paths
 <span class="k">$ ai-paladin-hook --install --user</span>   <span class="c"># every project</span>
 <span class="k">$ ai-paladin-hook --status</span>
 <span class="k">$ ai-paladin-hook --release SESSION_ID</span>
-<span class="k">$ ai-paladin uninstall</span>             <span class="c"># removes it all</span></pre>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># 1st: removes the hooks it added, then</span>
+<span class="k">$ pip uninstall ai-paladin</span>         <span class="c"># 2nd: removes the package</span></pre>
       <p class="note" style="margin-top:8px"><strong>Independent of the router</strong>: stopping the router does
       not switch it off &mdash; otherwise that would be the way past every rule. Fails closed: if the hook cannot
       run at all, the call is refused and Claude Code shows how to recover (next slide). Every
@@ -548,9 +549,10 @@ protected      23 terms in 4 groups, 4 paths
 <span class="k">$ ai-paladin-hook --uninstall</span>
 <span class="k">$ ai-paladin-hook --uninstall --all</span>
 
-<span class="c"># 4. remove AI-Paladin - hook everywhere first, then</span>
-<span class="c">#    the package. NOT a plain pip uninstall.</span>
-<span class="k">$ ai-paladin uninstall</span></pre>
+<span class="c"># 4. remove AI-Paladin - ai-paladin uninstall FIRST, then pip.</span>
+<span class="c">#    NOT a plain pip uninstall.</span>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># asks: DO you want me to remove the hooks I added outside of python?(Y/n)</span>
+<span class="k">$ pip uninstall ai-paladin</span>         <span class="c"># it tells you to run this next</span></pre>
       <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
       your project: <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --install</code></p>
     </div>
@@ -564,9 +566,15 @@ protected      23 terms in 4 groups, 4 paths
         <h3>Why not a plain pip uninstall?</h3><p>pip runs nothing while removing a package, so it cannot take
         the hook out or warn you. A hook that cannot start <strong>refuses</strong> the call, so a leftover entry
         makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
-        <code>ai-paladin uninstall</code> finds every recorded install, removes the hook from each, stops if any
-        cannot be removed, then uninstalls (via pipx if that is how it was installed) and ends with an
-        all-caps confirmation.</p></div>
+        Every <code>--install</code> records exactly what it added (file, hook entry, fingerprint) in
+        <code>install_manifest.json</code> in <code>~/.config/ai-paladin</code>. <code>ai-paladin uninstall</code>
+        lists those entries, asks <em>DO you want me to remove the hooks I added outside of python?(Y/n)</em>
+        (Enter = yes), removes only them, and then tells you to run <code>pip uninstall ai-paladin</code>
+        (<code>pipx uninstall</code> if that is how you installed it). It is not a snapshot revert: a hook that was
+        already there before install, or that someone added since, stays; an entry of ours you edited after install
+        is flagged <strong>MODIFIED</strong> and kept unless you say otherwise. <code>--dry-run</code> lists
+        without changing anything; <code>--yes</code> skips the question. It stops without changing anything if a
+        settings file cannot be read.</p></div>
       <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
         Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
         <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --uninstall</code> (add

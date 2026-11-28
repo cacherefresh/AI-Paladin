@@ -228,9 +228,10 @@ the router running: `ai-paladin-hook --install` adds it to this project's
 Claude Code settings (`--user` for every project), `--uninstall` removes it,
 `--status` shows where it is. Stopping the router does **not** switch the
 hook off - otherwise stopping the router would be the way past every rule.
-Remove AI-Paladin with `ai-paladin uninstall`, which takes the hook out
-everywhere first; a plain `pip uninstall` leaves it behind, and Claude Code
-then refuses every tool call until the entry is removed.
+Remove AI-Paladin by running `ai-paladin uninstall` first, then `pip
+uninstall ai-paladin` (see "Uninstalling"); a plain `pip uninstall` leaves the
+hook behind, and Claude Code then refuses every tool call until the entry is
+removed.
 
 Each rule in `behavioral_rules.yaml` says, on its own `enforced:` line,
 exactly where and how it is enforced - or that it is not. The hook is a
@@ -262,21 +263,67 @@ misspelled protected terms such as "pricng engnie" - arithmetic, no model.
 
 ## Uninstalling
 
+Two commands, in this order:
+
 ```bash
-ai-paladin uninstall
+ai-paladin uninstall        # 1. removes what AI-Paladin added outside Python
+pip uninstall ai-paladin    # 2. removes the package (pipx uninstall ai-paladin, if you used pipx)
 ```
 
-**Use this, not a plain `pip uninstall`.** It removes the Claude Code hook
-from every project where it was installed - `--install` keeps a record of
-each one - and only then uninstalls the package, ending with a banner that
-confirms both. If any hook entry cannot be removed, it stops and uninstalls
-nothing. (Installed with pipx? It runs `pipx uninstall` for you.)
+**Run `ai-paladin uninstall` first, and do not skip it.** pip cannot run any
+code from a package while it removes it, so a plain `pip uninstall` can neither
+remove the Claude Code hook entries AI-Paladin added to your settings files nor
+warn you about them.
 
-pip itself cannot help here: it runs no code from a package while removing
-it, so a plain `pip uninstall` can neither remove the hook nor warn you.
+What it does, step by step:
+
+1. **Reads the install manifest.** Every `ai-paladin-hook --install` records,
+   in `install_manifest.json` in the config folder (`~/.config/ai-paladin/`, or
+   `$AI_PALADIN_CONFIG_DIR`), exactly what it added: the settings file, the
+   hook entry, and a SHA-256 fingerprint of the entry as written. It also
+   records any equivalent entry that was already in the file before install.
+2. **Lists each hook it would remove** (file and entry), then asks, with Yes as
+   the default:
+
+   ```text
+   DO you want me to remove the hooks I added outside of python?(Y/n)
+   ```
+
+3. **Removes only what it recorded adding.** This is not a snapshot revert:
+   - a hook that existed before you installed AI-Paladin stays (listed as
+     "was already present before install, keeping");
+   - a hook another tool or you added after install stays;
+   - settings and other hook events in those files are left exactly as they
+     were.
+4. **Flags edits.** If an entry of ours no longer matches its recorded
+   fingerprint, you changed it after install. It is marked MODIFIED in the
+   list and kept; after the main question you are asked about each one
+   ("Remove it anyway?(y/N)", default No).
+5. **Tells you to run `pip uninstall ai-paladin`.** It never runs pip itself.
+
+Answering `n` changes nothing; the hooks stay, and you can run it again later.
+Do not run pip uninstall after declining: Claude Code would then refuse every
+tool call until the entries are removed.
+
+| Option | What it does |
+|---|---|
+| `--yes`, `-y` | Do not ask. Modified entries are still kept. |
+| `--dry-run` | List what would be removed and what would stay; change nothing. |
+| `--remove-modified` | With `--yes`: also remove entries flagged as modified. |
+
+If a settings file cannot be read, or the manifest is damaged, it stops
+without removing anything and says which file to fix. Each settings file it
+edits is first saved as `settings*.json.bak` beside it. Installs made by an
+earlier AI-Paladin version (before the manifest existed) are recognised from
+the older record and removed the same way; run `ai-paladin-hook --install`
+again to give them a fingerprint.
+
+Only a person runs this. The Claude Code hook refuses an agent that tries to
+run `ai-paladin uninstall` or to edit the manifest.
 
 To turn the hook off but keep AI-Paladin: `ai-paladin-hook --uninstall --all`
-(or `--uninstall` in one project).
+(or `--uninstall` in one project). It follows the same rule: it removes only
+entries the manifest says it added.
 
 Why the order matters: the hook is built to refuse a tool call whenever it
 cannot run, so a broken install never lets an agent through unchecked. If

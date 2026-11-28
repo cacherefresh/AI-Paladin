@@ -62,7 +62,7 @@ ai-paladin-hook --install            # this project only (.claude/settings.local
 ai-paladin-hook --install --user     # every project (~/.claude/settings.json)
 ai-paladin-hook --status             # every place it is installed; paused sessions
 ai-paladin-hook --uninstall          # remove it (add --user for the global one)
-ai-paladin-hook --uninstall --all    # remove it from every place it was installed
+ai-paladin-hook --uninstall --all    # remove what --install added, everywhere (per the manifest)
 ```
 
 Without `pip install -e .`, use the file by its full path, still from your
@@ -80,11 +80,56 @@ AI-Paladin entry rather than adding a second one, and saves the previous
 file as `settings*.json.bak`. It refuses to touch a settings file it cannot
 read. Claude Code picks the change up in new sessions.
 
-**Remove AI-Paladin with `ai-paladin uninstall`, not a plain `pip
-uninstall`.** `--install` records every settings file it writes to; `ai-paladin
-uninstall` removes the hook from all of them, then the package, and ends with
-a banner confirming both. pip cannot run anything at uninstall time, so it
-cannot do this for you.
+**Remove AI-Paladin by running `ai-paladin uninstall` first, then `pip
+uninstall ai-paladin`.** pip cannot run anything at uninstall time, so it
+cannot remove the hook entries for you.
+
+### The install manifest
+
+`--install` records what it did in `install_manifest.json`, in the config
+folder (`~/.config/ai-paladin/`, or `$AI_PALADIN_CONFIG_DIR`). Per settings
+file it stores:
+
+| Field | Meaning |
+|---|---|
+| `added` | each hook entry we wrote: event (`PreToolUse`), matcher, what it runs, and a SHA-256 fingerprint of the entry as written |
+| `already_present` | equivalent AI-Paladin entries that were in the file before install. Not ours, so never removed |
+
+If an equivalent entry (the same fingerprint) is already in the file,
+`--install` adds nothing and records it under `already_present`. Another
+AI-Paladin-looking entry we did not write (a different checkout's hook, say) is
+left alone and recorded the same way. Re-running `--install` replaces only the
+entry it recorded before. The manifest lives in the config folder, which the
+`hook-tamper` rule keeps agents out of (it refuses agent edits to
+`install_manifest.json` as well).
+
+### `ai-paladin uninstall`
+
+Lists every recorded entry (file and hook entry), asks
+
+```text
+DO you want me to remove the hooks I added outside of python?(Y/n)
+```
+
+(default Yes), removes the entries whose fingerprint still matches, and ends
+by telling you to run `pip uninstall ai-paladin`. It is **not** a snapshot
+revert:
+
+| Found in the settings file | What happens |
+|---|---|
+| entry we recorded adding, unchanged | removed |
+| entry we recorded adding, since edited (fingerprint differs) | flagged `MODIFIED`, kept unless you answer yes to "Remove it anyway?(y/N)" (or pass `--remove-modified`) |
+| equivalent entry that was there before install | kept, listed as "was already present before install, keeping" |
+| any hook added later by you or another tool, other events, other settings | untouched |
+
+Options: `--yes` (no question; modified entries are still kept), `--dry-run`
+(list only, change nothing), `--remove-modified`. Answering `n` changes
+nothing. It stops without changing anything if the manifest or a settings file
+it needs cannot be read. `ai-paladin-hook --uninstall [--user | --all]` uses
+the same manifest and the same rule, for turning the hook off while keeping
+AI-Paladin. Settings files from an earlier version (recorded before the
+manifest existed, without fingerprints) are still found and removed; run
+`--install` again to record fingerprints.
 
 Claude Code blocks a call only when a hook exits with code 2; any other
 failure is shown as a warning and **the call goes ahead**. So the line
