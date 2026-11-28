@@ -28,7 +28,7 @@ Nothing here is ever published or pushed by an agent. Every upload and every
 - [x] Uninstall order is told everywhere a user can meet it (2026-11-24):
       root README "Uninstalling" (also the PyPI page), the VS Code extension's README, `ai-paladin-hook --install` output, hooks/README.md, and the user manual (page 15)
 - [x] A leftover hook entry explains itself: if AI-Paladin was removed first, Claude Code's refusal names the settings file to fix and the `--uninstall` command (2026-11-24)
-- [x] `ai-paladin uninstall`: removes the hook from every recorded install (registry kept by `--install`), stops if any cannot be removed, then runs pip (or pipx) uninstall and ends with an all-caps banner. pip itself cannot run code at uninstall time (2026-11-24)
+- [x] `ai-paladin uninstall` (2026-11-28, supersedes the 2026-11-24 version that ran pip itself): run BEFORE `pip uninstall ai-paladin`. `--install` records what it added (file, entry, SHA-256 fingerprint) and any equivalent entry already present in `install_manifest.json` (config folder). Uninstall lists each entry, asks "DO you want me to remove the hooks I added outside of python?(Y/n)" (default Yes), removes only recorded unchanged entries (not a snapshot revert), keeps pre-existing and later-added hooks, flags edited entries (MODIFIED, kept), then tells the person to run pip (or pipx) uninstall. Options `--yes`, `--dry-run`, `--remove-modified`. Documented in root README, hooks/README.md, the VS Code README and the user manual (page 15; rebuild the PDF with `USER_CONFIG/build_pdfs.sh`)
 - [x] Tests pass after the move (23/23), and the router boots, passes its egress self-test and pins protected prompts on-prem (2026-11-22)
 - [ ] **(Rob)** Full `./run_demo.sh` with Ollama, to confirm the demo end to end
 
@@ -102,7 +102,7 @@ Needs section 1 (code changes) and section 3's `pyproject.toml` done first.
 - [ ] `ai-paladin.service` user unit, installed to `/usr/lib/systemd/user/` and not enabled by default. Two users on one machine would otherwise both start a router on port 8722
 - [ ] Shipped default config under `/usr/share/ai-paladin/`; each user's overrides in `~/.config/ai-paladin/`; logs in `~/.local/state/ai-paladin/`
 - [ ] After install, print the Ollama install link and the `systemctl --user enable --now ai-paladin` line
-- [ ] `prerm` prints: "run `ai-paladin-hook --uninstall --all` as each user who installed the hook first". It runs as root, so it must only warn - never edit users' Claude Code settings
+- [ ] `prerm` prints: "run `ai-paladin uninstall` as each user who installed the hook first (before removing the package)". It runs as root, so it must only warn - never edit users' Claude Code settings
 - [ ] Build the source package (`debuild -S`) and test-build it for noble in a clean environment (`sbuild`)
 - [ ] `lintian` reports no errors
 - [ ] Install the built package in a fresh Ubuntu 24.04 container or VM, enable the service, and open the console
