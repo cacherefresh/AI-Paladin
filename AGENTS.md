@@ -78,6 +78,7 @@ Concretely:
 |---|---|
 | A reusable runbook or procedure | `ai-paladin/docs/` - committed |
 | How to publish the pip package | `docs/RELEASING.md` (repo root, outside the package) - committed |
+| Brand logo and favicons | `assets/logo/` (repo root, outside the package) - committed |
 | Design intent, roadmap, honest limits | `ai-paladin/docs/ROADMAP.md` - committed |
 | What a module does and why | its own `README.md` - committed |
 | This session's staging notes, todo, layout | `TEMPORARY/TEMP_NOTES.md` - ignored |
