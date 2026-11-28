@@ -38,6 +38,7 @@ from ai_paladin.nodes import web_tools
 from ai_paladin.router import dispatch
 from ai_paladin.nodes.subagents import Org
 from ai_paladin.security import egress_guard
+from ai_paladin.server import api_guard
 from ai_paladin.router.classifier import CORPORA, Config, list_corpus_files
 
 from ai_paladin import config_layers
@@ -351,6 +352,20 @@ def set_onprem(data: dict, actor: str) -> dict:
     """Apply a dashboard change. Raises ValueError with a reason to refuse."""
     want_model = data.get("model")
     want_net = data.get("internet")
+
+    # A confirmation is a single-use challenge the server issued for this
+    # exact change (api_guard), never a client-sent `confirm: true`.
+    change = json.dumps({k: v for k, v in data.items() if k != "confirm"},
+                        sort_keys=True)
+    confirmed = []
+
+    def require_confirmation(reason):
+        if not confirmed:
+            confirmed.append(api_guard.CONFIRMATIONS.consume(
+                data.get("confirm"), change))
+        if not confirmed[0]:
+            raise api_guard.ConfirmationRequired(
+                reason, api_guard.CONFIRMATIONS.issue(change))
     if want_model:
         entry = _catalog_entry(want_model)
         if not entry:
@@ -372,9 +387,8 @@ def set_onprem(data: dict, actor: str) -> dict:
         if lk and want_net != lk:
             raise PermissionError("internet access is pinned to '%s' by "
                                   "internet_access.lock in router/policy.yaml" % lk)
-        if (internet_modes()[want_net].get("require_confirmation")
-                and not data.get("confirm")):
-            raise PermissionError("read/write needs explicit confirmation")
+        if internet_modes()[want_net].get("require_confirmation"):
+            require_confirmation("read/write needs explicit confirmation")
     want_tog = data.get("toggles") or {}
     if not isinstance(want_tog, dict):
         raise ValueError("toggles must be an object of id -> true/false")
@@ -386,10 +400,9 @@ def set_onprem(data: dict, actor: str) -> dict:
             raise PermissionError("internet access is pinned by "
                                   "internet_access.lock; method toggles stay "
                                   "at their policy defaults")
-        if (on and defs[tid].get("require_confirmation")
-                and not data.get("confirm")):
-            raise PermissionError("enabling %s needs explicit confirmation"
-                                  % defs[tid].get("label", tid))
+        if on and defs[tid].get("require_confirmation"):
+            require_confirmation("enabling %s needs explicit confirmation"
+                                 % defs[tid].get("label", tid))
 
     with _onprem_lock:
         old_model, old_net = _onprem["model"], _onprem["internet"]
@@ -545,13 +558,38 @@ class Handler(BaseHTTPRequestHandler):
                               if self.client_address else "unknown")
 
     # -- routes -----------------------------------------------------------
+    def _refused(self, method: str) -> bool:
+        """Host, Origin, Content-Type and token checks (api_guard). True if
+        the request was refused and answered."""
+        try:
+            api_guard.check(method, self.headers, PORT)
+        except api_guard.Refusal as r:
+            if method != "GET":
+                bus.notify("agent.error", "API request refused",
+                           "%s %s: %s" % (method, self._path(), r.reason),
+                           severity="warning")
+            n = int(self.headers.get("Content-Length") or 0)
+            if n:
+                self.rfile.read(n)
+            self._send(r.status, {"error": r.reason})
+            return True
+        return False
+
     def do_GET(self):
+        if self._refused("GET"):
+            return
         p = self._path()
 
         if p in ("/", "/index.html"):
             try:
                 with open(os.path.join(UI_DIR, "index.html"), "rb") as fh:
-                    return self._send(200, fh.read(), "text/html; charset=utf-8")
+                    html = fh.read().decode("utf-8")
+                # The dashboard's copy of this start's API token. Another
+                # origin cannot read this page, so it cannot learn the token.
+                meta = ('<meta name="ai-paladin-token" content="%s">'
+                        % api_guard.TOKEN)
+                html = html.replace("<head>", "<head>\n" + meta, 1)
+                return self._send(200, html, "text/html; charset=utf-8")
             except OSError:
                 return self._send(404, {"error": "ui/demo/index.html missing"})
 
@@ -626,6 +664,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
+        if self._refused("POST"):
+            return
         p = self._path()
         data = self._body()
 
@@ -656,6 +696,13 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/onprem":
             try:
                 return self._send(200, set_onprem(data, self._actor()))
+            except api_guard.ConfirmationRequired as exc:
+                # The client shows its own confirmation to the person, then
+                # repeats the same request with this challenge as `confirm`.
+                return self._send(409, {"error": str(exc),
+                                        "confirm_challenge": exc.challenge,
+                                        "confirm_ttl_s": api_guard.CONFIRM_TTL_S,
+                                        "onprem": onprem_state()})
             except PermissionError as exc:
                 return self._send(409, {"error": str(exc),
                                         "onprem": onprem_state()})
