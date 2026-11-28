@@ -98,6 +98,10 @@ def main() -> int:
     assert not [n for n in names if ".egg-info/" in n or "/logs/" in n
                 or n.endswith("local_models.yaml")
                 or n.endswith("web_accounts.yaml")], "stray files in wheel"
+    repo_only = ("AGENTS.md", "CLAUDE.md", "HANDOFF.md")
+    leaked = [n for n in names
+              if any(n == x or n.endswith("/" + x) for x in repo_only)]
+    assert not leaked, "repo-only agent files must not ship in the wheel: %s" % leaked
 
     step("3. installing into a clean venv")
     venv = os.path.join(tmp, "venv")

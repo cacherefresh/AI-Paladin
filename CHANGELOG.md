@@ -38,6 +38,8 @@ series (v0.1, v0.2, and the v0.3 manual).
 - One `VERSION` file at the repository root. Documentation lives only
   under `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/`, with `latest/` and
   frozen prior versions.
+- Agent conventions and the work queue live at the repo root in
+  `AGENTS.md`, `CLAUDE.md` and `HANDOFF.md`, outside the pip package.
 
 ## 0.2.0 - 2026-11-22
 

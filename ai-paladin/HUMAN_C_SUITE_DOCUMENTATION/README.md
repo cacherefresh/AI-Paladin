@@ -36,8 +36,8 @@ when a v0.3 pitch deck is written, `git mv latest v0.2` and create a
 new `latest/`. The same move applies to the manual.
 
 Frozen folders are never edited. Pitch decks (including the one in
-`latest/`) are never edited by agents. Rebuild PDFs with
-`./build_pdfs.sh`; it will not overwrite a frozen PDF.
+`latest/`) are never edited by agents. Rebuild the configuration manual PDF with
+`./build_pdfs.sh --manual`; it will not overwrite a frozen PDF and will not touch a pitch deck.
 
 A short pointer at the repo-root `USER_CONFIG/README.md` leads here.
 
@@ -145,6 +145,7 @@ previous latest to a frozen folder). Agents must not edit an existing
 pitch deck.
 
 After editing the configuration manual in `USER_CONFIG/latest/`, rebuild
-its PDF with `./build_pdfs.sh`. That script will not overwrite frozen
-PDFs, and it keeps an existing `PITCH_DECK/latest` PDF unless you pass
-that HTML path explicitly.
+its PDF with `./build_pdfs.sh --manual`. That invocation will not
+overwrite frozen PDFs and will not touch a pitch deck. A plain
+`./build_pdfs.sh` also keeps an existing `PITCH_DECK/latest` PDF unless
+you pass that HTML path explicitly.

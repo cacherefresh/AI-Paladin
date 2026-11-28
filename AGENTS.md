@@ -3,6 +3,44 @@
 Conventions for coding agents working in this repository. Read this before
 creating files.
 
+## Who works on this repo
+
+This file lives at the repository root, outside the pip package. It is
+not shipped in the wheel or the sdist. The same is true of `CLAUDE.md`
+and `HANDOFF.md`.
+
+Two kinds of tools work on this code:
+
+- **Claude Code**, run by Rob on his own machine.
+- **Grok Bot** agents, including the AI Paladin Lead Engineer bot,
+  which acts on GitHub as the App `ai-paladin-lead-engineer-bot`.
+  Other Grok Bots may also work in this repository.
+
+They follow the same rules:
+
+- Bots only create branches named `feature/...` or `bugfix/...`, and
+  only open pull requests. Rob always reviews and merges. Bots never
+  merge, and they never publish to PyPI, TestPyPI, a PPA or the
+  VS Code Marketplace.
+- Do not edit `router/keywords.yaml`, `router/policy.yaml` or
+  `security/policies/` to make a test pass. See "The gates are data,
+  not prose" below.
+- Pitch decks are never changed by agents. See "Documentation home
+  and frozen versions" below.
+- The project version comes from the root `VERSION` file. pip, the
+  VS Code extension and Ubuntu must match it. See "Versioning" below.
+- The current work queue, so any tool can pick up where the last one
+  stopped, is in **`HANDOFF.md`** at the repository root (committed).
+  Update that file when the queue changes. Session scratch still goes
+  in `TEMPORARY/TEMP_NOTES.md` (gitignored).
+- While the PreToolUse hook is installed, it refuses agent edits to
+  the hook's own code (`ai_paladin/hook.py` and the modules it runs,
+  `hooks/pre_tool_use.py`, the installed `ai-paladin-hook` command)
+  and to the policy files. Rob edits those files himself, or runs
+  without the hook.
+
+Claude Code reads `CLAUDE.md`, which points here.
+
 ## Scratch notes go in `TEMPORARY/TEMP_NOTES.md`
 
 Session-specific working notes - staging plans, window layouts for a demo,
@@ -10,9 +48,11 @@ Session-specific working notes - staging plans, window layouts for a demo,
 **`TEMPORARY/TEMP_NOTES.md`**, which is gitignored.
 
 Do **not** scatter `NOTES.md`, `TODO.md`, `PLAN.md`, `SCRATCH.md` or dated
-variants through the tree. Every such file is context a future session has to
-read and weigh, and most of them are stale within days. One known location,
-ignored by git, keeps that cost at zero.
+variants through the tree. Those files are context a future session has
+to read and weigh, and most of them are stale within days. Session
+scratch has one known location, ignored by git:
+`TEMPORARY/TEMP_NOTES.md`. The one committed handoff file is
+`HANDOFF.md`.
 
 **The rule in one line:** if it will be false next week, it goes in
 `TEMPORARY/TEMP_NOTES.md`. If it will still be true, it goes in `docs/` and is
@@ -26,6 +66,7 @@ Concretely:
 | Design intent, roadmap, honest limits | `ai-paladin/docs/ROADMAP.md` — committed |
 | What a module does and why | its own `README.md` — committed |
 | This session's staging notes, todo, layout | `TEMPORARY/TEMP_NOTES.md` — ignored |
+| Current work queue and handoff between tools | `HANDOFF.md` (repo root) — committed |
 
 If a scratch note turns out to be durable, move it into `docs/` and delete it
 from the scratch file rather than leaving both.
@@ -128,9 +169,10 @@ When incrementing a document set:
    bump, to the root `CHANGELOG.md` and the root `VERSION` file. Update
    `vscode/ai-paladin/package.json` to match. Run the version test.
 
-Rebuild only `latest/` PDFs, with
-`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh`. Frozen PDFs are
-never overwritten.
+Rebuild the configuration manual PDF with
+`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh --manual`.
+That invocation does not touch a pitch deck. Frozen PDFs are never
+overwritten.
 
 **Pitch decks are never edited by agents.** Do not change the HTML, PDF
 or screenshots of any pitch deck version, including the one in `latest/`.
