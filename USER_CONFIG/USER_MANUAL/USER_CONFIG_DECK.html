@@ -551,7 +551,7 @@ protected      23 terms in 4 groups, 4 paths
 
 <span class="c"># 4. remove AI-Paladin - ai-paladin uninstall FIRST, then pip.</span>
 <span class="c">#    NOT a plain pip uninstall.</span>
-<span class="k">$ ai-paladin uninstall</span>             <span class="c"># asks: DO you want me to remove the hooks I added outside of python?(Y/n)</span>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># asks: Do you want me to remove the hooks I added outside of python?(Y/n)</span>
 <span class="k">$ pip uninstall ai-paladin</span>         <span class="c"># it tells you to run this next</span></pre>
       <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
       your project: <code>python3 /path/to/AI-Paladin/ai-paladin/hooks/pre_tool_use.py --install</code></p>
@@ -568,7 +568,7 @@ protected      23 terms in 4 groups, 4 paths
         makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
         Every <code>--install</code> records exactly what it added (file, hook entry, fingerprint) in
         <code>install_manifest.json</code> in <code>~/.config/ai-paladin</code>. <code>ai-paladin uninstall</code>
-        lists those entries, asks <em>DO you want me to remove the hooks I added outside of python?(Y/n)</em>
+        lists those entries, asks <em>Do you want me to remove the hooks I added outside of python?(Y/n)</em>
         (Enter = yes), removes only them, and then tells you to run <code>pip uninstall ai-paladin</code>
         (<code>pipx uninstall</code> if that is how you installed it). It is not a snapshot revert: a hook that was
         already there before install, or that someone added since, stays; an entry of ours you edited after install

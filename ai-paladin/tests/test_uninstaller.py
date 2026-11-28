@@ -33,7 +33,7 @@ def rd(path):
         return fh.read()
 
 
-PROMPT = "DO you want me to remove the hooks I added outside of python?(Y/n)"
+PROMPT = "Do you want me to remove the hooks I added outside of python?(Y/n)"
 THIRD_PARTY = {"matcher": "Bash",
                "hooks": [{"type": "command", "command": "other-tool --check"}]}
 

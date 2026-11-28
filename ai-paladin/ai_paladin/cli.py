@@ -108,7 +108,7 @@ def remover_hint() -> str:
 
 
 # Rob's wording. It is the prompt, character for character.
-PROMPT = "DO you want me to remove the hooks I added outside of python?(Y/n)"
+PROMPT = "Do you want me to remove the hooks I added outside of python?(Y/n)"
 
 
 def _ask(prompt: str, default_yes: bool):
