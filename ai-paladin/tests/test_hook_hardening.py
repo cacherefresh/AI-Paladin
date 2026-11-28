@@ -150,6 +150,7 @@ class ShellWrites(_HookCase):
                   "cd / ; cd etc ; echo hi > motd",
                   "sh -c 'echo hi > /etc/motd'",
                   "echo hi > /e''tc/motd", "echo hi > /e*c/motd",
+                  "echo hi > /e?c/ai-paladin-new-file",
                   "rm -rf backup/old", "rm .git/objects/ab/cd",
                   "find backup -delete"]:
             with self.subTest(c=c):
