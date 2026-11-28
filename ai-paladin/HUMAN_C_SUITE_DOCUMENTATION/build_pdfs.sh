@@ -2,7 +2,8 @@
 # Build the PDFs for the *latest* documentation in this tree, with headless
 # Chrome or Chromium. Frozen version folders are never overwritten.
 #
-#   ./build_pdfs.sh --manual   rebuild only USER_CONFIG/latest. This is the
+#   ./build_pdfs.sh --manual   rebuild only USER_CONFIG/latest/USER_CONFIG_MANUAL.html.
+#                              This is the
 #                              safe invocation: it never touches a pitch deck.
 #   ./build_pdfs.sh            rebuild USER_CONFIG/latest; if PITCH_DECK/latest
 #                              has no PDF yet, build one. Frozen PDFs are kept.
@@ -100,9 +101,9 @@ fi
 if [ ${#FILES[@]} -gt 0 ]; then
   for f in "${FILES[@]}"; do build "$f"; done
 elif [ "$MANUAL" = 1 ]; then
-  build USER_CONFIG/latest/USER_CONFIG_DECK.html
+  build USER_CONFIG/latest/USER_CONFIG_MANUAL.html
 else
-  build USER_CONFIG/latest/USER_CONFIG_DECK.html
+  build USER_CONFIG/latest/USER_CONFIG_MANUAL.html
   if [ -f PITCH_DECK/latest/PITCH_DECK.html ]; then
     if [ ! -f PITCH_DECK/latest/PITCH_DECK.pdf ]; then
       build PITCH_DECK/latest/PITCH_DECK.html

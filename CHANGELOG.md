@@ -37,7 +37,9 @@ series (v0.1, v0.2, and the v0.3 manual).
   and removes only unchanged entries it recorded. It does not run pip.
 - One `VERSION` file at the repository root. Documentation lives only
   under `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/`, with `latest/` and
-  frozen prior versions.
+  frozen prior versions. The v0.3.0 configuration manual files are
+  `USER_CONFIG_MANUAL.html` and `USER_CONFIG_MANUAL.pdf`; frozen
+  earlier versions keep the `USER_CONFIG_DECK` names.
 - Agent conventions and the work queue live at the repo root in
   `AGENTS.md`, `CLAUDE.md` and `HANDOFF.md`, outside the pip package.
 

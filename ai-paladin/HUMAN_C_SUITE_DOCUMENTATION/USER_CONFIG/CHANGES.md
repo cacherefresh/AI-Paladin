@@ -19,10 +19,12 @@ version labels updated from v0.1.0 to v0.3.0.
   `pip uninstall ai-paladin`. It does not run pip itself (PR #9).
 - The PDF build script lives at
   `ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh`.
+- The files in `latest/` are named `USER_CONFIG_MANUAL.html` and
+  `USER_CONFIG_MANUAL.pdf` (renamed from `USER_CONFIG_DECK`). Frozen
+  `v0.2/` still uses the older `USER_CONFIG_DECK` filenames.
 
-The v0.3.0 PDF is produced by that script. Headless Chrome hung in the
-environment that prepared this layout, so run `build_pdfs.sh` on a machine
-where Chrome finishes to add the PDF.
+The v0.3.0 PDF was built on 2026-11-28 (16 pages, A4 landscape) and
+lives at `latest/USER_CONFIG_MANUAL.pdf`.
 
 ## v0.2
 

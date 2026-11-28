@@ -52,7 +52,10 @@ prepared PR #10, even on a one-line HTML file).
 (16 pages, A4 landscape) and committed locally; Rob pushes it to PR #10.
 Slide 15 ran off the page, so its layout was changed (CSS and card
 order only, no wording). `PITCH_DECK/` was not touched. The steps
-below stay as the procedure for the next rebuild.
+below stay as the procedure for the next rebuild. The files in
+`latest/` are named `USER_CONFIG_MANUAL.html` and
+`USER_CONFIG_MANUAL.pdf`. Frozen `v0.2/` still uses
+`USER_CONFIG_DECK`.
 
 **Prerequisites**
 
@@ -79,7 +82,7 @@ ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/build_pdfs.sh --manual
 ```
 
 `--manual` rebuilds only
-`USER_CONFIG/latest/USER_CONFIG_DECK.html`. It will not write a
+`USER_CONFIG/latest/USER_CONFIG_MANUAL.html`. It will not write a
 pitch-deck PDF. Do not pass a `PITCH_DECK/` path, and do not use a
 plain `./build_pdfs.sh` if you want to be certain the deck is left
 alone. (A plain run also keeps an existing `PITCH_DECK/latest` PDF,
@@ -87,13 +90,13 @@ but `--manual` is the invocation to use.)
 
 **Expected output**
 
-`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_DECK.pdf`
+`ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf`
 
 **How to verify**
 
 ```bash
 # The new PDF exists and has pages
-pdfinfo ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_DECK.pdf
+pdfinfo ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf
 # Only the manual PDF should be new. Pitch decks must be unchanged:
 git status -- ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/
 git diff --stat -- ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/PITCH_DECK/
@@ -231,8 +234,8 @@ cd ai-paladin
 /tmp/ai-paladin-tests/bin/python -m unittest discover -s tests -v
 ```
 
-As of 2026-11-28, on `feature/versioning-v0.3`, that suite is **172
-passed, 2 skipped**. The skips are:
+As of 2026-11-28, on `feature/versioning-v0.3`, that suite is **175
+passed, 2 skipped** (177 tests run). The skips are:
 
 - `test_debian_changelog_matches_when_present`, because there is no
   Ubuntu changelog in the tree yet.

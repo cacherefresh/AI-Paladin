@@ -25,8 +25,8 @@ HUMAN_C_SUITE_DOCUMENTATION/
     CHANGES.md
     latest/              the newest manual itself (today: v0.3.0)
       VERSION            reads 0.3.0
-      USER_CONFIG_DECK.html
-      USER_CONFIG_DECK.pdf   build with ./build_pdfs.sh if missing
+      USER_CONFIG_MANUAL.html
+      USER_CONFIG_MANUAL.pdf
     v0.2/                frozen
 ```
 
@@ -49,8 +49,8 @@ A short pointer at the repo-root `USER_CONFIG/README.md` leads here.
 | `PITCH_DECK/latest/PITCH_DECK.pdf` | The exported PDF for v0.2. |
 | `PITCH_DECK/v0.1/` | The deck before the multi-model / internet-access branch. 32 slides. Frozen: do not edit. |
 | `PITCH_DECK/v0.1/PITCH_DECK.pdf` | The last exported PDF. Older than v0.1's HTML (29 pages, exported 2026-08-12), so it is missing the slides added after that date. |
-| `USER_CONFIG/latest/` | The current configuration manual, v0.3.0. Where settings live, every default and how to change it, the hook and the uninstaller. Rebuild the PDF with `./build_pdfs.sh` if it is not already in this folder. |
-| `USER_CONFIG/v0.2/` | The previous manual, frozen: the PDF last built on 2026-11-24 and the HTML it was built from. |
+| `USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf` | The current configuration manual, v0.3.0 (`USER_CONFIG_MANUAL.html` is the source). Where settings live, every default and how to change it, the hook and the uninstaller. Rebuild with `./build_pdfs.sh --manual`. |
+| `USER_CONFIG/v0.2/` | The previous manual, frozen: `USER_CONFIG_DECK.html` and `USER_CONFIG_DECK.pdf` (those older filenames are kept). The PDF was last built on 2026-11-24. |
 | `PITCH_DECK/CHANGES.md`, `USER_CONFIG/CHANGES.md` | What changed as each set increment. |
 
 Each version folder is self-contained: the HTML and the screenshots it
