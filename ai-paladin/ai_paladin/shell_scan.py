@@ -16,10 +16,11 @@ base64 - is invisible to it. The hook is a hardened guardrail, not a sandbox
 (docs/ROADMAP.md, section 9).
 """
 
+import glob
 import os
 import re
 import shlex
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 # Separators between commands, as shlex(punctuation_chars=True) emits them.
 CONTROL = {";", "&&", "||", "|", "&", "|&", ";;", ";&", ";;&", "(", ")",
@@ -58,8 +59,9 @@ class Segment:
     """One simple command: its words (wrappers and assignments removed),
     its redirections, and the here-doc bodies fed to it."""
 
-    def __init__(self, words, redirects, heredocs):
+    def __init__(self, words, redirects, heredocs, assigns=None):
         self.words: List[str] = words
+        self.assigns: Dict[str, str] = assigns or {}  # VAR=value on the line
         self.redirects: List[tuple] = redirects      # (operator, word)
         self.heredocs: List[str] = heredocs
 
@@ -238,12 +240,16 @@ def _split_operators(run: str) -> List[str]:
     return out
 
 
-def _strip_wrappers(words: List[str]) -> List[str]:
+def _strip_wrappers(words: List[str], assigns: Dict[str, str] = None):
+    assigns = {} if assigns is None else assigns
     changed = True
     while words and changed:
         changed = False
         while words and (re.match(r"^[A-Za-z_]\w*=", words[0])
                          or words[0] in KEYWORDS):
+            if "=" in words[0]:
+                k, v = words[0].split("=", 1)
+                assigns[k] = v
             words = words[1:]
             changed = True
         if not words:
@@ -264,6 +270,8 @@ def _strip_wrappers(words: List[str]) -> List[str]:
                     i += 1
                     continue
                 if name == "env" and re.match(r"^[A-Za-z_]\w*=", w):
+                    k, v = w.split("=", 1)
+                    assigns[k] = v
                     i += 1
                     continue
                 if positional:
@@ -281,9 +289,10 @@ def _segments(toks: List[str], docs: List[str]) -> List[Segment]:
     docs = list(docs)
 
     def flush():
-        w = _strip_wrappers(words)
-        if w or redirects:
-            segs.append(Segment(w, list(redirects), list(mine)))
+        assigns = {}
+        w = _strip_wrappers(words, assigns)
+        if w or redirects or assigns:
+            segs.append(Segment(w, list(redirects), list(mine), assigns))
 
     i = 0
     while i < len(toks):
@@ -310,6 +319,44 @@ def _segments(toks: List[str], docs: List[str]) -> List[Segment]:
         i += 1
     flush()
     return segs
+
+
+# ---------------------------------------------------------------------------
+# what a word names, once the shell has expanded it
+# ---------------------------------------------------------------------------
+
+_VAR = re.compile(r"\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))")
+
+
+def expand_word(word: str, env: Dict[str, str], cwd: str) -> List[str]:
+    """
+    The path(s) a word names after the shell expands it: ~ and $VAR /
+    ${VAR} (from `env`; unknown variables are left as written), then globs
+    against what exists on disk. A glob that matches nothing stays as the
+    pattern, as in bash.
+    """
+    w = str(word)
+    if w == "~" or w.startswith("~/"):
+        w = (env.get("HOME") or os.path.expanduser("~")) + w[1:]
+    w = _VAR.sub(lambda m: env.get(m.group(1) or m.group(2), m.group(0)), w)
+    if any(c in w for c in "*?["):
+        pattern = w if os.path.isabs(w) else os.path.join(cwd, w)
+        try:
+            hits = sorted(glob.glob(pattern))[:500]
+        except (OSError, re.error):
+            hits = []
+        if hits:
+            return hits
+    return [w]
+
+
+def word_paths(word: str, env: Dict[str, str], cwd: str) -> List[str]:
+    """expand_word, also for the value of `--opt=value` / `of=value`."""
+    out = expand_word(word, env, cwd)
+    m = re.match(r"^-{0,2}[A-Za-z][\w-]*=(.+)$", word)
+    if m:
+        out += expand_word(m.group(1), env, cwd)
+    return out
 
 
 # ---------------------------------------------------------------------------

@@ -104,6 +104,32 @@ class ShellIndirection(_HookCase):
                 self.allowed(bash(c))
 
 
+class ShellSpelling(_HookCase):
+    """A credential path is recognised however the shell spells it."""
+
+    def test_respelled_credential_paths_refused(self):
+        link = os.path.join(WS, "keys")
+        if not os.path.islink(link):
+            os.symlink(os.path.expanduser("~/.ssh"), link)
+        for c in ["cat ~/.ss''h/id_rsa", 'cat ~/."s"sh/id_rsa',
+                  "cat ~/.s\\sh/id_rsa", "cat ${HOME}/.a''ws/credentials",
+                  "D=.ss''h; cat ~/$D/id_rsa", "cat .e''nv",
+                  "cp .en\"v\".local /tmp/x", "cat keys/id_rsa",
+                  "head --lines=3 --file=x ~/.a\"ws\"/config",
+                  "sh -c \"cat ~/.ss''h/id_rsa\""]:
+            with self.subTest(c=c):
+                self.refused(bash(c), "credential-path-access")
+
+    def test_respelled_tamper_refused(self):
+        self.refused(bash("ai-paladin-hook --rel''ease s1"), "hook-tamper")
+
+    def test_lookalikes_pass(self):
+        for c in ["cat env.py", "ls .venv/bin", "cat .envrc", "echo ssh",
+                  "git log --format=%H", "cat src/environment.py"]:
+            with self.subTest(c=c):
+                self.allowed(bash(c))
+
+
 class ShellScanUnit(unittest.TestCase):
 
     def test_segments_and_inner(self):
@@ -116,6 +142,15 @@ class ShellScanUnit(unittest.TestCase):
         sc = shell_scan.scan("(cd x);ls 2>&1 >out")
         self.assertEqual([s.words for s in sc.segments], [["cd", "x"], ["ls"]])
         self.assertEqual(sc.segments[1].redirects, [(">&", "1"), (">", "out")])
+
+    def test_expand_word(self):
+        env = {"HOME": "/home/u", "D": ".ssh"}
+        self.assertEqual(shell_scan.expand_word("~/$D/k", env, "/w"),
+                         ["/home/u/.ssh/k"])
+        self.assertEqual(shell_scan.expand_word("${D}x$NOPE", env, "/w"),
+                         [".sshx$NOPE"])
+        self.assertEqual(shell_scan.word_paths("of=~/x", env, "/w"),
+                         ["of=~/x", "/home/u/x"])
 
 
 if __name__ == "__main__":

@@ -253,8 +253,29 @@ def _check_bash(command: str, cmds: dict, pkgs: dict, cred_globs: list,
     if _CRED_IN_SHELL.search(command):
         raise Refused("credential-path-access", "command names a "
                       "credential location (.ssh, .aws or .env)")
+    from ai_paladin.security.monitors import is_credential_path
+
     sc = shell_scan.scan(command)
+    # The same text with the shell's quoting removed: `~/.ss''h` and
+    # `--rel""ease` read as what bash will actually run.
+    flat = " ".join(sc.words + [t for s in sc.segments
+                                for _, t in s.redirects])
+    if _TAMPER_IN_SHELL.search(flat):
+        raise Refused("hook-tamper", "command would change or switch off "
+                      "AI-Paladin's guard or its settings - only a person "
+                      "may do that")
+    if _CRED_IN_SHELL.search(flat):
+        raise Refused("credential-path-access", "command names a "
+                      "credential location (.ssh, .aws or .env)")
+    env = dict(os.environ)
     for seg in sc.segments:
+        env.update(seg.assigns)
+        for word in seg.words + [t for _, t in seg.redirects]:
+            for p in shell_scan.word_paths(word, env, cwd):
+                if is_credential_path(p, cred_globs) or \
+                        is_credential_path(_real(p, cwd), cred_globs):
+                    raise Refused("credential-path-access", "%r resolves to "
+                                  "a credential path (%s)" % (word, p))
         inst = _install_args(seg.words)
         if inst:
             check_install(inst[0], inst[1], pkgs)

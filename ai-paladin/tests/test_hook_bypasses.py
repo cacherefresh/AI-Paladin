@@ -77,7 +77,6 @@ class KnownHookBypasses(unittest.TestCase):
     # -- credential paths ---------------------------------------------------
     # `cat ~/.ssh/id_rsa` is refused; shell quote-splitting the path is not.
 
-    @unittest.expectedFailure
     def test_quote_split_ssh_path(self):
         self.assertRefused(bash("cat ~/.ss''h/id_rsa"))
 
