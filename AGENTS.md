@@ -21,7 +21,8 @@ They follow the same rules:
 - Bots only create branches named `feature/...` or `bugfix/...`, and
   only open pull requests. Rob always reviews and merges. Bots never
   merge, and they never publish to PyPI, TestPyPI, a PPA or the
-  VS Code Marketplace.
+  VS Code Marketplace. How Rob publishes the pip package is in
+  `docs/RELEASING.md`.
 - Do not edit `router/keywords.yaml`, `router/policy.yaml` or
   `security/policies/` to make a test pass. See "The gates are data,
   not prose" below.
@@ -62,11 +63,12 @@ Concretely:
 
 | Content | Where |
 |---|---|
-| A reusable runbook or procedure | `ai-paladin/docs/` — committed |
-| Design intent, roadmap, honest limits | `ai-paladin/docs/ROADMAP.md` — committed |
-| What a module does and why | its own `README.md` — committed |
-| This session's staging notes, todo, layout | `TEMPORARY/TEMP_NOTES.md` — ignored |
-| Current work queue and handoff between tools | `HANDOFF.md` (repo root) — committed |
+| A reusable runbook or procedure | `ai-paladin/docs/` - committed |
+| How to publish the pip package | `docs/RELEASING.md` (repo root, outside the package) - committed |
+| Design intent, roadmap, honest limits | `ai-paladin/docs/ROADMAP.md` - committed |
+| What a module does and why | its own `README.md` - committed |
+| This session's staging notes, todo, layout | `TEMPORARY/TEMP_NOTES.md` - ignored |
+| Current work queue and handoff between tools | `HANDOFF.md` (repo root) - committed |
 
 If a scratch note turns out to be durable, move it into `docs/` and delete it
 from the scratch file rather than leaving both.

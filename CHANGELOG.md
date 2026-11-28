@@ -42,6 +42,9 @@ series (v0.1, v0.2, and the v0.3 manual).
   earlier versions keep the `USER_CONFIG_DECK` names.
 - Agent conventions and the work queue live at the repo root in
   `AGENTS.md`, `CLAUDE.md` and `HANDOFF.md`, outside the pip package.
+- Pip release workflow (`.github/workflows/release.yml`) uses PyPI
+  Trusted Publishing. The TestPyPI dry-run and production steps are
+  in `docs/RELEASING.md`.
 
 ## 0.2.0 - 2026-11-22
 
