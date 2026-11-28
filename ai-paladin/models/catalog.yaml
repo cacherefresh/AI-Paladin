@@ -1,0 +1,164 @@
+# =============================================================================
+# ON-PREM MODEL CATALOG - what the dashboard's model picker offers
+# =============================================================================
+# Data, kept apart from router/policy.yaml and router/keywords.yaml
+# (docs/ROADMAP.md section 8, phase 3). Nothing here is a gate: choosing a
+# model never changes what the router lets out of the building.
+#
+# The server never downloads a model - pulling one is egress. A model that is
+# not installed is shown with the exact pull command for a person to run.
+#
+# Selection order: entries are listed best-first within their role.
+# Checked 2026-11-19 against the Ollama registry and the Hugging Face API.
+# =============================================================================
+
+version: 1
+
+# ROADMAP section 8: open-weight, OSI-licensed only. An entry whose licence is
+# not on this list is shown in the picker but cannot be selected, with the
+# reason. Widen the list here, on purpose, not by editing an entry's licence.
+license_allowlist: [Apache-2.0, MIT]
+
+# Labels a model can carry. A model may carry more than one.
+labels:
+  coding:
+    text: better for coding
+    color: "#22c55e"
+  research-computer:
+    text: research + computer use
+    color: "#06b6d4"
+    note: >
+      Vision and tool calling, the two things operating a computer needs. This
+      describes the model's aptitude; AI-Paladin's on-prem worker drives the
+      web only, through ai_paladin/nodes/web_tools.py. It does not drive a desktop.
+  research-planning:
+    text: research / planning
+    color: "#a855f7"
+
+# Used when nothing is selected yet, or the selection is not installed.
+default: gpt-oss:20b
+fallback: devstral-small-2:latest
+
+models:
+
+  - id: gpt-oss:120b
+    name: gpt-oss 120B
+    vendor: OpenAI
+    origin: US
+    labels: [research-planning, coding]
+    params: 117B total, 5.1B active (MoE)
+    weights_gb: 65.4
+    capabilities: [tools, thinking]
+    think: low            # gpt-oss takes low|medium|high, not a boolean
+    max_tokens: 1400
+    license: Apache-2.0
+    license_url: https://huggingface.co/openai/gpt-oss-120b/blob/main/LICENSE
+    huggingface: hf.co/ggml-org/gpt-oss-120b-GGUF
+    notes: >
+      The strongest reasoner that fits in 96 GB of RAM. Only ~5B weights are
+      read per token, so it decodes far faster than its size suggests. Takes
+      most of the machine: do not expect to run it beside another large model.
+
+  - id: gpt-oss:20b
+    name: gpt-oss 20B
+    vendor: OpenAI
+    origin: US
+    labels: [research-planning]
+    params: 21B total, 3.6B active (MoE)
+    weights_gb: 13.8
+    capabilities: [tools, thinking]
+    think: low
+    max_tokens: 1200
+    license: Apache-2.0
+    license_url: https://huggingface.co/openai/gpt-oss-20b/blob/main/LICENSE
+    huggingface: hf.co/ggml-org/gpt-oss-20b-GGUF
+    notes: >
+      Fast everyday planner and researcher. Reliable tool calling, which is
+      what the read-only internet mode depends on. The default.
+
+  - id: gemma4:26b
+    name: Gemma 4 26B
+    vendor: Google
+    origin: US
+    labels: [research-computer, research-planning]
+    params: 26B total, ~4B active (MoE)
+    weights_gb: 18.7
+    capabilities: [tools, vision, thinking]
+    think: false
+    max_tokens: 1200
+    license: Apache-2.0
+    license_url: https://huggingface.co/google/gemma-4-26B-A4B-it
+    huggingface: hf.co/unsloth/gemma-4-26B-A4B-it-GGUF:UD-Q4_K_M
+    notes: >
+      The only allowlisted model here that reads images as well as calling
+      tools - the pair a computer-use agent needs (screenshots in, actions
+      out). Gemma 4 moved to Apache-2.0; earlier Gemma licences did not.
+
+  - id: flint:40b
+    name: Flint 40B
+    vendor: Recursive
+    origin: US
+    labels: [coding]
+    params: 39.8B total, ~2.5B active (MoE)
+    weights_gb: 22.9
+    capabilities: [tools, thinking]
+    think: false
+    max_tokens: 1400
+    license: Apache-2.0
+    license_url: https://huggingface.co/RecursiveSI/flint
+    huggingface: hf.co/RecursiveSI/flint
+    notes: >
+      Built for coding agents, released October 2026, trained from scratch.
+      Benchmark figures are the vendor's own and not yet reproduced in bench/.
+
+  - id: devstral-small-2:latest
+    name: Devstral Small 2 (dev-mistral-2)
+    vendor: Mistral AI
+    origin: FR
+    labels: [coding]
+    params: 24B dense
+    weights_gb: 15.2
+    capabilities: [tools]
+    think: null
+    max_tokens: 420
+    license: Apache-2.0
+    license_url: https://huggingface.co/mistralai/Devstral-Small-2-24B-Instruct-2512
+    huggingface: hf.co/unsloth/Devstral-Small-2-24B-Instruct-2512-GGUF:Q4_K_M
+    notes: >
+      The original engineer. Dense, so every one of its 24B weights is read
+      per token: measured 4.94 tok/s on this CPU (bench/). Kept as the fallback.
+
+  # --- shown, not selectable: licence is not on the allowlist -------------
+
+  - id: hf.co/poolside/Laguna-XS-2.1-GGUF:Q4_K_M
+    name: Laguna XS 2.1
+    vendor: Poolside
+    origin: US / FR
+    labels: [coding]
+    params: 33B total, 3B active (MoE)
+    weights_gb: 20.3
+    capabilities: [tools]
+    think: null
+    max_tokens: 1400
+    license: OpenMDW-1.1
+    license_url: https://huggingface.co/poolside/Laguna-XS-2.1-GGUF
+    huggingface: hf.co/poolside/Laguna-XS-2.1-GGUF:Q4_K_M
+    notes: >
+      Strong agentic coder. OpenMDW-1.1 is permissive but is not on the
+      Apache-2.0/MIT allowlist, so it is listed and disabled.
+
+  - id: hf.co/ggml-org/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF:Q4_0
+    name: Nemotron 3.5 Lightning 30B
+    vendor: NVIDIA
+    origin: US
+    labels: [research-planning]
+    params: 30B total, 3B active (hybrid MoE)
+    weights_gb: 18.9
+    capabilities: [tools, thinking]
+    think: false
+    max_tokens: 1200
+    license: OpenMDW-1.1
+    license_url: https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16
+    huggingface: hf.co/ggml-org/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF:Q4_0
+    notes: >
+      Listed and disabled for the same licence reason as Laguna.

@@ -1,0 +1,55 @@
+# =============================================================================
+# DEMO OVERLAY - keyword gate additions for the seeded demo corpus
+# =============================================================================
+# Loaded by ./run_demo.sh (ai-paladin --demo), which uses this folder as its
+# config folder. An installed AI-Paladin never reads it: its users start from
+# the shipped defaults in router/keywords.yaml plus their own
+# ~/.config/ai-paladin/keywords.yaml.
+#
+# This file is also the worked example of an overlay. It only ADDS
+# protection, so the boot banner reports no WEAKENED lines for the demo.
+#
+#   groups:        new groups, defined in full
+#   add_terms:     {group: [terms]}  add to a shipped or new group
+#   remove_terms:  {group: [terms]}  remove a named shipped term  (WEAKENED)
+#   remove_groups: [group]           remove a whole shipped group (WEAKENED)
+#   add_paths / remove_paths         protected path globs
+# =============================================================================
+
+groups:
+
+  - group: alpha-ip
+    label: Protected Alpha IP
+    severity: critical
+    terms:
+      - alpha-ip
+      - alpha ip
+      - protected alpha
+      - project-nightjar
+      - nightjar
+
+  - group: core-algorithms
+    label: Core Proprietary Algorithms
+    severity: critical
+    terms:
+      - ranking algorithm
+      - scoring kernel
+      - margin model
+      - pricing engine
+      - yield curve model
+      - propensity model
+      - secret sauce
+
+  - group: legal-financial
+    label: Legal & Financial
+    severity: high
+    terms:
+      - acquisition
+      - term sheet
+      - cap table
+      - due diligence
+      - unreleased earnings
+      - merger
+
+add_paths:
+  - "**/alpha-ip/**"

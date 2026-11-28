@@ -28,17 +28,17 @@ dist/
 
 # Per-machine model selection (ROADMAP section 8). The committed roster is the
 # default; this file is one machine's override and describes that machine.
-ai-org-router/config/local_models.yaml
+ai-paladin/config/local_models.yaml
 
 # Sign-in accounts for the on-prem model's read/write internet mode
 # (nodes/web_tools.py). Secrets, per machine, written by a person.
-ai-org-router/config/web_accounts.yaml
+ai-paladin/config/web_accounts.yaml
 
 # Model weights. Gigabytes each, and pulled by a person, never committed.
 *.gguf
 *.safetensors
 
-# VS Code extension packaging (paladin-vscode)
+# VS Code extension packaging (vscode/ai-paladin)
 node_modules/
 *.vsix
 
@@ -49,5 +49,7 @@ node_modules/
 *~
 .claude/settings.local.json
 
-# NOT ignored on purpose: ai-org-router/logs/*.jsonl and logs/server.log are
-# tracked as demo evidence (see stop_demo.sh). Do not add logs/ here.
+# Runtime logs. They record what people type into the router, so they never go
+# into git history. A reviewed sample session is tracked in
+# ai-paladin/logs.example/ for anyone who has not run the demo.
+ai-paladin/logs/

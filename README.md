@@ -1,5 +1,9 @@
-# AI-Paladin
-Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:prompt is a suggestion; a hook is a wall. A manipulated or misbehaving agent can ignore "please don't delete files";it cannot ignore PreToolUse script exit 2. security-focused repo
+# AI-Paladin - An AI-Org-Router
+
+> The project folder was formerly `ai-org-router/`; it is now `ai-paladin/`. Older
+> links, notes and clones that mention `ai-org-router/` mean the same code.
+
+Security Focused, Alpha protector and token reducer by using a distributed mesh grid of onprem a.i. - the reason gates are hooks and YAML rather than prompt instructions:a prompt is a suggestion; a hook is a guardrail. A manipulated or misbehaving agent can ignore "please don't delete files"; it cannot ignore a PreToolUse script exit 2 - the hook is a hardened guardrail: it resolves what a tool call or shell command would actually touch, but it reads commands rather than running them and shares the agent's user space, so it is not a security boundary a determined agent cannot route around ([limits](ai-paladin/hooks/README.md#limits); making it a real boundary is a [roadmap goal](ai-paladin/docs/ROADMAP.md)). security-focused repo
 
 ## YouTube Demo
 see it in action here:
@@ -8,8 +12,9 @@ see it in action here:
 ## Run it
 
 ```bash
-cd ai-org-router
+cd ai-paladin
 ./run_demo.sh            # start (also: stop, restart) -> http://localhost:8722
+./run_demo.sh --with-sample-logs   # ...and seed an empty logs/ from logs.example/
 ./stop_demo.sh           # stop router, unload models, stop ollama
 ./stop_demo.sh --keep-ollama   # ...but leave ollama running
 ./stop_demo.sh --router-only   # stop the router only
@@ -19,11 +24,55 @@ Needs Python 3 with PyYAML and [Ollama](https://ollama.com) serving on
 `localhost:11434`. The server binds to `127.0.0.1` only and has **no
 authentication** - it is a single-user demo, not a shared service.
 
+The demo keeps everything in the repo: settings in `ai-paladin/config/`
+(including the demo's keyword overlay), logs in `ai-paladin/logs/`.
+
+### The `ai-paladin` command
+
+```bash
+pip install -e .            # from the repo root: puts `ai-paladin` on your PATH
+ai-paladin                  # start, with your own settings and logs (below)
+ai-paladin --demo           # start the way run_demo.sh does
+ai-paladin --where          # show which files are in force, and exit
+python3 -m ai_paladin       # the same, without installing (from ai-paladin/)
+```
+
+A wheel install works (`pip install ai-paladin` once the package is on
+PyPI, or `pip install` a built `.whl`). From a checkout, `pip install -e .`
+puts the commands on your PATH. How to publish a release is in
+[docs/RELEASING.md](docs/RELEASING.md).
+
 ## Settings
 
+The full configuration manual, with every default and how to change it, is
+[ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf](ai-paladin/HUMAN_C_SUITE_DOCUMENTATION/USER_CONFIG/latest/USER_CONFIG_MANUAL.pdf).
+
 Every setting below is a file or a dashboard control. Files under `router/`
-and `security/policies/` are **enforcement, not documentation** - edit them to
-change policy, never to make a test pass or a demo read better.
+are **enforcement, not documentation** - edit them to change policy, never to
+make a test pass or a demo read better.
+
+### Where settings live
+
+| | Default | Demo (`run_demo.sh`, `--demo`) | Override |
+|---|---|---|---|
+| Shipped defaults (read-only) | `ai-paladin/router/`, `agents/`, `models/` | same | - |
+| Your settings | `~/.config/ai-paladin/` | `ai-paladin/config/` | `AI_PALADIN_CONFIG_DIR` |
+| Audit logs | `~/.local/state/ai-paladin/logs/` | `ai-paladin/logs/` | `AI_PALADIN_LOG_DIR` |
+
+Never edit the shipped files to configure your own install - put your
+version in your settings folder:
+
+| File in your settings folder | How it combines with the shipped default |
+|---|---|
+| `keywords.yaml` | **Overlay.** Lists changes: `groups`, `add_terms`, `remove_terms`, `remove_groups`, `add_paths`, `remove_paths`. Leaving a term out removes nothing; only naming it under `remove_*` does. Updated defaults still reach you. |
+| `policy.yaml`, `roster.yaml`, `catalog.yaml` | **Replaces** the shipped file whole, if present. |
+| `local_models.yaml` | Written by the dashboard's model picker. |
+| `web_accounts.yaml` | Sign-in secrets. Yours to write; keep it `chmod 600`. |
+
+Every boot prints each file in force, where it came from and its checksum.
+Every protection a user overlay removes is printed as **WEAKENED** and
+written to the audit log. A malformed overlay stops the router from starting
+rather than running with rules you did not intend.
 
 ### Environment
 
@@ -35,10 +84,17 @@ change policy, never to make a test pass or a demo read better.
 
 ### The invariant - not a setting
 
-`router/keywords.yaml` lists protected terms and protected paths. A prompt, or
-a file it would carry, that matches one runs **on-prem, in every posture,
-before any socket opens**. No dashboard control, mode or model can override
-it. Edit the file to change *what* is protected, not *whether*.
+`router/keywords.yaml` lists protected terms and protected paths, and your
+`keywords.yaml` overlay adds to or removes from them. A prompt, or a file it
+would carry, that matches one runs **on-prem, in every posture, before any
+socket opens**. No dashboard control, mode or model can override it. The
+files change *what* is protected, not *whether*.
+
+The shipped defaults are deliberately small and generic: government
+classification markings (classified, top secret, noforn, controlled
+unclassified), credentials, customer data / PII, and internal
+infrastructure. The demo's own terms (nightjar, pricing engine, unreleased
+earnings, ...) live in the demo overlay, `ai-paladin/config/keywords.yaml`.
 
 ### Routing posture (dashboard: the four mode cards)
 
@@ -63,7 +119,7 @@ the machine. It is not a host firewall and not an air gap.
 | Where | Setting |
 |---|---|
 | `models/catalog.yaml` | The models offered, `default`, `fallback`, and `license_allowlist` (Apache-2.0, MIT). A model whose licence is not on the list is shown but cannot be selected. |
-| `config/local_models.yaml` | This machine's selection, written by the dashboard. Gitignored. |
+| `local_models.yaml` in your settings folder | This machine's selection, written by the dashboard. |
 
 The server never downloads a model - pulling is egress. A missing model is
 shown with the `ollama pull` command for a person to run.
@@ -86,7 +142,7 @@ form field, a header) passes the same keyword gate as a prompt.
 ### HTTP method switches (dashboard: chips under the internet buttons)
 
 Every method in the IANA HTTP Method Registry, plus PURGE, is classed in
-`nodes/web_tools.py`. Anything else is refused.
+`ai_paladin/nodes/web_tools.py`. Anything else is refused.
 
 | Class | Methods |
 |---|---|
@@ -109,7 +165,7 @@ defaults on restart, and `internet_access.lock` holds them there. LINK,
 UNLINK and PURGE have no switch: list one under read/write's `methods` in
 `router/policy.yaml` if you need it. The dashboard shows exactly what is
 allowed; hover "BLOCKED" for the full list. Detail:
-[ai-org-router/nodes/README.md](ai-org-router/nodes/README.md).
+[ai-paladin/ai_paladin/nodes/README.md](ai-paladin/ai_paladin/nodes/README.md).
 
 ### Web limits (`internet_access.limits`)
 
@@ -126,7 +182,24 @@ allowed; hover "BLOCKED" for the full list. Detail:
 default). Web tools reach public addresses on ports 80 and 443 only - never
 loopback, the LAN or link-local.
 
-### Web sign-in accounts (`config/web_accounts.yaml`, gitignored)
+### Domain allowlist (`internet_access.allow_domains`)
+
+| `allow_domains` | Which websites the on-prem model may reach |
+|---|---|
+| **empty `[]` - the default** | **Any public website** (ports 80/443). Nothing is restricted by domain. |
+| a list, e.g. `[python.org, lite.duckduckgo.com]` | **Only** those domains and their subdomains (`python.org` also allows `docs.python.org`). Anything else is refused and logged as `unknown-egress`. |
+
+If you set a list, include your search engine's host
+(`lite.duckduckgo.com` by default), or web search stops working. Every other
+web rule - the internet-access setting, HTTP methods, public addresses only,
+the protected-term check, the per-task budget - applies either way.
+
+Repeated refusals are also caught: when more than 3 web requests in one task
+are refused (`fence-probing`), that task's web tools stop and a critical
+notification asks a person to look. The model still finishes its answer,
+without the web.
+
+### Web sign-in accounts (`web_accounts.yaml` in your settings folder)
 
 ```yaml
 accounts:
@@ -138,11 +211,40 @@ accounts:
 Read/write only. The model names an account; it never sees the field values,
 and an account is only ever sent to a host on its own `domains` list.
 
+### Security policies (`security/policies/`, `security/monitors/`)
+
+These rules are for a **coding agent** such as Claude Code: shell commands,
+file writes, package installs. The router's own on-prem model cannot run
+commands or write files, so most of them are enforced by the Claude Code
+PreToolUse hook - **only once you install it**
+([ai-paladin/hooks/README.md](ai-paladin/hooks/README.md)).
+
+| File | Enforced by | What |
+|---|---|---|
+| `commands.yaml` | hook | Blocked shell commands; where file-writing tools may write |
+| `packages.yaml` | hook | Package installs: allowlist, pinned versions, nothing from URLs or files. Checksums and the approval queue: **not yet** |
+| `behavioral_rules.yaml` | hook and router | credential-path-access (router: credential files are never given to the on-prem model; hook: refused), fence-probing (both), unknown-egress (router, with an allowlist), mass-file-touch, out-of-scope-path and backup-tamper (hook). extension-rewrite-spread: **not yet** |
+
+**Turning the hook on and off** is a person's job, and it does not depend on
+the router running: `ai-paladin-hook --install` adds it to this project's
+Claude Code settings (`--user` for every project), `--uninstall` removes it,
+`--status` shows where it is. Stopping the router does **not** switch the
+hook off - otherwise stopping the router would be the way past every rule.
+Remove AI-Paladin by running `ai-paladin uninstall` first, then `pip
+uninstall ai-paladin` (see "Uninstalling"); a plain `pip uninstall` leaves the
+hook behind, and Claude Code then refuses every tool call until the entry is
+removed.
+
+Each rule in `behavioral_rules.yaml` says, on its own `enforced:` line,
+exactly where and how it is enforced - or that it is not. The hook is a
+tripwire, not a sandbox: it reads tool calls, not what a command does once
+it runs.
+
 ### BIG-AI (`nodes.bigai` in `router/policy.yaml`)
 
 `backend: simulated` today - the escalation leg streams a stub, badged
 `SIMULATED` on screen, with latency labelled *(modelled)*. The real Claude
-adapter is not built yet: `bigai/simulated.py:call_claude` is the seam, and
+adapter is not built yet: `ai_paladin/bigai/simulated.py:call_claude` is the seam, and
 it will need `ANTHROPIC_API_KEY`.
 
 ### Token pricing (`pricing` in `router/policy.yaml`)
@@ -160,6 +262,81 @@ sets how close a paraphrase must be to a protected term to count as a match;
 if it is unavailable the router falls back to the exact keyword gate alone,
 never weaker. `typo_gate` (`enabled`, `min_similarity: 0.85`) catches
 misspelled protected terms such as "pricng engnie" - arithmetic, no model.
+
+## Uninstalling
+
+Two commands, in this order:
+
+```bash
+ai-paladin uninstall        # 1. removes what AI-Paladin added outside Python
+pip uninstall ai-paladin    # 2. removes the package (pipx uninstall ai-paladin, if you used pipx)
+```
+
+**Run `ai-paladin uninstall` first, and do not skip it.** pip cannot run any
+code from a package while it removes it, so a plain `pip uninstall` can neither
+remove the Claude Code hook entries AI-Paladin added to your settings files nor
+warn you about them.
+
+What it does, step by step:
+
+1. **Reads the install manifest.** Every `ai-paladin-hook --install` records,
+   in `install_manifest.json` in the config folder (`~/.config/ai-paladin/`, or
+   `$AI_PALADIN_CONFIG_DIR`), exactly what it added: the settings file, the
+   hook entry, and a SHA-256 fingerprint of the entry as written. It also
+   records any equivalent entry that was already in the file before install.
+2. **Lists each hook it would remove** (file and entry), then asks, with Yes as
+   the default:
+
+   ```text
+   Do you want me to remove the hooks I added outside of python?(Y/n)
+   ```
+
+3. **Removes only what it recorded adding.** This is not a snapshot revert:
+   - a hook that existed before you installed AI-Paladin stays (listed as
+     "was already present before install, keeping");
+   - a hook another tool or you added after install stays;
+   - settings and other hook events in those files are left exactly as they
+     were.
+4. **Flags edits.** If an entry of ours no longer matches its recorded
+   fingerprint, you changed it after install. It is marked MODIFIED in the
+   list and kept; after the main question you are asked about each one
+   ("Remove it anyway?(y/N)", default No).
+5. **Tells you to run `pip uninstall ai-paladin`.** It never runs pip itself.
+
+Answering `n` changes nothing; the hooks stay, and you can run it again later.
+Do not run pip uninstall after declining: Claude Code would then refuse every
+tool call until the entries are removed.
+
+| Option | What it does |
+|---|---|
+| `--yes`, `-y` | Do not ask. Modified entries are still kept. |
+| `--dry-run` | List what would be removed and what would stay; change nothing. |
+| `--remove-modified` | With `--yes`: also remove entries flagged as modified. |
+
+If a settings file cannot be read, or the manifest is damaged, it stops
+without removing anything and says which file to fix. Each settings file it
+edits is first saved as `settings*.json.bak` beside it. Installs made by an
+earlier AI-Paladin version (before the manifest existed) are recognised from
+the older record and removed the same way; run `ai-paladin-hook --install`
+again to give them a fingerprint.
+
+Only a person runs this. The Claude Code hook refuses an agent that tries to
+run `ai-paladin uninstall` or to edit the manifest.
+
+To turn the hook off but keep AI-Paladin: `ai-paladin-hook --uninstall --all`
+(or `--uninstall` in one project). It follows the same rule: it removes only
+entries the manifest says it added.
+
+Why the order matters: the hook is built to refuse a tool call whenever it
+cannot run, so a broken install never lets an agent through unchecked. If
+AI-Paladin is removed first, Claude Code refuses every tool call. It tells
+you why and which settings file to fix; in an ordinary terminal, delete the
+`pre_tool_use.py` entry under `hooks.PreToolUse` in that file, and new
+sessions work normally.
+
+Your settings (`~/.config/ai-paladin/`) and audit logs
+(`~/.local/state/ai-paladin/`) are kept. Delete those folders yourself if
+you want them gone.
 
 ## Dedication
 

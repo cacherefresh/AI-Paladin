@@ -1,0 +1,35 @@
+{"ts": "2026-08-16T00:17:56.813221+00:00", "kind": "decision", "task_id": "task-5c97b6f4e4", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1207}
+{"ts": "2026-08-16T00:17:57.119055+00:00", "kind": "decision", "task_id": "task-5339caec7f", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.428557+00:00", "kind": "decision", "task_id": "task-8643c53f1d", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.723369+00:00", "kind": "decision", "task_id": "task-09be8a0358", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-08-16T00:17:57.984547+00:00", "kind": "decision", "task_id": "task-86955e2b98", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1098}
+{"ts": "2026-08-16T00:17:58.213186+00:00", "kind": "decision", "task_id": "task-7ddf295a97", "target": "onprem", "locked": true, "sealed": false, "posture": "speed-first", "withheld_bytes": 1098}
+{"ts": "2026-08-16T01:02:37.940608+00:00", "kind": "decision", "task_id": "task-544d8d3a4f", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 72}
+{"ts": "2026-10-14T20:06:43.415868+00:00", "kind": "decision", "task_id": "task-aa1af15c7c", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-10-14T20:07:01.071002+00:00", "kind": "usage", "source": "onprem", "tokens_in": 146, "tokens_out": 58, "seconds": 17.64709997177124, "estimated": false}
+{"ts": "2026-11-18T23:12:39.170462+00:00", "kind": "decision", "task_id": "task-dc08578672", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-11-18T23:12:53.152953+00:00", "kind": "usage", "source": "onprem", "tokens_in": 146, "tokens_out": 40, "seconds": 13.978603839874268, "estimated": false}
+{"ts": "2026-11-18T23:15:51.442394+00:00", "kind": "decision", "task_id": "task-e6d4ba0ec2", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-11-18T23:16:22.472540+00:00", "kind": "egress", "task_id": "task-e6d4ba0ec2", "approved": false, "bytes": 83, "minimised_away": 0}
+{"ts": "2026-11-18T23:17:10.807747+00:00", "kind": "decision", "task_id": "task-ba586925fa", "target": "bigai", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-11-18T23:17:13.786391+00:00", "kind": "egress", "task_id": "task-ba586925fa", "approved": true, "bytes": 53, "minimised_away": 0}
+{"ts": "2026-11-18T23:17:15.877536+00:00", "kind": "usage", "source": "bigai", "tokens_in": 13, "tokens_out": 198, "seconds": 2.0898165702819824, "estimated": true}
+{"ts": "2026-11-18T23:23:35.034119+00:00", "kind": "decision", "task_id": "task-0b7e4b8cbf", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 26}
+{"ts": "2026-11-18T23:24:16.808124+00:00", "kind": "usage", "source": "onprem", "tokens_in": 148, "tokens_out": 192, "seconds": 41.76956343650818, "estimated": false}
+{"ts": "2026-11-20T01:59:50.411022+00:00", "kind": "web", "task_id": "task-test", "method": "GET", "host": "html.duckduckgo.com", "bytes": 172}
+{"ts": "2026-11-20T02:00:20.824061+00:00", "kind": "web", "task_id": "task-test", "method": "GET", "host": "lite.duckduckgo.com", "bytes": 172}
+{"ts": "2026-11-20T02:00:21.519356+00:00", "kind": "web", "task_id": "task-test", "method": "GET", "host": "www.python.org", "bytes": 148}
+{"ts": "2026-11-20T02:00:25.376681+00:00", "kind": "web", "task_id": "task-test", "method": "GET", "host": "lite.duckduckgo.com", "bytes": 172}
+{"ts": "2026-11-20T02:00:26.025367+00:00", "kind": "web", "task_id": "task-test", "method": "GET", "host": "www.python.org", "bytes": 141}
+{"ts": "2026-11-20T02:04:23.579235+00:00", "kind": "decision", "task_id": "task-96a3c4cad0", "target": "onprem", "locked": true, "sealed": false, "posture": "maximum-protection", "withheld_bytes": 1089}
+{"ts": "2026-11-20T02:04:25.020352+00:00", "kind": "decision", "task_id": "task-e9a4489065", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-11-20T02:04:26.430497+00:00", "kind": "decision", "task_id": "task-112b1a0ab3", "target": "onprem", "locked": true, "sealed": true, "posture": "sealed", "withheld_bytes": 1155}
+{"ts": "2026-11-20T02:04:32.755565+00:00", "kind": "decision", "task_id": "task-d427dded6c", "target": "onprem", "locked": false, "sealed": false, "posture": "", "withheld_bytes": 0}
+{"ts": "2026-11-20T02:04:33.204651+00:00", "kind": "web", "task_id": "task-d427dded6c", "method": "GET", "host": "lite.duckduckgo.com", "bytes": 208}
+{"ts": "2026-11-20T02:04:34.089666+00:00", "kind": "web", "task_id": "task-d427dded6c", "method": "GET", "host": "docs.python.org", "bytes": 152}
+{"ts": "2026-11-20T02:05:23.677456+00:00", "kind": "usage", "source": "onprem", "tokens_in": 1872, "tokens_out": 407, "seconds": 50.91291284561157, "estimated": false}
+{"ts": "2026-11-20T02:05:30.760372+00:00", "kind": "decision", "task_id": "task-c07da94b39", "target": "onprem", "locked": true, "sealed": false, "posture": "maximum-protection", "withheld_bytes": 1131}
+{"ts": "2026-11-20T02:05:42.589334+00:00", "kind": "usage", "source": "onprem", "tokens_in": 765, "tokens_out": 49, "seconds": 11.820955753326416, "estimated": false}
+{"ts": "2026-11-20T02:05:44.053212+00:00", "kind": "decision", "task_id": "task-bde956bc06", "target": "onprem", "locked": true, "sealed": false, "posture": "maximum-protection", "withheld_bytes": 44}
+{"ts": "2026-11-20T02:05:58.575166+00:00", "kind": "usage", "source": "onprem", "tokens_in": 244, "tokens_out": 168, "seconds": 14.51343321800232, "estimated": false}
+{"kind": "sample-end", "marker": "--sample-logfile--ends-here----", "note": "Everything above is sample data from logs.example/, not activity on this machine. Keep it, delete the lines above, or delete the file to start clean."}

@@ -1,0 +1,80 @@
+# Packaging: declares the `ai-paladin` and `ai-paladin-hook` commands.
+#
+# Supported: an editable install from this checkout (pip install -e .), and
+# a wheel (python3 -m build, or pip wheel .). The wheel carries the shipped
+# defaults - router/*.yaml, agents/, models/, security/policies/,
+# security/monitors/, ui/, demo/, hooks/ - as package data under
+# ai_paladin/_shipped/, mapped from ai-paladin/ below, so the gate files
+# stay where they are in the repository. ai_paladin.paths finds them in
+# either layout. tests/wheel_smoke.py builds the wheel, installs it into a
+# clean virtual environment and boots the router from it.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-paladin"
+dynamic = ["version"]
+description = "Keeps protected work on-prem: a router whose gates are enforced in code, not asked of a model."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "ℂacheℝefresh (CacheRefresh)"}]
+dependencies = ["PyYAML>=6"]
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/cacherefresh/AI-Paladin"
+Source = "https://github.com/cacherefresh/AI-Paladin"
+Issues = "https://github.com/cacherefresh/AI-Paladin/issues"
+Changelog = "https://github.com/cacherefresh/AI-Paladin/blob/sanctuary/CHANGELOG.md"
+
+[project.scripts]
+ai-paladin = "ai_paladin.cli:main"
+ai-paladin-hook = "ai_paladin.hook:main"
+
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+# Listed rather than discovered, because ai_paladin._shipped is not a code
+# package: it is ai-paladin/ itself, mapped in so its data files can be
+# named as package data. Add a new code subpackage here when you create one
+# (tests/wheel_smoke.py fails if one is missing from the wheel).
+[tool.setuptools.package-dir]
+"" = "ai-paladin"
+"ai_paladin._shipped" = "ai-paladin"
+
+[tool.setuptools]
+# Only the package-data globs below, never whatever happens to sit in the
+# folder (build metadata, local config, logs).
+include-package-data = false
+packages = [
+    "ai_paladin",
+    "ai_paladin.bigai",
+    "ai_paladin.bus",
+    "ai_paladin.nodes",
+    "ai_paladin.router",
+    "ai_paladin.security",
+    "ai_paladin.server",
+    "ai_paladin._shipped",
+]
+
+[tool.setuptools.package-data]
+"ai_paladin._shipped" = [
+    "router/*.yaml",
+    "agents/*.yaml",
+    "models/*.yaml",
+    "security/policies/*.yaml",
+    "security/monitors/*.yaml",
+    "ui/demo/*.html",
+    "demo/**/*.py",
+    "hooks/pre_tool_use.py",
+    "schemas/*.json",
+]

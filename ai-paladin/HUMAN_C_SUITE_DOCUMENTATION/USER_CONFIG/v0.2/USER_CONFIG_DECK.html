@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-Paladin Configuration Manual</title>
+<!--
+  Source of USER_CONFIG_DECK.pdf. Edit this file, then run
+  USER_CONFIG/build_pdfs.sh to regenerate the PDF.
+  Every value on the "Default settings" slide is copied from the shipped
+  files (router/policy.yaml, router/keywords.yaml, agents/roster.yaml,
+  models/catalog.yaml) as of v0.1.0. When a default changes, change it here.
+-->
+<style>
+:root{
+  --bg:#ffffff; --page:#ffffff; --panel:#f4f7fb; --panel2:#eef3f9;
+  --ink:#0f1c2e; --body:#24344a; --bold:#0b4f9e;
+  --muted:#3d4f66; --dim:#66788f; --line:#d7e0ea;
+  --green:#12703a; --amber:#a2590a; --red:#b3261e; --purple:#5b21b6;
+  --codebg:#e8eff7; --codeink:#0a4585;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"DejaVu Sans",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#e9eef4;color:var(--body);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{counter-reset:slide;padding:24px 16px}
+@page{size:A4 landscape;margin:0}
+
+.slide{width:297mm;height:210mm;margin:0 auto 24px;background:var(--page);
+  padding:15mm 17mm 17mm;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;counter-increment:slide;
+  box-shadow:0 2px 14px rgba(15,28,46,.12);break-after:page;page-break-after:always}
+.slide:last-child{break-after:auto;page-break-after:auto}
+.slide::after{content:"ℂacheℝefresh's AI-Paladin \00B7  Configuration manual \00B7  v0.1.0";
+  position:absolute;left:17mm;bottom:8mm;font-family:var(--mono);font-size:9px;
+  color:var(--dim);letter-spacing:.6px}
+.slide::before{content:counter(slide,decimal-leading-zero);position:absolute;
+  right:17mm;bottom:8mm;font-family:var(--mono);font-size:9px;color:var(--dim)}
+@media print{
+  html,body{background:#fff;padding:0}
+  .slide{margin:0;box-shadow:none}
+}
+@media screen and (max-width:1160px){
+  .slide{width:100%;height:auto;min-height:0;aspect-ratio:auto;padding:28px 20px 44px}
+}
+
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;
+  color:var(--bold);font-weight:700;margin-bottom:8px}
+h1{font-size:44px;line-height:1.05;margin:0 0 16px;letter-spacing:-1.2px;font-weight:800;color:var(--ink)}
+h2{font-size:27px;line-height:1.15;margin:0 0 12px;letter-spacing:-.6px;font-weight:750;color:var(--ink)}
+h3{font-size:14px;margin:0 0 6px;font-weight:700;color:var(--ink)}
+p{font-size:13px;line-height:1.55;margin:0 0 9px;max-width:92ch}
+p.lead{font-size:16px;line-height:1.5}
+strong{color:var(--bold);font-weight:700}
+code{font-family:var(--mono);font-size:.88em;background:var(--codebg);color:var(--codeink);
+  padding:1px 5px;border-radius:4px}
+pre{font-family:var(--mono);font-size:11px;line-height:1.5;background:#0f1c2e;color:#dbe7f5;
+  border-radius:10px;padding:12px 14px;margin:0;white-space:pre;overflow:hidden}
+pre .c{color:#8aa3bf} pre .w{color:#ffb4a8;font-weight:700} pre .g{color:#9be3b4}
+pre .k{color:#9cc8ff}
+
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card p{font-size:12px;margin:0 0 6px} .card p:last-child{margin:0}
+.card.warn{background:#fdf5ec;border-color:#efd3b1}
+.card.ok{background:#eff9f2;border-color:#bfe2cc}
+.card.bad{background:#fcefee;border-color:#efc4c0}
+.tag{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-bottom:6px}
+.tag.add{background:#dff3e6;color:var(--green)} .tag.rem{background:#fbe2df;color:var(--red)}
+.tag.rep{background:#e3ecf8;color:var(--bold)} .tag.lim{background:#f8ead7;color:var(--amber)}
+
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--dim);font-weight:700;background:var(--panel2)}
+td:first-child{font-weight:650;color:var(--ink)}
+table.dense td,table.dense th{padding:4px 7px;font-size:10.5px}
+table.dense th{font-size:8.5px}
+.terms{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.5}
+.spacer{flex:1}
+.note{font-size:11px;color:var(--muted)}
+.big{font-family:var(--mono);font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.8px}
+.foot{margin-top:auto;font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide">
+  <div class="spacer"></div>
+  <div class="kicker">User manual &middot; configuration</div>
+  <h1>ℂacheℝefresh's AI-Paladin<br>Configuration manual</h1>
+  <p class="lead" style="max-width:70ch">What you can change, where it lives, how to change it &mdash;
+  and what each change costs you in protection. Every default in this manual is read
+  from the files AI-Paladin ships with, version <strong>0.1.0</strong>.</p>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><h3>Three folders</h3><p>Shipped defaults are read-only. Your settings
+      live in your own folder. Logs live in a third. Nothing you change is lost on upgrade.</p></div>
+    <div class="card"><h3>Changes are visible</h3><p>Every start prints each file in force,
+      where it came from and its checksum. Removing protection is printed as
+      <strong>WEAKENED</strong> and written to the audit log.</p></div>
+    <div class="card"><h3>Mistakes stop it, not you</h3><p>A settings file that cannot be read
+      as written stops the router from starting, rather than letting it run with rules
+      you did not intend.</p></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="note">Open source under a modified Apache License 2.0 &mdash; Apache 2.0 terms,
+  unaltered, plus a non-binding dedication. Source: github.com/cacherefresh/AI-Paladin</p>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="kicker">Where things live</div>
+  <h2>Three folders, never mixed</h2>
+  <table>
+    <tr><th>Folder</th><th>Normal install</th><th>Demo (<code>./run_demo.sh</code>, <code>--demo</code>)</th><th>Move it with</th><th>Who writes it</th></tr>
+    <tr><td>Shipped defaults</td><td><code>ai-org-router/router/</code>, <code>agents/</code>, <code>models/</code></td><td>same</td><td>&mdash;</td><td>Nobody at run time. Read-only.</td></tr>
+    <tr><td>Your settings</td><td><code>~/.config/ai-paladin/</code></td><td><code>ai-org-router/config/</code></td><td><code>AI_PALADIN_CONFIG_DIR</code></td><td>You, and the dashboard's model picker</td></tr>
+    <tr><td>Audit logs</td><td><code>~/.local/state/ai-paladin/logs/</code></td><td><code>ai-org-router/logs/</code></td><td><code>AI_PALADIN_LOG_DIR</code></td><td>The router, append-only</td></tr>
+  </table>
+  <div class="grid g2" style="margin-top:14px">
+    <div>
+      <h3>See exactly what is in force</h3>
+      <pre><span class="k">$ ai-paladin --where</span>
+config folder  /home/you/.config/ai-paladin
+log folder     /home/you/.local/state/ai-paladin/logs
+  keywords.yaml shipped      a3097554fe59  …/router/keywords.yaml
+  keywords.yaml user overlay 061795deb5d7  …/ai-paladin/keywords.yaml
+  policy.yaml   shipped      fd1af8c6fe4a  …/router/policy.yaml
+  roster.yaml   shipped      f385df6f7dae  …/agents/roster.yaml
+  catalog.yaml  shipped      6c0a56f960bc  …/models/catalog.yaml
+protected      23 terms in 4 groups, 4 paths
+  <span class="w">WEAKENED     removed 'password' from credentials</span></pre>
+    </div>
+    <div>
+      <h3>The rule</h3>
+      <p><strong>Never edit the shipped files to configure your install.</strong> Put your
+      version in your settings folder. The shipped files are replaced on every upgrade;
+      your folder is never touched.</p>
+      <p>The checksum (first 12 characters of SHA-256) lets you prove later which file
+      was in force &mdash; the same line is printed at every start.</p>
+      <p class="note">The demo keeps everything inside the repository so a demo machine
+      leaves nothing behind in your home folder.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3: defaults -->
+<section class="slide">
+  <div class="kicker">Default settings</div>
+  <h2>What you get out of the box, and how to change it</h2>
+  <table class="dense">
+    <tr><th>Setting</th><th>Default</th><th>Change it in</th><th>How</th></tr>
+    <tr><td>Protected terms</td><td>23 terms in 4 groups (next slide)</td><td><code>keywords.yaml</code></td><td>Overlay in your settings folder: add, or remove by name</td></tr>
+    <tr><td>Protected paths</td><td><code>**/.env</code> <code>**/secrets/**</code> <code>**/*.pem</code> <code>**/*.key</code></td><td><code>keywords.yaml</code></td><td>Overlay: <code>add_paths</code> / <code>remove_paths</code></td></tr>
+    <tr><td>Routing posture</td><td><code>slow</code> &mdash; on-prem; escalation is opt-in</td><td>Dashboard, or <code>policy.yaml</code></td><td>Mode cards; start-up default is <code>defaults.mode</code></td></tr>
+    <tr><td>Posture lock</td><td>None &mdash; selectable, every change audited</td><td><code>policy.yaml</code></td><td><code>defaults.lock_mode: sovereign</code> pins it</td></tr>
+    <tr><td>On-prem model internet</td><td>Read-only: <code>GET</code>, <code>QUERY</code></td><td>Dashboard, or <code>policy.yaml</code></td><td>Three buttons; resets to <code>internet_access.default</code> on restart</td></tr>
+    <tr><td>Method switches</td><td>Header checks off &middot; WebDAV off &middot; DELETE on</td><td>Dashboard, or <code>policy.yaml</code></td><td>Chips; reset to <code>method_toggles</code> defaults on restart</td></tr>
+    <tr><td>Web limits</td><td>6 calls/task &middot; 600 KB/response &middot; 15 s timeout</td><td><code>policy.yaml</code></td><td><code>internet_access.limits</code></td></tr>
+    <tr><td>Web domains</td><td><strong>Any public site</strong> &mdash; allowlist empty</td><td><code>policy.yaml</code></td><td><code>internet_access.allow_domains</code>: list domains to allow <em>only</em> those</td></tr>
+    <tr><td>Web search</td><td>DuckDuckGo Lite</td><td><code>policy.yaml</code></td><td><code>internet_access.search.endpoint</code></td></tr>
+    <tr><td>On-prem model</td><td><code>gpt-oss:20b</code>, fallback <code>devstral-small-2</code></td><td>Dashboard picker</td><td>Saved to <code>local_models.yaml</code>; list in <code>catalog.yaml</code></td></tr>
+    <tr><td>Model licences allowed</td><td>Apache-2.0, MIT</td><td><code>catalog.yaml</code></td><td><code>license_allowlist</code></td></tr>
+    <tr><td>Paraphrase gate (sentry)</td><td>On &middot; similarity 0.50 &middot; 150 ms budget</td><td><code>roster.yaml</code></td><td><code>threshold</code>, <code>enabled</code></td></tr>
+    <tr><td>Misspelling gate</td><td>On &middot; similarity 0.85</td><td><code>roster.yaml</code></td><td><code>typo_gate.min_similarity</code></td></tr>
+    <tr><td>BIG-AI (cloud leg)</td><td>Simulated &mdash; labelled SIMULATED on screen</td><td><code>policy.yaml</code></td><td><code>nodes.bigai</code> &mdash; real adapter not built yet</td></tr>
+    <tr><td>Token pricing</td><td>None &mdash; tokens reported, never a guessed $</td><td><code>policy.yaml</code></td><td><code>pricing.price_per_mtok_in</code> / <code>_out</code></td></tr>
+    <tr><td>Port</td><td><code>8722</code>, loopback only</td><td>Command line</td><td><code>ai-paladin --port N</code> or <code>PALADIN_PORT</code></td></tr>
+  </table>
+  <p class="note" style="margin-top:8px"><code>keywords.yaml</code> merges with the shipped file.
+  <code>policy.yaml</code>, <code>roster.yaml</code> and <code>catalog.yaml</code> in your settings folder
+  <strong>replace</strong> the shipped file whole. Dashboard settings for internet access are deliberately
+  not saved: every restart begins at the file's default.</p>
+</section>
+
+<!-- 4: shipped terms -->
+<section class="slide">
+  <div class="kicker">Protected terms &middot; shipped defaults</div>
+  <h2>Small and generic on purpose</h2>
+  <p class="lead">A prompt &mdash; or any file it would carry &mdash; that matches a protected term runs
+  <strong>on-prem, in every posture, before any socket opens</strong>. The shipped list covers what
+  almost everyone protects. What is secret to <em>your</em> organisation, you add.</p>
+  <div class="grid g4" style="margin-top:6px">
+    <div class="card"><span class="tag rem" style="background:#fbe2df">critical</span>
+      <h3>Classification markings</h3>
+      <div class="terms">classified &middot; top secret &middot; noforn &middot; controlled unclassified</div></div>
+    <div class="card"><span class="tag rem" style="background:#fbe2df">critical</span>
+      <h3>Secrets &amp; credentials</h3>
+      <div class="terms">api_key &middot; api key &middot; secret_key &middot; private key &middot; password &middot; credential &middot; .env &middot; bearer token</div></div>
+    <div class="card"><span class="tag lim">high</span>
+      <h3>Customer data / PII</h3>
+      <div class="terms">customer list &middot; customer data &middot; pii &middot; ssn &middot; social security &middot; patient record &middot; cardholder</div></div>
+    <div class="card"><span class="tag rep">medium</span>
+      <h3>Internal infrastructure</h3>
+      <div class="terms">internal.local &middot; vpn config &middot; prod database &middot; kubeconfig</div></div>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3>How matching works</h3><p>Case-insensitive. A single word matches whole
+      words only, so <code>pii</code> does not fire inside "happiness". Phrases match anywhere.</p></div>
+    <div class="card"><h3>Beyond exact words</h3><p>The sentry catches paraphrases ("our price calculation
+      logic" for "pricing engine"); the misspelling gate catches "pricng engnie". Both can only
+      <strong>add</strong> a match, never clear one.</p></div>
+    <div class="card"><h3>The demo's terms</h3><p>nightjar, pricing engine, unreleased earnings and the rest
+      are not defaults. They live in the demo overlay, <code>ai-org-router/config/keywords.yaml</code>.</p></div>
+  </div>
+</section>
+
+<!-- 5: overlay -->
+<section class="slide">
+  <div class="kicker">Protected terms &middot; your overlay</div>
+  <h2>Your keywords.yaml lists changes, not a copy</h2>
+  <div class="grid g2">
+    <div>
+      <pre><span class="c"># ~/.config/ai-paladin/keywords.yaml</span>
+
+<span class="k">groups:</span>                    <span class="c"># new groups, in full</span>
+  - group: projects
+    label: Our projects
+    severity: critical      <span class="c"># critical|high|medium|low</span>
+    terms: ["project falcon", "falcon-v2"]
+
+<span class="k">add_terms:</span>                 <span class="c"># extend any group</span>
+  credentials: ["vault token"]
+
+<span class="k">add_paths:</span>
+  - "**/falcon/**"
+
+<span class="k">remove_terms:</span>              <span class="c"># removes protection</span>
+  credentials: ["password"]
+
+<span class="k">remove_groups:</span> []          <span class="c"># whole groups</span>
+<span class="k">remove_paths:</span>  []</pre>
+    </div>
+    <div>
+      <div class="card ok" style="margin-bottom:10px"><span class="tag add">adds protection</span>
+        <p><code>groups</code>, <code>add_terms</code> and <code>add_paths</code> only ever add. Duplicates are
+        ignored, ignoring case.</p></div>
+      <div class="card bad" style="margin-bottom:10px"><span class="tag rem">removes protection</span>
+        <p><code>remove_terms</code>, <code>remove_groups</code> and <code>remove_paths</code> are the
+        <strong>only</strong> way to remove anything. Leaving a term out of your file removes nothing.</p></div>
+      <h3>What the router prints when it starts</h3>
+      <pre>rules     23 protected terms, 4 protected paths
+          keywords.yaml user overlay 061795deb5d7
+          <span class="w">WEAKENED  removed 'password' from credentials</span>
+          1 additions from the user overlay</pre>
+      <p class="note" style="margin-top:8px">The same removal is written to the audit log
+      (topic <code>rules.weakened</code>) and returned by <code>/api/config</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6: overlay rules -->
+<section class="slide">
+  <div class="kicker">Protected terms &middot; the rules</div>
+  <h2>Five rules the overlay follows</h2>
+  <div class="grid g2">
+    <div class="card"><h3>1 &middot; Updates still reach you</h3><p>Your file holds only your changes. When a
+      new version ships a new default term, you get it on upgrade &mdash; unless you named it under
+      <code>remove_terms</code>.</p></div>
+    <div class="card"><h3>2 &middot; Removing is explicit</h3><p>A shipped term or group goes away only when you
+      name it. There is no "replace the whole list" switch for keywords.</p></div>
+    <div class="card"><h3>3 &middot; Removing is reported</h3><p>Every removal is printed as WEAKENED at start,
+      logged, and shown by the API. Removing something that is not there is a note, not an error.</p></div>
+    <div class="card"><h3>4 &middot; Mistakes stop the router</h3><p>An unknown key, a group that does not
+      exist, a list that is not a list, a bad severity, or YAML that does not parse: the router
+      <strong>refuses to start</strong> and names the file.</p></div>
+    <div class="card"><h3>5 &middot; Reload is safe</h3><p>Changed your file while the router runs?
+      <code>curl -X POST http://127.0.0.1:8722/api/reload</code>, or restart. If the new file has a
+      mistake, the previous rules stay in force and a critical notification says why.</p></div>
+    <div class="card"><h3>New groups need a definition</h3><p>A group you invent goes under <code>groups</code>
+      with an id, label, severity and terms. <code>add_terms</code> can then extend it, like any
+      shipped group.</p></div>
+  </div>
+</section>
+
+<!-- 7: whole-file -->
+<section class="slide">
+  <div class="kicker">Policy, roster, catalog &middot; and the security rules</div>
+  <h2>These are replaced whole</h2>
+  <p class="lead">Put a <code>policy.yaml</code>, <code>roster.yaml</code> or <code>catalog.yaml</code> &mdash; or
+  <code>commands.yaml</code>, <code>packages.yaml</code>, <code>behavioral_rules.yaml</code> (slide 14) &mdash; in your
+  settings folder and it is used <strong>instead of</strong> the shipped one, all of it.</p>
+  <div class="grid g3">
+    <div class="card"><span class="tag rep">policy.yaml</span><h3>Postures &amp; internet</h3><p>The four
+      postures, the start-up posture and its lock, internet access, method switches, web limits,
+      search engine, BIG-AI and pricing.</p></div>
+    <div class="card"><span class="tag rep">roster.yaml</span><h3>Subagents</h3><p>sentry (paraphrase gate),
+      clerk (triage), engineer (on-prem execution), consultant (BIG-AI). Models, budgets,
+      thresholds, the misspelling gate.</p></div>
+    <div class="card"><span class="tag rep">catalog.yaml</span><h3>Models offered</h3><p>Which models the
+      picker shows, the default and fallback, and the licence allowlist.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div>
+      <h3>How to start</h3>
+      <pre><span class="k">$ mkdir -p ~/.config/ai-paladin</span>
+<span class="k">$ cp ai-org-router/router/policy.yaml ~/.config/ai-paladin/</span>
+<span class="c"># edit your copy, then restart</span>
+<span class="k">$ ai-paladin --where</span>
+  policy.yaml   user   1c0e9b2a77d4  ~/.config/ai-paladin/policy.yaml</pre>
+    </div>
+    <div class="card warn"><span class="tag lim">the trade-off</span>
+      <p><strong>Why whole files:</strong> a merge would let a missing or misspelt key silently change a
+      security setting. A whole file is one thing to read and one checksum to record.</p>
+      <p><strong>The cost:</strong> your copy does not receive improvements to the shipped file. After an
+      upgrade, compare your copy with the new shipped one and carry over what you want.</p></div>
+  </div>
+</section>
+
+<!-- 8: postures -->
+<section class="slide">
+  <div class="kicker">Routing posture &middot; policy.yaml &middot; dashboard mode cards</div>
+  <h2>Where unprotected work goes</h2>
+  <p>Protected work always runs on-prem. The posture decides only what happens to work that does
+  <strong>not</strong> match a protected term or path.</p>
+  <table>
+    <tr><th>Posture</th><th>Unprotected work goes to</th><th>Before anything leaves</th></tr>
+    <tr><td><code>sovereign</code></td><td>On-prem &mdash; nowhere else is reachable</td><td>Nothing can leave: the egress guard refuses every non-loopback connection from the router process, name lookups included</td></tr>
+    <tr><td><code>slow</code> <span class="note">(default)</span></td><td>On-prem; escalation is an opt-in</td><td>A person confirms</td></tr>
+    <tr><td><code>fast</code></td><td>BIG-AI</td><td>A person confirms</td></tr>
+    <tr><td><code>superfast</code></td><td>BIG-AI, minimal payload</td><td>A person confirms, after a window that itemises every byte</td></tr>
+  </table>
+  <div class="grid g2" style="margin-top:12px">
+    <div>
+      <h3>Pin the posture for an organisation</h3>
+      <pre><span class="c"># ~/.config/ai-paladin/policy.yaml (your copy)</span>
+<span class="k">defaults:</span>
+  mode: sovereign
+  lock_mode: sovereign   <span class="c"># mode bar greys out; API refuses others</span></pre>
+    </div>
+    <div class="card"><h3>Every change is audited</h3><p>Each posture change is logged with who made it.
+      Lifting <code>sovereign</code> is logged as critical. The sovereign guard covers <strong>the router's
+      own process</strong> &mdash; not the rest of the machine. It is not a host firewall and not an air gap.</p></div>
+  </div>
+</section>
+
+<!-- 9: internet -->
+<section class="slide">
+  <div class="kicker">Internet access for the on-prem model &middot; policy.yaml &middot; dashboard</div>
+  <h2>Three settings, three switches</h2>
+  <div class="grid g2">
+    <div>
+      <table>
+        <tr><th>Setting</th><th>In plain terms</th><th>Methods</th></tr>
+        <tr><td><code>no-external-network-io</code></td><td>LLM: training plus your files. No web.</td><td>none</td></tr>
+        <tr><td><code>READ-ONLY</code> <span class="note">(default)</span></td><td>RAG: looks things up; cannot write</td><td><code>GET</code> <code>QUERY</code></td></tr>
+        <tr><td><code>READ/WRITE</code></td><td>Bot: forms, write APIs, sign-in</td><td>+ <code>POST</code> <code>PUT</code> <code>PATCH</code> <code>DELETE</code></td></tr>
+      </table>
+      <p class="note" style="margin-top:8px">Most restrictive wins: <code>sovereign</code> forces no network;
+      a task that matched a protected term is lowered from read/write to read-only;
+      <code>internet_access.lock</code> pins the setting. Not saved: every restart starts at
+      <code>internet_access.default</code>.</p>
+    </div>
+    <div>
+      <table>
+        <tr><th>Switch</th><th>Adds</th><th>Default</th></tr>
+        <tr><td>Header checks</td><td><code>HEAD</code> <code>OPTIONS</code></td><td>off</td></tr>
+        <tr><td>WebDAV</td><td>file shares, calendars, versioning</td><td>off</td></tr>
+        <tr><td>DELETE</td><td><code>DELETE</code> in read/write</td><td>on</td></tr>
+      </table>
+      <div class="card" style="margin-top:10px"><h3>Limits &middot; <code>internet_access.limits</code></h3>
+        <p>6 web calls per task &middot; 600,000 bytes read per response &middot; 5,000 characters handed back per
+        call &middot; 300-character queries &middot; 4,000-character request bodies &middot; 15 s timeout. Ports 80
+        and 443 on public addresses only &mdash; never loopback, the LAN or link-local.</p></div>
+      <div class="card warn" style="margin-top:10px"><h3>Domain allowlist &middot; <code>internet_access.allow_domains</code></h3>
+        <p><strong>Empty (the default): any public website.</strong> List domains and <em>only</em> those
+        &mdash; and their subdomains &mdash; can be reached; anything else is refused and logged. Include
+        <code>lite.duckduckgo.com</code> or web search stops.</p></div>
+      <p class="note" style="margin-top:8px">Everything the model sends out passes the protected-term
+      gate. More than 3 refused requests in one task stop its web tools (fence-probing).
+      <code>TRACE</code>, <code>CONNECT</code>, <code>PRI</code> can never be enabled.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10: models -->
+<section class="slide">
+  <div class="kicker">On-prem model &middot; catalog.yaml &middot; dashboard model picker</div>
+  <h2>Pick a model; AI-Paladin never downloads one</h2>
+  <div class="grid g3">
+    <div class="card"><h3>The picker</h3><p>Choose the on-prem model in the dashboard. The choice is saved
+      to <code>local_models.yaml</code> in your settings folder and survives restarts.</p></div>
+    <div class="card"><h3>The catalog</h3><p><code>catalog.yaml</code> lists what the picker offers, the
+      <code>default</code> (<code>gpt-oss:20b</code>) and the <code>fallback</code>
+      (<code>devstral-small-2</code>).</p></div>
+    <div class="card"><h3>The licence allowlist</h3><p>Only models whose licence is on
+      <code>license_allowlist</code> (Apache-2.0, MIT) can be selected. Others are shown, but greyed out.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card warn"><span class="tag lim">downloading is egress</span>
+      <p>The router never pulls a model &mdash; that would be the router reaching the internet on its own.
+      A model you have not installed is shown with the exact command for <strong>a person</strong> to run,
+      outside the sovereign posture:</p>
+      <pre style="margin-top:6px"><span class="k">$ ollama pull gpt-oss:20b</span></pre></div>
+    <div>
+      <h3>Air-gapped machines</h3>
+      <p>Pull on a connected machine, then copy <code>~/.ollama/models</code> across. Ollama is a separate
+      program: AI-Paladin does not install it, and its own network access is outside AI-Paladin's guard.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11: accounts -->
+<section class="slide">
+  <div class="kicker">Web sign-in accounts &middot; web_accounts.yaml</div>
+  <h2>Secrets the model can use but never see</h2>
+  <div class="grid g2">
+    <div>
+      <pre><span class="c"># ~/.config/ai-paladin/web_accounts.yaml</span>
+<span class="k">accounts:</span>
+  github:
+    domains: [github.com]
+    fields: {login: "...", password: "..."}</pre>
+      <pre style="margin-top:10px"><span class="k">$ chmod 600 ~/.config/ai-paladin/web_accounts.yaml</span></pre>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:10px"><h3>How it is used</h3><p>Only in READ/WRITE. The model names
+        an account; the router fills the fields. The model never receives the values.</p></div>
+      <div class="card" style="margin-bottom:10px"><h3>Bound to its domains</h3><p>An account is only ever sent
+        to a host on its own <code>domains</code> list. Asking to use it anywhere else is refused and logged.</p></div>
+      <div class="card warn"><h3>Keep it private</h3><p>If other users on the machine can read the file, the
+        router prints a WARNING at every start until you <code>chmod 600</code> it. The file is never
+        committed: the demo's copy is gitignored.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12: logs -->
+<section class="slide">
+  <div class="kicker">Audit logs</div>
+  <h2>What is recorded, and where</h2>
+  <table>
+    <tr><th>File</th><th>Records</th></tr>
+    <tr><td><code>events.jsonl</code></td><td>Everything the console shows: phases, policy decisions, subagent scans, posture changes, web calls</td></tr>
+    <tr><td><code>notifications.jsonl</code></td><td>The notification screen, including <code>rules.weakened</code> at start</td></tr>
+    <tr><td><code>metrics.jsonl</code></td><td>Per-task routing decisions, token use, egress records</td></tr>
+    <tr><td><code>server.log</code> <span class="note">(demo)</span></td><td>The start-up banner, including the egress self-test. Rewritten on each <code>run_demo.sh</code> start</td></tr>
+  </table>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3>Never in git</h3><p>Logs record what people type. They live in your log folder
+      and are gitignored in the demo. Back them up from the machine, not from a repository.</p></div>
+    <div class="card"><h3>A sample to read</h3><p><code>ai-org-router/logs.example/</code> holds a reviewed demo
+      session. <code>./run_demo.sh --with-sample-logs</code> copies it into an <em>empty</em> log folder &mdash;
+      never ahead of real records.</p></div>
+    <div class="card"><h3>Where the sample ends</h3><p>Each sample file ends with a
+      <code>{"kind": "sample-end"}</code> record marked <code>--sample-logfile--ends-here----</code>.
+      Everything below it happened on your machine.</p></div>
+  </div>
+</section>
+
+<!-- 13: running -->
+<section class="slide">
+  <div class="kicker">Running it</div>
+  <h2>Commands</h2>
+  <div class="grid g2">
+    <table>
+      <tr><th>Command</th><th>Does</th></tr>
+      <tr><td><code>pip install -e .</code></td><td>From the repo root: installs the <code>ai-paladin</code> command</td></tr>
+      <tr><td><code>ai-paladin</code></td><td>Start with your settings and logs</td></tr>
+      <tr><td><code>ai-paladin --demo</code></td><td>Start with the repo's <code>config/</code> and <code>logs/</code></td></tr>
+      <tr><td><code>ai-paladin --where</code></td><td>Show every file in force, then exit</td></tr>
+      <tr><td><code>ai-paladin --port 8800</code></td><td>Listen on another port</td></tr>
+      <tr><td><code>python3 -m ai_paladin</code></td><td>The same, without installing</td></tr>
+    </table>
+    <table>
+      <tr><th>Demo script</th><th>Does</th></tr>
+      <tr><td><code>./run_demo.sh</code></td><td>Start the demo &rarr; http://localhost:8722</td></tr>
+      <tr><td><code>./run_demo.sh --with-sample-logs</code></td><td>&hellip; and seed an empty log folder</td></tr>
+      <tr><td><code>./run_demo.sh restart</code></td><td>Stop, then start</td></tr>
+      <tr><td><code>./stop_demo.sh</code></td><td>Stop router, unload models, stop Ollama</td></tr>
+      <tr><td><code>./stop_demo.sh --keep-ollama</code></td><td>&hellip; but leave Ollama running</td></tr>
+      <tr><td><code>./stop_demo.sh --router-only</code></td><td>Stop the router only</td></tr>
+    </table>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>Environment variable</th><th>Default</th><th>Does</th></tr>
+    <tr><td><code>AI_PALADIN_CONFIG_DIR</code></td><td><code>~/.config/ai-paladin</code></td><td>Your settings folder</td></tr>
+    <tr><td><code>AI_PALADIN_LOG_DIR</code></td><td><code>~/.local/state/ai-paladin/logs</code></td><td>Your log folder</td></tr>
+    <tr><td><code>PALADIN_PORT</code></td><td><code>8722</code></td><td>Port, same as <code>--port</code></td></tr>
+    <tr><td><code>PALADIN_PYTHON</code></td><td>first <code>python3</code> with PyYAML</td><td>Interpreter <code>run_demo.sh</code> uses</td></tr>
+  </table>
+</section>
+
+<!-- 14: hook -->
+<section class="slide">
+  <div class="kicker">Coding agents &middot; security/policies &middot; security/monitors</div>
+  <h2>The Claude Code hook</h2>
+  <p class="lead">These rules govern a <strong>coding agent</strong>: shell commands, file writes, package
+  installs. They are enforced by a PreToolUse hook that Claude Code runs before every tool call &mdash;
+  <strong>once you install it</strong>. Refused calls never run; the agent is told why.</p>
+  <div class="grid g2">
+    <table class="dense">
+      <tr><th>Rule</th><th>File</th><th>Refuses</th></tr>
+      <tr><td>Blocked commands</td><td><code>commands.yaml</code></td><td><code>rm -rf /</code>, <code>curl … | bash</code>, <code>nc -l</code>, <code>history -c</code>, encryption tools</td></tr>
+      <tr><td>Write scope</td><td><code>commands.yaml</code></td><td>File writes outside the project or into <code>/etc</code>, <code>~/.ssh</code>, backups, <code>.git/objects</code></td></tr>
+      <tr><td>Packages</td><td><code>packages.yaml</code></td><td>Installs not on the allowlist, unpinned, or from URLs / files</td></tr>
+      <tr><td>Credentials</td><td><code>behavioral_rules.yaml</code></td><td>Reading or naming <code>.ssh</code>, <code>.aws</code>, <code>.env</code></td></tr>
+      <tr><td>mass-file-touch</td><td><code>behavioral_rules.yaml</code></td><td>Writes past 200 in 60 s</td></tr>
+      <tr><td>fence-probing</td><td><code>behavioral_rules.yaml</code></td><td><strong>Everything</strong>, after more than 3 refusals, until a person releases the session</td></tr>
+      <tr><td>hook-tamper</td><td><code>behavioral_rules.yaml</code></td><td>The agent switching the guard off: editing Claude's settings or AI-Paladin's config, <code>--release</code>, <code>--uninstall</code></td></tr>
+    </table>
+    <div>
+      <pre><span class="c"># a person turns it on and off - not the router</span>
+<span class="k">$ ai-paladin-hook --install</span>          <span class="c"># this project</span>
+<span class="k">$ ai-paladin-hook --install --user</span>   <span class="c"># every project</span>
+<span class="k">$ ai-paladin-hook --status</span>
+<span class="k">$ ai-paladin-hook --release SESSION_ID</span>
+<span class="k">$ ai-paladin uninstall</span>             <span class="c"># removes it all</span></pre>
+      <p class="note" style="margin-top:8px"><strong>Independent of the router</strong>: stopping the router does
+      not switch it off &mdash; otherwise that would be the way past every rule. Fails closed: if the hook cannot
+      run at all, the call is refused and Claude Code shows how to recover (next slide). Every
+      decision is written to <code>hooks.jsonl</code> in your log folder. Each rule's <code>enforced:</code> line
+      in <code>behavioral_rules.yaml</code> says exactly what it covers. Full guide:
+      <code>ai-org-router/hooks/README.md</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 15: hook on/off -->
+<section class="slide">
+  <div class="kicker">Coding agents &middot; turning the hook on and off</div>
+  <h2>A person turns it on. A person turns it off.</h2>
+  <div class="grid g2" style="grid-template-columns:1.05fr .95fr">
+    <div>
+      <table class="dense">
+        <tr><th></th><th>Router</th><th>Claude Code hook</th></tr>
+        <tr><td>On</td><td><code>ai-paladin</code> / <code>./run_demo.sh</code></td><td><code>ai-paladin-hook --install</code></td></tr>
+        <tr><td>Off</td><td>Stop it</td><td><code>ai-paladin-hook --uninstall</code></td></tr>
+        <tr><td>Guards</td><td>Its own process only</td><td>Claude Code's tool calls only</td></tr>
+        <tr><td>Needs the other?</td><td>No</td><td><strong>No</strong> &mdash; reads the rules from disk</td></tr>
+      </table>
+      <h3 style="margin-top:12px">Step by step</h3>
+      <pre><span class="c"># run these in the project you want guarded</span>
+<span class="c"># 1. on - this project, or every project</span>
+<span class="k">$ ai-paladin-hook --install</span>
+<span class="k">$ ai-paladin-hook --install --user</span>
+<span class="c">#    start a new Claude Code session to pick it up</span>
+
+<span class="c"># 2. check</span>
+<span class="k">$ ai-paladin-hook --status</span>
+
+<span class="c"># 3. off, keep AI-Paladin - one project, or everywhere</span>
+<span class="k">$ ai-paladin-hook --uninstall</span>
+<span class="k">$ ai-paladin-hook --uninstall --all</span>
+
+<span class="c"># 4. remove AI-Paladin - hook everywhere first, then</span>
+<span class="c">#    the package. NOT a plain pip uninstall.</span>
+<span class="k">$ ai-paladin uninstall</span></pre>
+      <p class="note" style="margin-top:6px">Not installed with pip? Use the file by its full path, still from
+      your project: <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --install</code></p>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:9px"><h3>Where --install writes</h3><p>This project:
+        <code>.claude/settings.local.json</code> &mdash; personal, not committed. With <code>--user</code>:
+        <code>~/.claude/settings.json</code> &mdash; every project. Your other settings are kept, the old file is
+        saved as <code>.bak</code>, installing twice never adds a second entry, and an unreadable settings file
+        is left untouched.</p></div>
+      <div class="card warn" style="margin-bottom:9px"><span class="tag lim">order matters</span>
+        <h3>Why not a plain pip uninstall?</h3><p>pip runs nothing while removing a package, so it cannot take
+        the hook out or warn you. A hook that cannot start <strong>refuses</strong> the call, so a leftover entry
+        makes Claude Code refuse <strong>every</strong> tool call &mdash; its message names the file to fix.
+        <code>ai-paladin uninstall</code> finds every recorded install, removes the hook from each, stops if any
+        cannot be removed, then uninstalls (via pipx if that is how it was installed) and ends with an
+        all-caps confirmation.</p></div>
+      <div class="card bad" style="margin-bottom:9px"><h3>Already removed it? Recover from a terminal</h3><p>Claude
+        Code itself is blocked, so use an ordinary terminal <strong>in the guarded project</strong>:
+        <code>python3 /path/to/AI-Paladin/ai-org-router/hooks/pre_tool_use.py --uninstall</code> (add
+        <code>--user</code> if you installed it for every project). Folder gone too? Delete the
+        <code>pre_tool_use.py</code> entry under <code>hooks.PreToolUse</code> in the settings file by hand.</p></div>
+      <div class="card ok"><h3>Why stopping the router does not switch it off</h3><p>If it did, stopping the
+        router would be the way past every rule &mdash; and an agent can stop a process. The hook also refuses an
+        agent that runs <code>--uninstall</code> or <code>--release</code>, edits Claude Code's settings or
+        AI-Paladin's config, or runs <code>pip uninstall ai-paladin</code> (rule <code>hook-tamper</code>).</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 16: limits -->
+<section class="slide">
+  <div class="kicker">Honest limits &middot; v0.1.0</div>
+  <h2>What these settings do not do</h2>
+  <div class="grid g2">
+    <div class="card bad"><h3>The guard is process-level</h3><p>The egress guard covers every connection the
+      router's own process opens. It does not cover VS Code, your browser, Ollama or anything else on the
+      machine. It is not a host firewall and not an air gap.</p></div>
+    <div class="card bad"><h3>Single user, no sign-in</h3><p>The router listens on 127.0.0.1 only and has no
+      authentication. It is built for one person on one machine, not as a shared service.</p></div>
+    <div class="card warn"><h3>The hook is a tripwire</h3><p>It reads tool calls, not what a command does
+      once it runs; variables and scripts can hide a command. Bash file writes are not scoped; package
+      checksums, the approval queue and extension-rewrite detection are not enforced yet. Use a sandbox too.</p></div>
+    <div class="card warn"><h3>BIG-AI is simulated</h3><p>The cloud leg streams a labelled stub with modelled
+      latency. The real adapter is not built yet.</p></div>
+    <div class="card warn"><h3>No machine-wide lock yet</h3><p>A user can change their own settings, including
+      removing protection &mdash; visibly. An administrator layer that a user cannot weaken
+      (<code>/etc/ai-paladin/</code>) is planned, not built.</p></div>
+    <div class="card"><h3>Editable install only</h3><p><code>ai-paladin</code> runs from a source checkout today.
+      PyPI, VS Code Marketplace and Ubuntu packages are planned; see <code>DISTRIBUTION/</code>.</p></div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+# =============================================================================
+# PROTECTED TERMS - KEYWORD GATE (shipped defaults)
+# =============================================================================
+# This file is the MVP rules engine. If a prompt (or any file the prompt would
+# carry with it) matches ANY term below, the task is pinned to on-prem.
+#
+# THIS IS AN INVARIANT, NOT A PREFERENCE. It holds in every routing mode,
+# including superfast-risky. The mode only decides what happens to traffic
+# that does NOT match.
+#
+# Gates are data, not prompt instructions: a manipulated agent can ignore
+# "please keep this internal"; it cannot ignore a router that never opens
+# the socket.
+#
+# THESE ARE THE SHIPPED DEFAULTS - deliberately small and generic. Do not edit
+# this file to configure your own install: put your changes in
+# ~/.config/ai-paladin/keywords.yaml, an overlay that adds terms and groups,
+# and can remove a shipped term only by naming it (remove_terms /
+# remove_groups). Every removal is reported at boot as WEAKENED and written to
+# the audit log. Because the overlay holds only your changes, updates to these
+# defaults reach you on upgrade. See ai_paladin/config_layers.py.
+#
+# The demo's own terms (nightjar, pricing engine, unreleased earnings, ...)
+# are not defaults. They live in the demo overlay, config/keywords.yaml,
+# which ./run_demo.sh loads.
+# =============================================================================
+
+version: 2
+updated: 2026-11-24
+
+# Terms are matched case-insensitively against the prompt and against the
+# content of any file staged for egress. Single-word terms match whole words
+# only ("pii" does not fire inside "happiness").
+protected_terms:
+
+  - group: classification-markings
+    label: Government classification markings
+    severity: critical
+    terms:
+      - classified
+      - top secret
+      - noforn
+      - controlled unclassified
+
+  - group: credentials
+    label: Secrets & Credentials
+    severity: critical
+    terms:
+      - api_key
+      - api key
+      - secret_key
+      - private key
+      - password
+      - credential
+      - .env
+      - bearer token
+
+  - group: customer-data
+    label: Customer / PII
+    severity: high
+    terms:
+      - customer list
+      - customer data
+      - pii
+      - ssn
+      - social security
+      - patient record
+      - cardholder
+
+  - group: infrastructure
+    label: Internal Infrastructure
+    severity: medium
+    terms:
+      - internal.local
+      - vpn config
+      - prod database
+      - kubeconfig
+
+# The rules files enumerate protected terms BY DEFINITION. Scanning them would
+# match every task and pin everything on-prem for the wrong reason - the gate
+# must not trip on its own definition of the gate. Excluded from staging and
+# from content scanning.
+scan_exclude:
+  - "*/router/keywords.yaml"
+  - "*/router/policy.yaml"
+  - "*/config/keywords.yaml"
+  - "*/security/policies/*.yaml"
+  - "*/security/monitors/*.yaml"
+  - "router/keywords.yaml"
+  - "router/policy.yaml"
+  - "config/keywords.yaml"
+  - "ai-paladin/router/keywords.yaml"
+  - "ai-paladin/router/policy.yaml"
+  - "ai-paladin/config/keywords.yaml"
+  - "ai-paladin/security/policies/*.yaml"
+  - "ai-paladin/security/monitors/*.yaml"
+
+# Paths whose CONTENTS are protected regardless of the words inside them.
+protected_paths:
+  - "**/.env"
+  - "**/secrets/**"
+  - "**/*.pem"
+  - "**/*.key"
+
+# ---------------------------------------------------------------------------
+# NON-MVP - roadmap, parsed and displayed in the UI but NOT enforced tonight.
+# The full boolean + fuzzy rules engine.
+# ---------------------------------------------------------------------------
+rules_engine_roadmap:
+  enabled: false
+  note: >
+    Post-MVP: boolean composition (must_contain / cannot_contain / any / all /
+    and / or / not) plus inexact string matching, so a one-character
+    misspelling ("nightjr", "pricng engine") still trips the gate instead of
+    sailing out to BIG-AI. Edit distance <= 2 or similarity >= 0.85 scores as
+    a match, with the near-miss surfaced to the ops dashboard as an evasion
+    signal.
+  example_rules:
+    - id: alpha-ip-strict
+      all:
+        - any: ["nightjar", "alpha-ip"]
+        - not: { any: ["public", "press release"] }
+      fuzzy:
+        algorithm: damerau-levenshtein
+        max_distance: 2
+        min_similarity: 0.85

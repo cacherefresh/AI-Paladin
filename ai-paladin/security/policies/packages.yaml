@@ -1,0 +1,41 @@
+# =============================================================================
+# SUPPLY-CHAIN GATE - package installs by a coding agent (Claude Code)
+# =============================================================================
+# ENFORCED BY: the Claude Code PreToolUse hook, ai_paladin/hook.py, when it is
+# installed (hooks/README.md). It inspects Bash commands that install
+# packages - pip / pip3 / python -m pip / uv pip, npm / pnpm / yarn,
+# cargo add, poetry add - before they run.
+#
+# What is enforced, and what is not:
+#   default: block           ENFORCED - a package not on the allowlist is
+#                            refused. Approval means a person adds it to the
+#                            allowlist below.
+#   require_pinned_version   ENFORCED - pip needs ==x.y.z, npm needs @x.y.z.
+#   block_install_from_url   ENFORCED - URLs, git+, local paths, -e and
+#                            requirement files (-r) are refused.
+#   require_checksum         NOT ENFORCED in v0.1.0 - the hook does not
+#                            verify hashes.
+#   approval (below)         NOT ENFORCED in v0.1.0 - there is no approval
+#                            queue or ops dashboard yet; refusals are logged.
+#
+# A copy of this file in your settings folder replaces it whole.
+# =============================================================================
+policy:
+  default: block
+  require_pinned_version: true
+  require_checksum: true          # NOT ENFORCED - see above
+  block_install_from_url: true
+
+# A requested version must match the allowlisted one (shell-style wildcards).
+allowlist:
+  pip:
+    - name: requests
+      version: "2.32.*"
+    - name: fastapi
+      version: "0.115.*"
+  npm: []
+  cargo: []
+
+approval:                         # NOT ENFORCED - see above
+  approvers: ["security-lead"]
+  log_all_requests: true
